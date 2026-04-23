@@ -125,6 +125,10 @@ struct RootTabView: View {
                             showingQuickActions = false
                         }
                     }
+                    .accessibilityElement()
+                    .accessibilityLabel("关闭快捷新建菜单")
+                    .accessibilityHint("轻点收起快捷新建菜单")
+                    .accessibilityAddTraits(.isButton)
                     .transition(.opacity)
             }
 
@@ -298,6 +302,7 @@ struct RootTabView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .accessibilityElement(children: .contain)
     }
 
     private func toggleQuickActions() {
