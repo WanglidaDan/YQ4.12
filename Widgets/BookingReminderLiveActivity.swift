@@ -299,35 +299,6 @@ struct BookingReminderLiveActivity: Widget {
         }
     }
 
-    @ViewBuilder
-    private func detailCard(
-        title: String,
-        value: String,
-        lineLimit: Int = 1,
-        state: BookingReminderActivityAttributes.ContentState
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(secondaryTextColor(for: state))
-
-            Text(value.isEmpty ? "暂无" : value)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(primaryTextColor(for: state))
-                .lineLimit(lineLimit)
-                .minimumScaleFactor(0.8)
-                .fixedSize(horizontal: false, vertical: lineLimit > 1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(primaryTextColor(for: state).opacity(0.06), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(primaryTextColor(for: state).opacity(0.10), lineWidth: 1)
-        }
-    }
-
     private func cardBackground(for state: BookingReminderActivityAttributes.ContentState) -> some View {
         RoundedRectangle(cornerRadius: 28)
             .fill(backgroundGradient(for: state))
@@ -370,11 +341,6 @@ struct BookingReminderLiveActivity: Widget {
 
     private func accentColor(for state: BookingReminderActivityAttributes.ContentState) -> Color {
         Color(uiColor: state.themeStyle.palette.primaryLight)
-    }
-
-    private func panelBackgroundColor(for state: BookingReminderActivityAttributes.ContentState) -> Color {
-        let palette = state.themeStyle.palette
-        return Color(uiColor: palette.surfaceLight.mixed(with: palette.primaryLight, ratio: 0.12)).opacity(0.92)
     }
 
     private func primaryTextColor(for state: BookingReminderActivityAttributes.ContentState) -> Color {

@@ -305,124 +305,6 @@ struct SettingsView: View {
         }
     }
 
-    private var workspaceSection: some View {
-        settingsCard(title: "个人与工作模式", subtitle: "先定义你是谁，以及工作台如何识别你的分工。") {
-            settingsToggleRow(title: "团队模式", subtitle: "开启后可以按成员分配拍摄任务。", isOn: $draftSettings.studioModeEnabled)
-
-            settingsToggleRow(title: "高亮我的分工", subtitle: "在工作台优先显示属于我的安排。", isOn: $draftSettings.crewLensEnabled)
-                .disabled(draftSettings.studioModeEnabled == false)
-
-            settingsPickerRow(title: "当前成员") {
-                Picker("当前成员", selection: $draftSettings.currentCrewMemberID) {
-                    Text("未选择").tag(Optional<UUID>.none)
-                    ForEach(store.activeCrewMembers) { member in
-                        Text(member.displayName).tag(Optional(member.id))
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
-            settingsTextField(title: "临时成员名", text: $draftSettings.currentMemberName, prompt: "兼容旧数据或临时身份")
-                .disabled(draftSettings.studioModeEnabled == false)
-        }
-    }
-
-    private var studioProfileSection: some View {
-        settingsCard(title: "工作室信息", subtitle: "这些信息会用于文档、报价和对外展示。") {
-            settingsTextField(title: "工作室名称", text: $draftStudioProfile.displayName, prompt: "例如 影期摄影工作室")
-            settingsTextField(title: "公司主体", text: $draftStudioProfile.legalName, prompt: "用于合同或发票抬头")
-            settingsTextField(title: "联系电话", text: $draftStudioProfile.contactPhone, prompt: "用于客户联络")
-                .keyboardType(.phonePad)
-            settingsTextField(title: "联系邮箱", text: $draftStudioProfile.contactEmail, prompt: "用于业务往来")
-                .keyboardType(.emailAddress)
-                .textInputAutocapitalization(.never)
-            settingsTextField(title: "所在城市", text: $draftStudioProfile.city, prompt: "例如 上海")
-            settingsTextField(title: "详细地址", text: $draftStudioProfile.address, prompt: "用于合同与定位说明")
-            settingsTextEditor(title: "备注", text: $draftStudioProfile.notes, prompt: "补充品牌或业务说明")
-        }
-    }
-
-    private var appearanceSection: some View {
-        settingsCard(title: "外观与主题", subtitle: "保留原有主题能力，改成更清楚的横向选择。") {
-            AppInlineNote(systemImage: "paintpalette.fill", text: "视觉系统已统一为 studio minimal 语法，这里只调整主色倾向。")
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(AppThemeStyle.allCases) { style in
-                        Button {
-                            draftSettings.themeStyle = style
-                            AppHaptics.tapLight()
-                        } label: {
-                            ThemeStyleCard(style: style, isSelected: draftSettings.themeStyle == style)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-        }
-    }
-
-    private var businessDefaultsSection: some View {
-        settingsCard(title: "业务默认值", subtitle: "影响新建档期、收款和业务文案的默认状态。") {
-            settingsTextField(title: "默认拍摄地点", text: $draftSettings.defaultLocation, prompt: "新建档期时自动带出")
-            settingsTextEditor(title: "默认备注", text: $draftSettings.defaultNotes, prompt: "常用交付、流程或补充说明")
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("默认定金比例")
-                        .font(AppTypography.bodyStrong)
-                        .foregroundStyle(AppTheme.ink)
-                    Spacer()
-                    Text(AppFormatters.percent(draftSettings.defaultDepositRatio))
-                        .font(AppTypography.meta.weight(.semibold))
-                        .foregroundStyle(AppTheme.secondaryInk)
-                }
-                Slider(value: $draftSettings.defaultDepositRatio, in: 0...1, step: 0.05)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 14)
-            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-            settingsPickerRow(title: "工作区币种") {
-                Picker("工作区币种", selection: $draftSettings.currencyCode) {
-                    ForEach(AppSettings.supportedCurrencyCodes, id: \.self) { code in
-                        Text(code).tag(code)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
-            settingsTextField(title: "默认尾款规则", text: $draftSettings.defaultBalanceRule, prompt: "例如 拍摄当天付清尾款")
-        }
-    }
-
-    private var notificationSection: some View {
-        settingsCard(title: "提醒与通知", subtitle: "控制提醒是否开启，以及默认的提醒时段。") {
-            settingsToggleRow(title: "开启提醒", subtitle: "统一控制订单与跟进提醒。", isOn: $draftSettings.notificationsEnabled)
-
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("默认提醒时间")
-                        .font(AppTypography.bodyStrong)
-                        .foregroundStyle(AppTheme.ink)
-                    Text("每天 \(draftSettings.defaultReminderHour):00 推送提醒")
-                        .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.secondaryInk)
-                }
-                Spacer(minLength: 0)
-                Stepper("", value: $draftSettings.defaultReminderHour, in: 0...23)
-                    .labelsHidden()
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 14)
-            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-
-            settingsToggleRow(title: "提醒待回款", subtitle: "针对尚未完成的付款计划。", isOn: $draftSettings.remindOutstandingPayments)
-            settingsToggleRow(title: "提醒待跟进", subtitle: "针对临近或逾期的客户跟进。", isOn: $draftSettings.remindFollowUps)
-        }
-    }
-
     private var accountSection: some View {
         settingsCard(title: "账号与同步", subtitle: "Apple ID 登录和 iCloud 同步设置。") {
             if let authProfile = store.authProfile {
@@ -451,56 +333,6 @@ struct SettingsView: View {
                     dismiss()
                 }
                 .buttonStyle(AppSecondaryButtonStyle())
-            }
-        }
-    }
-
-    private var operationsSection: some View {
-        settingsCard(title: "业务中心", subtitle: "保持完整功能，但按业务目的重新分组。") {
-            businessActionRow(title: "合同 / 报价 / 收据 / 发票", subtitle: "生成与管理业务文档", mode: .workflow)
-            businessActionRow(title: "外部日历整备", subtitle: "查看订单级日历接入状态", mode: .calendar)
-            businessActionRow(title: "附件与参考资料", subtitle: "管理合同附件与交付资料", mode: .assets)
-            businessActionRow(title: "团队权限与留痕", subtitle: "查看协作角色与关键操作记录", mode: .collaboration)
-            businessActionRow(title: "经营分析报表", subtitle: "查看收款、成交和经营表现", mode: .analytics)
-        }
-    }
-
-    private var dataSection: some View {
-        settingsCard(title: "数据管理", subtitle: "导出、备份、恢复和清理当前工作区。") {
-            actionRow(title: "导出 JSON", subtitle: "用于结构化备份和迁移") { exportJSON() }
-            actionRow(title: "导出 CSV", subtitle: "用于表格分析或外部归档") { exportCSV() }
-            actionRow(title: "完整备份（含附件）", subtitle: "打包工作区和资料文件") { backup() }
-            actionRow(title: "恢复备份", subtitle: "从 JSON 或完整备份目录恢复") { showingRestoreImporter = true }
-            actionRow(title: "导入示例数据", subtitle: "仅在空工作区中导入演示内容") { confirmingImportSampleData = true }
-            actionRow(title: "清空当前工作区", subtitle: "删除客户、档期、跟进与付款记录", role: .destructive) { confirmingClearData = true }
-        }
-    }
-
-    private var supportSection: some View {
-        settingsCard(title: "关于与支持", subtitle: "版本信息、隐私协议和联系支持。") {
-            infoRow(title: "App 名称", value: "影期")
-            infoRow(title: "版本号", value: appVersionText)
-            infoRow(title: "支持邮箱", value: "support@yingqi.app")
-
-            NavigationLink {
-                LegalTextView(title: "隐私说明", bodyText: privacyText)
-            } label: {
-                navigationActionLabel(title: "隐私说明", subtitle: "查看数据与权限说明")
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                LegalTextView(title: "用户协议", bodyText: termsText)
-            } label: {
-                navigationActionLabel(title: "用户协议", subtitle: "查看产品使用规则")
-            }
-            .buttonStyle(.plain)
-
-            if let supportURL = URL(string: "mailto:support@yingqi.app") {
-                Link(destination: supportURL) {
-                    navigationActionLabel(title: "联系支持", subtitle: "通过邮件反馈问题或建议")
-                }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -753,10 +585,6 @@ struct SettingsView: View {
         4. 影期不会替你向客户自动作出业务承诺，订单确认、价格、交付与收款规则仍由你自行决定并承担责任。
         5. 如遇到异常，请先做完整备份（含附件），再通过 support@yingqi.app 联系我们。
         """
-    }
-
-    private func labeledRow(title: String, value: String) -> some View {
-        AppSettingRow(title: title, value: value)
     }
 
     private func exportJSON() {

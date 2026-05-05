@@ -799,62 +799,6 @@ struct BookingEditorView: View {
         dismiss()
     }
 
-    private func crewAssignmentRow(_ assignment: BookingCrewAssignment) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Image(systemName: assignment.role.symbolName)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.accent)
-                    Text(assignment.headlineText)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.ink)
-                }
-
-                if assignment.summaryText.isEmpty == false {
-                    Text(assignment.summaryText)
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.secondaryInk)
-                        .lineLimit(2)
-                } else {
-                    Text("负责内容待补充")
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.mutedInk)
-                }
-
-                Text(assignment.locationSummaryText)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(AppTheme.mutedInk)
-            }
-
-            Spacer(minLength: 0)
-
-            Menu {
-                Button("编辑") {
-                    crewAssignmentEditorDraft = assignment
-                    editingCrewAssignmentID = assignment.id
-                    showingCrewAssignmentEditor = true
-                    AppHaptics.selection()
-                }
-                Button("删除", role: .destructive) {
-                    crewAssignments.removeAll { $0.id == assignment.id }
-                    AppHaptics.tapLight()
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.title3)
-                    .foregroundStyle(AppTheme.secondaryInk)
-                    .frame(width: 32, height: 32)
-            }
-        }
-        .padding(14)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.56), lineWidth: 1)
-        }
-    }
-
     private func upsertCrewAssignment(_ assignment: BookingCrewAssignment) {
         let normalized = BookingCrewAssignment.normalized([assignment]).first
         guard let normalized else { return }

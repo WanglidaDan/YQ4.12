@@ -77,10 +77,6 @@ enum AppTheme {
         dynamic(light: UIColor(hex: "#857D78"), dark: UIColor(hex: "#C0B8B2"))
     }
 
-    static var accentRoseSoft: Color {
-        dynamic(light: UIColor(hex: "#F1ECE7"), dark: UIColor(hex: "#262320"))
-    }
-
     static let info = dynamic(light: UIColor(hex: "#64758A"), dark: UIColor(hex: "#A5B5C4"))
     static let success = dynamic(light: UIColor(hex: "#50715C"), dark: UIColor(hex: "#8FA891"))
     static let warning = dynamic(light: UIColor(hex: "#C57A36"), dark: UIColor(hex: "#E0A15E"))
@@ -105,36 +101,12 @@ enum AppTheme {
         )
     }
 
-    static var panelGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                dynamic(light: UIColor(hex: "#FFFFFF"), dark: UIColor(hex: "#242725")),
-                dynamic(light: UIColor(hex: "#FAF8F5"), dark: UIColor(hex: "#1F2120")),
-                dynamic(light: UIColor(hex: "#F3F0EB"), dark: UIColor(hex: "#1B1D1C"))
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
     static var heroGradient: LinearGradient {
         LinearGradient(
             colors: [
                 dynamic(light: palette.deepLight, dark: UIColor(hex: "#243228")),
                 dynamic(light: palette.primaryLight, dark: UIColor(hex: "#405244")),
                 dynamic(light: UIColor(hex: "#A8B59E"), dark: UIColor(hex: "#6E816D"))
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    static var metallicGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                dynamic(light: UIColor(hex: "#F7F3EE"), dark: UIColor(hex: "#262825")),
-                dynamic(light: UIColor(hex: "#E5DED4"), dark: UIColor(hex: "#32342F")),
-                dynamic(light: UIColor(hex: "#D6CDC1"), dark: UIColor(hex: "#3A3D37"))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
