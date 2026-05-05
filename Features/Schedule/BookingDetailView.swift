@@ -212,7 +212,7 @@ struct BookingDetailView: View {
             get: { shareItems.isEmpty == false },
             set: { presented in if presented == false { shareItems = [] } }
         )) {
-            BookingActivityView(activityItems: shareItems)
+            AppShareSheetView(activityItems: shareItems)
         }
         .alert("无法开始导航", isPresented: Binding(
             get: { navigationErrorMessage != nil },
@@ -1228,15 +1228,7 @@ private struct BookingPaymentSheet: View {
     }
 }
 
-private struct BookingActivityView: UIViewControllerRepresentable {
-    let activityItems: [Any]
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
 
 private struct BookingShareCardView: View {
     let booking: BookingRecord

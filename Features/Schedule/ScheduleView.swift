@@ -34,19 +34,7 @@ private enum ScheduleViewMode: String, CaseIterable, Identifiable {
     }
 }
 
-private enum ScheduleScope: String, CaseIterable, Identifiable {
-    case active
-    case archived
 
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .active: "主列表"
-        case .archived: "归档"
-        }
-    }
-}
 
 private struct ScheduleRoute: Hashable {
     let bookingID: UUID
@@ -81,7 +69,7 @@ struct ScheduleView: View {
 
     @State private var filter: ScheduleFilter = .all
     @State private var viewMode: ScheduleViewMode = .month
-    @State private var scope: ScheduleScope = .active
+    @State private var scope: ListScope = .active
     @State private var searchText = ""
     @State private var editingBooking: BookingRecord?
     @State private var focusDate = Date()
@@ -1274,7 +1262,7 @@ private struct ScheduleSearchSheet: View {
 
     @Binding var searchText: String
     let bookings: [BookingRecord]
-    let scope: ScheduleScope
+    let scope: ListScope
 
     private var trimmedQuery: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1424,7 +1412,7 @@ private struct ScheduleFilterSheet: View {
     @Binding var searchText: String
     @Binding var filter: ScheduleFilter
     @Binding var viewMode: ScheduleViewMode
-    @Binding var scope: ScheduleScope
+    @Binding var scope: ListScope
 
     let summary: String
     let onReset: () -> Void
@@ -1437,7 +1425,7 @@ private struct ScheduleFilterSheet: View {
                     keywordCard
                     pickerCard(title: "查看范围") {
                         Picker("查看范围", selection: $scope) {
-                            ForEach(ScheduleScope.allCases) { item in
+                            ForEach(ListScope.allCases) { item in
                                 Text(item.title).tag(item)
                             }
                         }

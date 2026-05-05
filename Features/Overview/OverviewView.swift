@@ -233,7 +233,7 @@ struct OverviewView: View {
                             heroInfoRow(title: "地点", value: "\(booking.city) \(booking.venue)")
                             heroInfoRow(title: "拍摄内容", value: ShootingAttribute.displayTitle(for: booking.shootingAttributes))
                             if isTeamModeEnabled, booking.crewAssignments.isEmpty == false {
-                                heroInfoRow(title: "工作分工", value: crewAssignmentSummary(for: booking))
+                                heroInfoRow(title: "工作分工", value: BookingCrewAssignment.summaryText(for: booking))
                             }
                         }
                     }
@@ -467,16 +467,7 @@ struct OverviewView: View {
         }
     }
 
-    private func crewAssignmentSummary(for booking: BookingRecord) -> String {
-        let normalized = BookingCrewAssignment.normalized(booking.crewAssignments)
-        guard normalized.isEmpty == false else { return "待安排" }
 
-        let heads = normalized.prefix(2).map { "\($0.displayName)·\($0.role.title)" }
-        if normalized.count > 2 {
-            return heads.joined(separator: "、") + "、+\(normalized.count - 2)"
-        }
-        return heads.joined(separator: "、")
-    }
 
     private func countdownPill(for booking: BookingRecord) -> some View {
         return HStack(spacing: 6) {

@@ -34,19 +34,7 @@ private enum ClientSort: String, CaseIterable, Identifiable {
     }
 }
 
-private enum ClientScope: String, CaseIterable, Identifiable {
-    case active
-    case archived
 
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .active: "主列表"
-        case .archived: "归档"
-        }
-    }
-}
 
 private struct ClientRoute: Hashable {
     let clientID: UUID
@@ -57,7 +45,7 @@ struct ClientsView: View {
 
     @State private var filter: ClientFilter = .all
     @State private var sort: ClientSort = .followUp
-    @State private var scope: ClientScope = .active
+    @State private var scope: ListScope = .active
     @State private var searchText = ""
     @State private var editingClient: ClientRecord?
     @State private var deletingClient: ClientRecord?
@@ -226,7 +214,7 @@ struct ClientsView: View {
                 ) {
                     Section("列表范围") {
                         Picker("范围", selection: $scope) {
-                            ForEach(ClientScope.allCases) { item in
+                            ForEach(ListScope.allCases) { item in
                                 Text(item.title).tag(item)
                             }
                         }
@@ -316,7 +304,7 @@ struct ClientsView: View {
                 }
 
                 Picker("范围", selection: $scope) {
-                    ForEach(ClientScope.allCases) { item in
+                    ForEach(ListScope.allCases) { item in
                         Text(item.title).tag(item)
                     }
                 }
@@ -679,7 +667,7 @@ private struct ClientSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var searchText: String
     let clients: [ClientRecord]
-    let scope: ClientScope
+    let scope: ListScope
 
     private var trimmedQuery: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -147,6 +147,19 @@ struct BookingCrewAssignment: Identifiable, Codable, Hashable, Sendable {
             }
     }
 
+    /// 将档期的人员分工汇总为简短文本，如 "张三·主拍、李四·摄像"。
+    /// 最多显示前 2 人，超出部分以 "+N" 补充。
+    static func summaryText(for booking: BookingRecord) -> String {
+        let normalized = BookingCrewAssignment.normalized(booking.crewAssignments)
+        guard normalized.isEmpty == false else { return "待安排" }
+
+        let heads = normalized.prefix(2).map { "\($0.displayName)·\($0.role.title)" }
+        if normalized.count > 2 {
+            return heads.joined(separator: "、") + "、+\(normalized.count - 2)"
+        }
+        return heads.joined(separator: "、")
+    }
+
     private static func normalizedMemberKey(_ value: String) -> String {
         value
             .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)

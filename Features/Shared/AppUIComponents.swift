@@ -241,3 +241,28 @@ struct AppSettingRow: View {
         }
     }
 }
+
+struct AppShareSheetView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+/// 通用列表作用域，用于区分"进行中"与"已归档"。
+enum ListScope: String, CaseIterable, Identifiable {
+    case active
+    case archived
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .active: "主列表"
+        case .archived: "归档"
+        }
+    }
+}

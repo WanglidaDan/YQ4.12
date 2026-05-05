@@ -99,7 +99,7 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if $0 == false { shareURL = nil } })) {
-                if let shareURL { ShareSheetView(activityItems: [shareURL]) }
+                if let shareURL { AppShareSheetView(activityItems: [shareURL]) }
             }
             .sheet(item: $businessCenterRoute) { route in
                 BusinessCenterView(
@@ -724,12 +724,4 @@ private struct LegalTextView: View {
     }
 }
 
-private struct ShareSheetView: UIViewControllerRepresentable {
-    let activityItems: [Any]
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}

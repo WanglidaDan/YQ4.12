@@ -20,19 +20,7 @@ private enum FollowUpFilter: String, CaseIterable, Identifiable {
     }
 }
 
-private enum FollowUpScope: String, CaseIterable, Identifiable {
-    case active
-    case archived
 
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .active: "主列表"
-        case .archived: "归档"
-        }
-    }
-}
 
 private struct FollowUpSectionModel: Identifiable {
     let id: String
@@ -52,7 +40,7 @@ struct FollowUpView: View {
     let onOpenClients: () -> Void
 
     @State private var filter: FollowUpFilter = .all
-    @State private var scope: FollowUpScope = .active
+    @State private var scope: ListScope = .active
     @State private var searchText = ""
     @State private var editingTouchpoint: TouchpointRecord?
     @State private var deletingTouchpoint: TouchpointRecord?
@@ -240,7 +228,7 @@ struct FollowUpView: View {
                 ) {
                     Section("列表范围") {
                         Picker("范围", selection: $scope) {
-                            ForEach(FollowUpScope.allCases) { item in
+                            ForEach(ListScope.allCases) { item in
                                 Text(item.title).tag(item)
                             }
                         }

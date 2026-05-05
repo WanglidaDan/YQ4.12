@@ -621,7 +621,7 @@ struct TeamView: View {
             let assignments = store.assignments(for: booking, matching: memberName)
             return assignments.isEmpty ? nil : assignments.map(\.operationalSummaryText).joined(separator: " / ")
         }
-        let teamSummary = (isTeamModeEnabled && booking.crewAssignments.isEmpty == false) ? crewAssignmentSummary(for: booking) : nil
+        let teamSummary = (isTeamModeEnabled && booking.crewAssignments.isEmpty == false) ? BookingCrewAssignment.summaryText(for: booking) : nil
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
@@ -704,16 +704,7 @@ struct TeamView: View {
         .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
     }
 
-    private func crewAssignmentSummary(for booking: BookingRecord) -> String {
-        let normalized = BookingCrewAssignment.normalized(booking.crewAssignments)
-        guard normalized.isEmpty == false else { return "待安排" }
 
-        let heads = normalized.prefix(2).map { "\($0.displayName)·\($0.role.title)" }
-        if normalized.count > 2 {
-            return heads.joined(separator: "、") + "、+\(normalized.count - 2)"
-        }
-        return heads.joined(separator: "、")
-    }
 
     private func memberSubtitle(for member: CrewMemberRecord) -> String {
         let contact = member.phone.isEmpty ? member.email : member.phone
