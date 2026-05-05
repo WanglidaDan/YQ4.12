@@ -25,27 +25,8 @@ struct OverviewView: View {
         Array(snapshot.nextBookings.prefix(3))
     }
 
-    private var todayBookings: [BookingRecord] {
-        store.bookings(on: .now)
-    }
-
     private var isTeamModeEnabled: Bool {
         store.settings.studioModeEnabled
-    }
-
-    private var currentCrewMemberName: String? {
-        store.preferredCrewMemberName
-    }
-
-    private var myTodayBookings: [BookingRecord] {
-        guard let memberName = currentCrewMemberName else { return [] }
-        return store.bookings(on: .now, assignedTo: memberName)
-    }
-
-    private var otherTodayBookings: [BookingRecord] {
-        guard currentCrewMemberName != nil else { return todayBookings }
-        let myIDs = Set(myTodayBookings.map(\.id))
-        return todayBookings.filter { myIDs.contains($0.id) == false }
     }
 
     fileprivate enum NavigationMapChoice: String, CaseIterable, Identifiable {
