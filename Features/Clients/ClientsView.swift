@@ -59,6 +59,7 @@ struct ClientsView: View {
     @State private var sort: ClientSort = .followUp
     @State private var scope: ClientScope = .active
     @State private var searchText = ""
+    @State private var showingNewClient = false
     @State private var editingClient: ClientRecord?
     @State private var deletingClient: ClientRecord?
     @State private var deletionResultMessage: String?
@@ -72,12 +73,18 @@ struct ClientsView: View {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var totalLifetimeValue: Double {
-        visibleBookings.reduce(0) { $0 + $1.fee }
+    private var sourceClients: [ClientRecord] {
+        switch scope {
+        case .active: store.activeClients
+        case .archived: store.archivedClients
+        }
     }
 
-    private var followUpClientCount: Int {
-        sourceClients.filter(clientNeedsAttention).count
+    private var visibleBookings: [BookingRecord] {
+        switch scope {
+        case .active: store.activeBookings
+        case .archived: store.archivedBookings
+        }
     }
 
     private var filteredClients: [ClientRecord] {
@@ -92,56 +99,34 @@ struct ClientsView: View {
         return Array(filteredClients.filter { clientNeedsAttention($0) || $0.tier == .signature }.prefix(3))
     }
 
-    private var sourceClients: [ClientRecord] {
-        switch scope {
-        case .active:
-            store.activeClients
-        case .archived:
-            store.archivedClients
-        }
+    private var totalLifetimeValue: Double {
+        visibleBookings.reduce(0) { $0 + $1.fee }
     }
 
-    private var visibleBookings: [BookingRecord] {
-        switch scope {
-        case .active:
-            store.activeBookings
-        case .archived:
-            store.archivedBookings
-        }
+    private var followUpClientCount: Int {
+        sourceClients.filter(clientNeedsAttention).count
+    }
+
+    private var signatureClientCount: Int {
+        sourceClients.filter { $0.tier == .signature }.count
+    }
+
+    private var retainedClientCount: Int {
+        sourceClients.filter { $0.stage == .retained }.count
     }
 
     private var filterSummary: String {
-        [
-            "范围：\(scope.title)",
-            "筛选：\(filter.title)",
-            "排序：\(sort.title)"
-        ].joined(separator: " · ")
-    }
-
-    private var quickFilterSummary: String {
-        switch filter {
-        case .all:
-            "当前查看全部客户"
-        case .signature:
-            "当前只看高价值客户"
-        case .followUp:
-            "当前只看待跟进客户"
-        case .retained:
-            "当前只看长期客户"
-        }
+        ["范围：\(scope.title)", "筛选：\(filter.title)", "排序：\(sort.title)"].joined(separator: " · ")
     }
 
     var body: some View {
         NavigationStack {
-            AppPageScaffold(title: "客户") {
-                header
-                quickToolsCard
+            AppPageScaffold(title: "客户", topPadding: 14, bottomPadding: 32) {
+                heroCard
+                controlCard
 
                 if featuredClients.isEmpty == false {
-                    clientsBlock(
-                        title: "优先关注",
-                        subtitle: "高价值、临近跟进与待回款客户"
-                    ) {
+                    clientsBlock(title: "优先关注", subtitle: "高价值、临近跟进与待回款客户") {
                         ForEach(featuredClients) { client in
                             clientRow(client)
                         }
@@ -154,8 +139,8 @@ struct ClientsView: View {
                 ) {
                     if filteredClients.isEmpty {
                         emptyStateRow(
-                            title: trimmedSearchText.isEmpty ? (scope == .active ? "还没有客户数据" : "还没有归档客户") : "没有找到相关客户",
-                            subtitle: trimmedSearchText.isEmpty ? (scope == .active ? "从工作台新建客户后，这里会自动形成经营清单与优先级。" : "已归档客户会集中沉淀在这里，方便恢复和回看历史合作。") : "试试搜索客户名、城市、来源渠道或手机号。"
+                            title: emptyTitle,
+                            subtitle: emptySubtitle
                         )
                     } else {
                         ForEach(filteredClients) { client in
@@ -188,8 +173,13 @@ struct ClientsView: View {
             .navigationDestination(for: ClientRoute.self) { route in
                 ClientDetailView(clientID: route.clientID)
             }
+            .sheet(isPresented: $showingNewClient) {
+                ClientEditorView()
+                    .environment(store)
+            }
             .sheet(item: $editingClient) { client in
                 ClientEditorView(client: client)
+                    .environment(store)
             }
             .sheet(item: $businessCenterRoute) { route in
                 BusinessCenterView(
@@ -200,48 +190,10 @@ struct ClientsView: View {
                 .environment(store)
             }
             .sheet(isPresented: $showingSearchSheet) {
-                ClientSearchSheet(
-                    searchText: $searchText,
-                    clients: filteredClients,
-                    scope: scope
-                )
+                ClientSearchSheet(searchText: $searchText, clients: filteredClients, scope: scope)
             }
             .sheet(isPresented: $showingFilterSheet) {
-                UnifiedFilterSheet(
-                    title: "客户筛选",
-                    summary: filterSummary,
-                    onReset: {
-                        filter = .all
-                        sort = .followUp
-                        scope = .active
-                    }
-                ) {
-                    Section("列表范围") {
-                        Picker("范围", selection: $scope) {
-                            ForEach(ClientScope.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Section("客户筛选") {
-                        Picker("筛选", selection: $filter) {
-                            ForEach(ClientFilter.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Section("排序方式") {
-                        Picker("排序", selection: $sort) {
-                            ForEach(ClientSort.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                    }
-                }
+                filterSheet
             }
             .onChange(of: scope) { _, _ in
                 AppHaptics.selection()
@@ -276,35 +228,83 @@ struct ClientsView: View {
         }
     }
 
-    private var header: some View {
-        GlassCard(title: scope == .active ? "客户经营总览" : "客户归档", subtitle: filterSummary) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("\(sourceClients.count)")
-                            .font(AppTypography.data)
-                            .foregroundStyle(AppTheme.ink)
-                        Text("客户总数")
-                            .font(AppTypography.meta.weight(.semibold))
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 6) {
-                        Text(AppFormatters.currency(totalLifetimeValue))
-                            .font(AppTypography.dataCompact)
-                            .foregroundStyle(AppTheme.accentWarmDeep)
-                        Text("累计签约额")
-                            .font(AppTypography.meta.weight(.semibold))
-                            .foregroundStyle(AppTheme.mutedInk)
-                    }
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(scope == .active ? "客户经营" : "历史客户")
+                        .font(AppTypography.meta.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.88))
+                    Text(scope == .active ? "客户关系工作台" : "客户归档库")
+                        .font(AppTypography.sectionTitle)
+                        .foregroundStyle(.white)
                 }
 
-                VStack(spacing: 0) {
-                    metricLine(title: "签名客户", value: "\(sourceClients.filter { $0.tier == .signature }.count)")
-                    sectionDivider
-                    metricLine(title: "待经营", value: "\(followUpClientCount)")
-                    sectionDivider
-                    metricLine(title: "长期客户", value: "\(sourceClients.filter { $0.stage == .retained }.count)")
+                Spacer(minLength: 0)
+
+                Text("\(sourceClients.count) 位")
+                    .font(AppTypography.badge)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.white.opacity(0.16), in: Capsule())
+                    .overlay {
+                        Capsule().stroke(.white.opacity(0.26), lineWidth: 1)
+                    }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(heroTitle)
+                    .font(AppTypography.heroTitle)
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(heroSubtitle)
+                    .font(AppTypography.body)
+                    .foregroundStyle(.white.opacity(0.84))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 10) {
+                heroActionButton(title: "新增客户", systemImage: "person.badge.plus") {
+                    AppHaptics.impactMedium()
+                    showingNewClient = true
+                }
+
+                heroActionButton(title: "搜索客户", systemImage: "magnifyingglass") {
+                    AppHaptics.tapLight()
+                    showingSearchSheet = true
+                }
+
+                heroActionButton(title: "筛选", systemImage: "line.3.horizontal.decrease.circle") {
+                    AppHaptics.tapLight()
+                    showingFilterSheet = true
+                }
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
+                .fill(AppTheme.heroGradient)
+            RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
+                .stroke(Color.white.opacity(0.14), lineWidth: 1)
+        }
+        .shadow(color: AppTheme.deepShadow.opacity(0.14), radius: AppShadow.heroRadius, y: AppShadow.heroY)
+    }
+
+    private var controlCard: some View {
+        GlassCard(title: "客户概览", subtitle: filterSummary) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    AppMetricTile(title: "客户总数", value: "\(sourceClients.count)", subtitle: scope.title)
+                    AppMetricTile(title: "累计签约", value: AppFormatters.currency(totalLifetimeValue), subtitle: "订单累计")
+                }
+
+                HStack(spacing: 12) {
+                    AppMetricTile(title: "高价值", value: "\(signatureClientCount)", subtitle: "签名客户")
+                    AppMetricTile(title: "待经营", value: "\(followUpClientCount)", subtitle: "需关注")
+                    AppMetricTile(title: "长期", value: "\(retainedClientCount)", subtitle: "复购沉淀")
                 }
 
                 Picker("范围", selection: $scope) {
@@ -313,65 +313,118 @@ struct ClientsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+
+                if scope == .active {
+                    Button {
+                        businessCenterRoute = BusinessCenterRoute(mode: .workflow, bookingID: nil, clientID: nil)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "square.grid.2x2.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(AppTheme.accent)
+                                .frame(width: 38, height: 38)
+                                .background(AppTheme.accent.opacity(0.12), in: Circle())
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("打开经营中心")
+                                    .font(AppTypography.bodyStrong)
+                                    .foregroundStyle(AppTheme.ink)
+                                Text("合同、资料、协作与报表集中处理")
+                                    .font(AppTypography.meta)
+                                    .foregroundStyle(AppTheme.secondaryInk)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(AppTheme.secondaryInk)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 14)
+                        .appCardSurface(fillColor: AppTheme.panelStrong)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
 
-    private var quickToolsCard: some View {
-        GlassCard(title: "工作区工具", subtitle: quickFilterSummary) {
-            HStack(spacing: 10) {
-                Button {
-                    AppHaptics.tapLight()
-                    showingSearchSheet = true
-                } label: {
-                    Label("搜索客户", systemImage: "magnifyingglass")
-                        .frame(maxWidth: .infinity)
+    private var filterSheet: some View {
+        UnifiedFilterSheet(
+            title: "客户筛选",
+            summary: filterSummary,
+            onReset: {
+                filter = .all
+                sort = .followUp
+                scope = .active
+            }
+        ) {
+            Section("列表范围") {
+                Picker("范围", selection: $scope) {
+                    ForEach(ClientScope.allCases) { item in
+                        Text(item.title).tag(item)
+                    }
                 }
-                .buttonStyle(AppSecondaryButtonStyle())
-
-                Button {
-                    AppHaptics.tapLight()
-                    showingFilterSheet = true
-                } label: {
-                    Label("筛选排序", systemImage: "line.3.horizontal.decrease.circle")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(AppSecondaryButtonStyle())
+                .pickerStyle(.segmented)
             }
 
-            if scope == .active {
-                Button {
-                    businessCenterRoute = BusinessCenterRoute(mode: .workflow, bookingID: nil, clientID: nil)
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "square.grid.2x2.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(AppTheme.accent)
-                            .frame(width: 38, height: 38)
-                            .background(AppTheme.accent.opacity(0.12), in: Circle())
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("打开经营中心")
-                                .font(AppTypography.bodyStrong)
-                                .foregroundStyle(AppTheme.ink)
-                            Text("合同、资料、协作与报表集中处理")
-                                .font(AppTypography.meta)
-                                .foregroundStyle(AppTheme.secondaryInk)
-                        }
-
-                        Spacer(minLength: 0)
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(AppTheme.secondaryInk)
+            Section("客户筛选") {
+                Picker("筛选", selection: $filter) {
+                    ForEach(ClientFilter.allCases) { item in
+                        Text(item.title).tag(item)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 14)
-                    .appCardSurface(fillColor: AppTheme.panelStrong)
                 }
-                .buttonStyle(.plain)
+                .pickerStyle(.segmented)
+            }
+
+            Section("排序方式") {
+                Picker("排序", selection: $sort) {
+                    ForEach(ClientSort.allCases) { item in
+                        Text(item.title).tag(item)
+                    }
+                }
             }
         }
+    }
+
+    private var heroTitle: String {
+        if scope == .archived { return "沉淀历史合作，必要时一键恢复" }
+        if followUpClientCount > 0 { return "今天有 \(followUpClientCount) 位客户需要关注" }
+        if sourceClients.isEmpty { return "从第一个客户开始建立经营资产" }
+        return "客户、跟进、回款集中管理"
+    }
+
+    private var heroSubtitle: String {
+        if scope == .archived { return "归档客户不会打乱主列表，但仍保留历史订单、回款与沟通记录。" }
+        if followUpClientCount > 0 { return "优先处理临近跟进、高价值与待回款客户，别让线索沉下去。" }
+        return "用统一的客户卡片管理来源、阶段、价值、回款和下次跟进。"
+    }
+
+    private var emptyTitle: String {
+        if trimmedSearchText.isEmpty == false { return "没有找到相关客户" }
+        return scope == .active ? "还没有客户数据" : "还没有归档客户"
+    }
+
+    private var emptySubtitle: String {
+        if trimmedSearchText.isEmpty == false { return "试试搜索客户名、城市、来源渠道或手机号。" }
+        return scope == .active ? "点击顶部“新增客户”，先把客户关系沉淀下来。" : "已归档客户会集中沉淀在这里，方便恢复和回看历史合作。"
+    }
+
+    private func heroActionButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                Text(title)
+            }
+            .font(AppTypography.meta.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .stroke(.white.opacity(0.14), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private func clientsBlock<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
@@ -422,7 +475,6 @@ struct ClientsView: View {
                                 attentionBadge
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
 
@@ -440,10 +492,7 @@ struct ClientsView: View {
                         trailingTitle: "待回款",
                         trailingValue: AppFormatters.currency(outstandingValue(for: client.id))
                     )
-
-                    Divider()
-                        .overlay(AppTheme.line.opacity(0.55))
-
+                    Divider().overlay(AppTheme.line.opacity(0.55))
                     detailLine(title: "下次跟进", value: nextContactText(for: client))
                 }
             }
@@ -460,11 +509,7 @@ struct ClientsView: View {
             .tint(AppTheme.accent)
 
             Button(scope == .active ? "归档" : "恢复", systemImage: scope == .active ? "archivebox" : "arrow.uturn.backward.circle") {
-                if scope == .active {
-                    store.archiveClient(client.id)
-                } else {
-                    store.restoreClient(client.id)
-                }
+                if scope == .active { store.archiveClient(client.id) } else { store.restoreClient(client.id) }
             }
             .tint(scope == .active ? AppTheme.secondaryInk : AppTheme.success)
 
@@ -473,41 +518,17 @@ struct ClientsView: View {
             }
         }
         .contextMenu {
-            if scope == .active {
-                Button("编辑", systemImage: "square.and.pencil") {
-                    editingClient = client
-                }
-                Button("归档", systemImage: "archivebox") {
-                    store.archiveClient(client.id)
-                }
-            } else {
-                Button("恢复到主列表", systemImage: "arrow.uturn.backward.circle") {
-                    store.restoreClient(client.id)
-                }
+            Button("编辑", systemImage: "square.and.pencil") {
+                editingClient = client
             }
-            Button(role: .destructive) {
-                deletingClient = client
-            } label: {
+            if scope == .active {
+                Button("归档", systemImage: "archivebox") { store.archiveClient(client.id) }
+            } else {
+                Button("恢复到主列表", systemImage: "arrow.uturn.backward.circle") { store.restoreClient(client.id) }
+            }
+            Button(role: .destructive) { deletingClient = client } label: {
                 Label("删除", systemImage: "trash")
             }
-        }
-    }
-
-    private var sectionDivider: some View {
-        Divider()
-            .overlay(AppTheme.line.opacity(0.9))
-            .padding(.vertical, 12)
-    }
-
-    private func metricLine(title: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.secondaryInk)
-            Spacer()
-            Text(value)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(AppTheme.ink)
         }
     }
 
@@ -569,14 +590,10 @@ struct ClientsView: View {
 
     private func matches(filter: ClientFilter, client: ClientRecord) -> Bool {
         switch filter {
-        case .all:
-            true
-        case .signature:
-            client.tier == .signature
-        case .followUp:
-            clientNeedsAttention(client)
-        case .retained:
-            client.stage == .retained
+        case .all: true
+        case .signature: client.tier == .signature
+        case .followUp: clientNeedsAttention(client)
+        case .retained: client.stage == .retained
         }
     }
 
@@ -601,9 +618,7 @@ struct ClientsView: View {
         case .followUp:
             let lhsDate = nextTouchpoint(for: lhs.id)?.dueAt ?? lhs.nextContactAt ?? .distantFuture
             let rhsDate = nextTouchpoint(for: rhs.id)?.dueAt ?? rhs.nextContactAt ?? .distantFuture
-            if lhsDate == rhsDate {
-                return lifetimeValue(for: lhs.id) > lifetimeValue(for: rhs.id)
-            }
+            if lhsDate == rhsDate { return lifetimeValue(for: lhs.id) > lifetimeValue(for: rhs.id) }
             return lhsDate < rhsDate
         }
     }
@@ -648,24 +663,16 @@ struct ClientsView: View {
 
     private func tierSymbol(for tier: ClientTier) -> String {
         switch tier {
-        case .standard:
-            "circle.fill"
-        case .focus:
-            "star.leadinghalf.filled"
-        case .signature:
-            "crown.fill"
+        case .standard: "circle.fill"
+        case .focus: "star.leadinghalf.filled"
+        case .signature: "crown.fill"
         }
-    }
-
-    private func sectionHeader(title: String, subtitle: String) -> some View {
-        AppSectionHeader(title: title, subtitle: subtitle)
     }
 
     private func emptyStateRow(title: String, subtitle: String) -> some View {
         AppEmptyState(title: title, subtitle: subtitle, systemImage: "person.2")
     }
 }
-
 
 private struct ClientSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -706,9 +713,7 @@ private struct ClientSearchSheet: View {
             .searchable(text: $searchText, prompt: "搜索客户、城市、来源、手机号")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("关闭") {
-                        dismiss()
-                    }
+                    Button("关闭") { dismiss() }
                 }
             }
         }
@@ -721,28 +726,21 @@ private struct ClientSearchSheet: View {
     }
 
     private var promptCard: some View {
-        GlassCard(title: "开始搜索", subtitle: "支持搜索客户名、城市、来源渠道与手机号。") {
-            EmptyView()
-        }
+        GlassCard(title: "开始搜索", subtitle: "支持搜索客户名、城市、来源渠道与手机号。") { EmptyView() }
     }
 
     private var emptyCard: some View {
-        GlassCard(title: "没有找到相关客户", subtitle: "换一个关键词试试，或回到筛选页调整范围和排序。") {
-            EmptyView()
-        }
+        GlassCard(title: "没有找到相关客户", subtitle: "换一个关键词试试，或回到筛选页调整范围和排序。") { EmptyView() }
     }
 
     private var resultCard: some View {
-        let resultTitle = "\(clients.count) 个结果"
-
-        return GlassCard(title: resultTitle, subtitle: "按当前筛选条件展示") {
+        GlassCard(title: "\(clients.count) 个结果", subtitle: "按当前筛选条件展示") {
             VStack(spacing: 0) {
                 ForEach(Array(clients.enumerated()), id: \.element.id) { index, client in
                     clientResultRow(for: client)
 
                     if index < clients.count - 1 {
-                        Divider()
-                            .overlay(AppTheme.line.opacity(0.72))
+                        Divider().overlay(AppTheme.line.opacity(0.72))
                     }
                 }
             }
@@ -762,12 +760,10 @@ private struct ClientSearchSheet: View {
                 Text(client.name)
                     .font(AppTypography.bodyStrong)
                     .foregroundStyle(AppTheme.ink)
-
                 Text(locationText)
                     .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.secondaryInk)
                     .lineLimit(1)
-
                 Text(contactText)
                     .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.mutedInk)
