@@ -373,13 +373,19 @@ struct CreateBookingFlowView: View {
         if shouldCreateFollowUp {
             let dueAt = Calendar.current.date(byAdding: .day, value: -2, to: startAt) ?? startAt
             let reminder = TouchpointRecord(
+                id: UUID(),
                 title: "\(trimmedTitle) 拍前确认",
                 detailsText: "确认时间线、地点、联系人与交付要求。",
                 dueAt: dueAt,
                 channel: .wechat,
                 priority: status == .tentative ? .high : .medium,
+                isComplete: false,
+                completedAt: nil,
+                createdAt: .now,
                 clientID: selectedClientID,
                 bookingID: booking.id,
+                isArchived: false,
+                archivedAt: nil,
                 isSystemReminderEnabled: true,
                 source: .systemPreShootConfirmation
             )
