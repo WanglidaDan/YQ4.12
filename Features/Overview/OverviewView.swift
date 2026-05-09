@@ -77,19 +77,11 @@ struct OverviewView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    heroCard
-                    recentBookingsSection
-                    monthlySummarySection
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 14)
-                .padding(.bottom, 32)
+            AppPageScaffold(title: "摄影工作台", topPadding: 14, bottomPadding: 32) {
+                heroCard
+                recentBookingsSection
+                monthlySummarySection
             }
-            .background(overviewBackdrop.ignoresSafeArea())
-            .navigationTitle("摄影工作台")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -154,45 +146,7 @@ struct OverviewView: View {
     }
 
     private var overviewBackdrop: some View {
-        ZStack {
-            AppTheme.background
-
-            StudioBackdrop(mode: .ambient)
-                .opacity(0.18)
-
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.42),
-                    Color(red: 0.99, green: 0.99, blue: 0.97).opacity(0.26),
-                    Color.clear,
-                    Color(red: 0.97, green: 0.99, blue: 0.98).opacity(0.30)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            RadialGradient(
-                colors: [
-                    Color.white.opacity(0.22),
-                    Color.clear
-                ],
-                center: .topLeading,
-                startRadius: 12,
-                endRadius: 420
-            )
-            .blendMode(.screen)
-
-            RadialGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.99, blue: 0.97).opacity(0.30),
-                    Color.clear
-                ],
-                center: .bottomTrailing,
-                startRadius: 30,
-                endRadius: 360
-            )
-            .blendMode(.screen)
-        }
+        AppTheme.background
     }
 
     private var heroCard: some View {
@@ -286,27 +240,10 @@ struct OverviewView: View {
             RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
                 .fill(AppTheme.heroGradient)
 
-            RadialGradient(
-                colors: [
-                    Color(red: 0.98, green: 0.96, blue: 0.91).opacity(0.18),
-                    Color.clear
-                ],
-                center: .bottomTrailing,
-                startRadius: 12,
-                endRadius: 180
-            )
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-
-            Circle()
-                .fill(Color.white.opacity(0.05))
-                .frame(width: 120, height: 120)
-                .blur(radius: 20)
-                .offset(x: 132, y: 116)
-
             RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
                 .stroke(Color.white.opacity(0.14), lineWidth: 1)
         }
-        .shadow(color: AppTheme.deepShadow.opacity(0.22), radius: AppShadow.heroRadius, y: AppShadow.heroY)
+        .shadow(color: AppTheme.deepShadow.opacity(0.14), radius: AppShadow.heroRadius, y: AppShadow.heroY)
     }
 
     private var todayDispatchSection: some View {

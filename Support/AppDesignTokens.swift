@@ -23,16 +23,16 @@ enum AppSpacing {
 }
 
 enum AppRadius {
-    static let hero: CGFloat = 28
-    static let card: CGFloat = 22
+    static let hero: CGFloat = 24
+    static let card: CGFloat = 18
     static let control: CGFloat = 16
     static let row: CGFloat = 14
     static let badge: CGFloat = 10
 }
 
 enum AppShadow {
-    static let cardRadius: CGFloat = 10
-    static let cardY: CGFloat = 4
-    static let heroRadius: CGFloat = 18
-    static let heroY: CGFloat = 10
+    static let cardRadius: CGFloat = 6
+    static let cardY: CGFloat = 2
+    static let heroRadius: CGFloat = 10
+    static let heroY: CGFloat = 4
 }

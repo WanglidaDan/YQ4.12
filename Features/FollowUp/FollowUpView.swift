@@ -194,7 +194,8 @@ struct FollowUpView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("客户跟进")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(

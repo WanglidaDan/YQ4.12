@@ -173,31 +173,7 @@ struct StudioBackdrop: View {
 
     @ViewBuilder
     private var ambientBackdrop: some View {
-        ZStack {
-            AppTheme.background
-
-            if let sourceImage {
-                Image(uiImage: sourceImage)
-                    .resizable()
-                    .scaledToFill()
-                    .blur(radius: 34)
-                    .saturation(0.56)
-                    .opacity(0.14)
-            } else {
-                stylizedBackdrop
-                    .opacity(0.20)
-            }
-
-            LinearGradient(
-                colors: [
-                    AppTheme.background.opacity(0.18),
-                    AppTheme.background.opacity(0.05),
-                    AppTheme.background.opacity(0.18)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
+        AppTheme.background
     }
 
     private var stylizedBackdrop: some View {

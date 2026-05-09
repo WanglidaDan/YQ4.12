@@ -54,6 +54,40 @@ private struct ScheduleRoute: Hashable {
 
 private typealias BookingDayGroup = (date: Date, bookings: [BookingRecord])
 
+private struct ScheduleDerivedState {
+    var filteredBookings: [BookingRecord]
+    var monthContextBookings: [BookingRecord]
+    var bookingsByStartDay: [Date: [BookingRecord]]
+    var monthBookingsByStartDay: [Date: [BookingRecord]]
+    var bookingsForFocusDate: [BookingRecord]
+    var personalFocusBookings: [BookingRecord]
+    var otherFocusBookings: [BookingRecord]
+    var groupedBookings: [BookingDayGroup]
+    var monthConflictDates: Set<Date>
+    var conflictDates: Set<Date>
+    var pastBookingsCount: Int
+    var todayBookingsCount: Int
+    var upcomingBookingsCount: Int
+    var isPrepared: Bool
+
+    static let empty = ScheduleDerivedState(
+        filteredBookings: [],
+        monthContextBookings: [],
+        bookingsByStartDay: [:],
+        monthBookingsByStartDay: [:],
+        bookingsForFocusDate: [],
+        personalFocusBookings: [],
+        otherFocusBookings: [],
+        groupedBookings: [],
+        monthConflictDates: [],
+        conflictDates: [],
+        pastBookingsCount: 0,
+        todayBookingsCount: 0,
+        upcomingBookingsCount: 0,
+        isPrepared: false
+    )
+}
+
 private enum SchedulePalette {
     static let background = AppTheme.background
     static let panel = AppTheme.panel
@@ -90,7 +124,7 @@ struct ScheduleView: View {
     @State private var showingSearchSheet = false
     @State private var showingMonthInsightSheet = false
     @State private var showingCreateBookingSheet = false
-    @State private var didAnimateIn = false
+    @State private var derivedState: ScheduleDerivedState = .empty
 
     private let calendar = Calendar.current
 
@@ -108,29 +142,23 @@ struct ScheduleView: View {
     }
 
     private var filteredBookings: [BookingRecord] {
-        sourceBookings.filter { booking in
-            matches(filter: filter, booking: booking) && matches(keyword: searchText, booking: booking)
-        }
+        activeDerivedState.filteredBookings
     }
 
     private var monthContextBookings: [BookingRecord] {
-        filteredBookings.filter {
-            calendar.isDate($0.startAt, equalTo: focusDate, toGranularity: .month) &&
-            calendar.isDate($0.startAt, equalTo: focusDate, toGranularity: .year)
-        }
+        activeDerivedState.monthContextBookings
     }
 
     private var bookingsByStartDay: [Date: [BookingRecord]] {
-        Dictionary(grouping: filteredBookings) { calendar.startOfDay(for: $0.startAt) }
+        activeDerivedState.bookingsByStartDay
     }
 
     private var monthBookingsByStartDay: [Date: [BookingRecord]] {
-        Dictionary(grouping: monthContextBookings) { calendar.startOfDay(for: $0.startAt) }
+        activeDerivedState.monthBookingsByStartDay
     }
 
     private var bookingsForFocusDate: [BookingRecord] {
-        bookingsByStartDay[calendar.startOfDay(for: focusDate), default: []]
-            .sorted { $0.startAt < $1.startAt }
+        activeDerivedState.bookingsForFocusDate
     }
 
     private var isTeamModeEnabled: Bool {
@@ -147,29 +175,23 @@ struct ScheduleView: View {
     }
 
     private var personalFocusBookings: [BookingRecord] {
-        guard let memberName = currentCrewMemberName else { return [] }
-        return bookingsForFocusDate.filter { store.assignments(for: $0, matching: memberName).isEmpty == false }
+        activeDerivedState.personalFocusBookings
     }
 
     private var otherFocusBookings: [BookingRecord] {
-        guard let memberName = currentCrewMemberName else { return [] }
-        return bookingsForFocusDate.filter { store.assignments(for: $0, matching: memberName).isEmpty }
+        activeDerivedState.otherFocusBookings
     }
 
     private var groupedBookings: [BookingDayGroup] {
-        bookingsByStartDay
-            .map { key, value in
-                (date: key, bookings: value.sorted { $0.startAt < $1.startAt })
-            }
-            .sorted { $0.date < $1.date }
+        activeDerivedState.groupedBookings
     }
 
     private var monthConflictDates: Set<Date> {
-        Set(monthBookingsByStartDay.compactMap { key, value in value.count > 1 ? key : nil })
+        activeDerivedState.monthConflictDates
     }
 
     private var conflictDates: Set<Date> {
-        Set(bookingsByStartDay.compactMap { key, value in value.count > 1 ? key : nil })
+        activeDerivedState.conflictDates
     }
 
     private var monthDates: [Date] {
@@ -198,17 +220,15 @@ struct ScheduleView: View {
     }
 
     private var pastBookingsCount: Int {
-        let todayStart = calendar.startOfDay(for: .now)
-        return filteredBookings.filter { $0.endAt < todayStart }.count
+        activeDerivedState.pastBookingsCount
     }
 
     private var todayBookingsCount: Int {
-        filteredBookings.filter { calendar.isDateInToday($0.startAt) }.count
+        activeDerivedState.todayBookingsCount
     }
 
     private var upcomingBookingsCount: Int {
-        let tomorrowStart = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now)) ?? .now
-        return filteredBookings.filter { $0.startAt >= tomorrowStart }.count
+        activeDerivedState.upcomingBookingsCount
     }
 
     private var focusMyAssignmentsCount: Int {
@@ -223,39 +243,63 @@ struct ScheduleView: View {
         ].joined(separator: " · ")
     }
 
-    private var pageBackground: some View {
-        ZStack {
-            SchedulePalette.background
+    private var activeDerivedState: ScheduleDerivedState {
+        derivedState.isPrepared ? derivedState : makeDerivedState()
+    }
 
-            LinearGradient(
-                colors: [
-                    colorScheme == .dark ? AppTheme.panel.opacity(0.16) : Color.white.opacity(0.72),
-                    SchedulePalette.background.opacity(0.96),
-                    colorScheme == .dark ? AppTheme.canvas.opacity(0.92) : Color(uiColor: UIColor(hex: "#F4F4F0")).opacity(0.94)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+    private func refreshDerivedState() {
+        derivedState = makeDerivedState()
+    }
 
-            RadialGradient(
-                colors: [
-                    colorScheme == .dark ? AppTheme.accentSoft.opacity(0.16) : Color.white.opacity(0.62),
-                    Color.clear
-                ],
-                center: .topLeading,
-                startRadius: 20,
-                endRadius: 360
-            )
-
-            LinearGradient(
-                colors: [
-                    Color.clear,
-                    colorScheme == .dark ? AppTheme.panelSoft.opacity(0.22) : Color(uiColor: UIColor(hex: "#EEF2EE")).opacity(0.55)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+    private func makeDerivedState() -> ScheduleDerivedState {
+        let filtered = sourceBookings.filter { booking in
+            matches(filter: filter, booking: booking) && matches(keyword: trimmedSearchText, booking: booking)
         }
+        let monthItems = filtered.filter {
+            calendar.isDate($0.startAt, equalTo: focusDate, toGranularity: .month) &&
+            calendar.isDate($0.startAt, equalTo: focusDate, toGranularity: .year)
+        }
+        let byDay = Dictionary(grouping: filtered) { calendar.startOfDay(for: $0.startAt) }
+        let monthByDay = Dictionary(grouping: monthItems) { calendar.startOfDay(for: $0.startAt) }
+        let focusItems = byDay[calendar.startOfDay(for: focusDate), default: []]
+            .sorted { $0.startAt < $1.startAt }
+        let personalItems: [BookingRecord]
+        let otherItems: [BookingRecord]
+        if let memberName = currentCrewMemberName {
+            personalItems = focusItems.filter { store.assignments(for: $0, matching: memberName).isEmpty == false }
+            otherItems = focusItems.filter { store.assignments(for: $0, matching: memberName).isEmpty }
+        } else {
+            personalItems = []
+            otherItems = []
+        }
+        let grouped = byDay
+            .map { key, value in
+                (date: key, bookings: value.sorted { $0.startAt < $1.startAt })
+            }
+            .sorted { $0.date < $1.date }
+        let todayStart = calendar.startOfDay(for: .now)
+        let tomorrowStart = calendar.date(byAdding: .day, value: 1, to: todayStart) ?? .now
+
+        return ScheduleDerivedState(
+            filteredBookings: filtered,
+            monthContextBookings: monthItems,
+            bookingsByStartDay: byDay,
+            monthBookingsByStartDay: monthByDay,
+            bookingsForFocusDate: focusItems,
+            personalFocusBookings: personalItems,
+            otherFocusBookings: otherItems,
+            groupedBookings: grouped,
+            monthConflictDates: Set(monthByDay.compactMap { key, value in value.count > 1 ? key : nil }),
+            conflictDates: Set(byDay.compactMap { key, value in value.count > 1 ? key : nil }),
+            pastBookingsCount: filtered.filter { $0.endAt < todayStart }.count,
+            todayBookingsCount: filtered.filter { calendar.isDateInToday($0.startAt) }.count,
+            upcomingBookingsCount: filtered.filter { $0.startAt >= tomorrowStart }.count,
+            isPrepared: true
+        )
+    }
+
+    private var pageBackground: some View {
+        AppTheme.background
     }
 
     var body: some View {
@@ -344,19 +388,34 @@ struct ScheduleView: View {
                 Text("删除后订单与关联付款流水将一并移除，且无法恢复。")
             }
             .onChange(of: viewMode) { _, _ in
+                refreshDerivedState()
                 AppHaptics.selection()
             }
             .onChange(of: filter) { _, _ in
+                refreshDerivedState()
                 AppHaptics.selection()
             }
             .onChange(of: scope) { _, _ in
+                refreshDerivedState()
                 AppHaptics.selection()
             }
-            .onAppear {
-                guard didAnimateIn == false else { return }
-                withAnimation(.easeOut(duration: 0.42)) {
-                    didAnimateIn = true
-                }
+            .onChange(of: focusDate) { _, _ in
+                refreshDerivedState()
+            }
+            .onChange(of: searchText) { _, _ in
+                refreshDerivedState()
+            }
+            .onChange(of: store.bookings) { _, _ in
+                refreshDerivedState()
+            }
+            .onChange(of: store.settings.currentCrewMemberID) { _, _ in
+                refreshDerivedState()
+            }
+            .onChange(of: store.settings.currentMemberName) { _, _ in
+                refreshDerivedState()
+            }
+            .task {
+                refreshDerivedState()
             }
         }
     }
@@ -373,8 +432,6 @@ struct ScheduleView: View {
             .padding(.horizontal, 20)
             .padding(.top, 18)
             .padding(.bottom, 132)
-            .opacity(didAnimateIn ? 1 : 0.82)
-            .offset(y: didAnimateIn ? 0 : 10)
         }
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 104)
@@ -412,7 +469,7 @@ struct ScheduleView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 22)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .appCardSurface(cornerRadius: 30, fillColor: Color.white.opacity(0.9), strokeOpacity: 0.74)
+            .appCardSurface(cornerRadius: AppRadius.card, fillColor: Color.white.opacity(0.9), strokeOpacity: 0.74)
         }
         .buttonStyle(.plain)
     }
@@ -495,7 +552,7 @@ struct ScheduleView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 28, fillColor: SchedulePalette.panel, strokeOpacity: 0.9)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.9)
     }
 
     private var dispatchCardSubtitle: String {
@@ -631,7 +688,7 @@ struct ScheduleView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 28, fillColor: SchedulePalette.panel, strokeOpacity: 0.92)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.92)
     }
 
     private var viewModeSegmentedControl: some View {
@@ -657,7 +714,7 @@ struct ScheduleView: View {
             }
         }
         .padding(5)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(AppTheme.panelSoft, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(Color.white.opacity(0.52), lineWidth: 1)
@@ -776,7 +833,7 @@ struct ScheduleView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 28, fillColor: SchedulePalette.panel, strokeOpacity: 0.9)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.9)
     }
 
     private var listFeedContent: some View {
@@ -953,11 +1010,10 @@ struct ScheduleView: View {
 
         return RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(baseFill)
-            .shadow(
-                color: isSelected ? SchedulePalette.shadow.opacity(0.6) : .clear,
-                radius: isSelected ? 10 : 0,
-                y: isSelected ? 3 : 0
-            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? AppTheme.accent.opacity(0.24) : Color.clear, lineWidth: 1)
+            }
     }
 
     private func calendarCellTextColor(isSelected: Bool, isCurrentMonth: Bool) -> Color {
@@ -1302,7 +1358,7 @@ private struct ScheduleSearchSheet: View {
                 .padding(.top, 16)
                 .padding(.bottom, 28)
             }
-            .background(SchedulePalette.background.ignoresSafeArea())
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("搜索")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "搜索客户、项目、地点、成员、备注")
@@ -1328,7 +1384,7 @@ private struct ScheduleSearchSheet: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 24, fillColor: SchedulePalette.panel, strokeOpacity: 0.78)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.78)
     }
 
     private var searchPromptCard: some View {
@@ -1342,7 +1398,7 @@ private struct ScheduleSearchSheet: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 24, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
     }
 
     private var emptyResultCard: some View {
@@ -1356,7 +1412,7 @@ private struct ScheduleSearchSheet: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 24, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
     }
 
     private var resultListCard: some View {
@@ -1378,7 +1434,7 @@ private struct ScheduleSearchSheet: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 24, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
     }
 
     private func searchResultRow(for booking: BookingRecord) -> some View {
@@ -1464,7 +1520,7 @@ private struct ScheduleFilterSheet: View {
                 .padding(.top, 16)
                 .padding(.bottom, 28)
             }
-            .background(SchedulePalette.background.ignoresSafeArea())
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("筛选")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1494,7 +1550,7 @@ private struct ScheduleFilterSheet: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 24, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
     }
 
     private var keywordCard: some View {
@@ -1515,7 +1571,7 @@ private struct ScheduleFilterSheet: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 24, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
     }
 
     private func pickerCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -1527,7 +1583,7 @@ private struct ScheduleFilterSheet: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: 24, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: SchedulePalette.panel, strokeOpacity: 0.72)
     }
 }
 
@@ -1615,7 +1671,7 @@ private struct ScheduleTimelineInsightSheet: View {
                 }
                 .padding(20)
             }
-            .background(SchedulePalette.background.ignoresSafeArea())
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("档期概览")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

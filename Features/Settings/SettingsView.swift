@@ -82,7 +82,7 @@ struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle(showsCloseButton ? "设置" : "我的")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -513,17 +513,9 @@ struct SettingsView: View {
     }
 
     private func detailPage<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        ScrollView(showsIndicators: false) {
-            LazyVStack(alignment: .leading, spacing: 18) {
-                content()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 28)
+        AppPageScaffold(title: title, titleDisplayMode: .inline) {
+            content()
         }
-        .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func settingsCard<Content: View>(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) -> some View {
@@ -890,7 +882,7 @@ private struct LegalTextView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
         }
-        .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
+        .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }

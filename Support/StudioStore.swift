@@ -1869,12 +1869,27 @@ extension StudioStore {
 
         let lineItems: [BusinessDocumentLineItem]
         if let relatedBooking {
+            let suggestedAmount: Double
+            let suggestedDetails: String
+            switch kind {
+            case .quote, .contract:
+                suggestedAmount = relatedBooking.fee
+                suggestedDetails = relatedBooking.deliverableText
+            case .receipt:
+                let received = receivedAmount(for: relatedBooking)
+                suggestedAmount = received > 0 ? received : relatedBooking.depositPaid
+                suggestedDetails = "已收款项记录，用于客户回执与内部对账。"
+            case .invoice:
+                let outstanding = outstandingAmount(for: relatedBooking)
+                suggestedAmount = outstanding > 0 ? outstanding : relatedBooking.fee
+                suggestedDetails = outstanding > 0 ? "当前订单待开票 / 待收余额。" : relatedBooking.deliverableText
+            }
             lineItems = [
                 BusinessDocumentLineItem(
                     title: relatedBooking.title,
-                    detailsText: relatedBooking.deliverableText,
+                    detailsText: suggestedDetails,
                     quantity: 1,
-                    unitPrice: relatedBooking.fee
+                    unitPrice: suggestedAmount
                 )
             ]
         } else {

@@ -1,9 +1,15 @@
 import SwiftUI
 
+enum AppCardStyle {
+    case lightweight
+    case emphasized
+}
+
 struct AppCardSurfaceModifier: ViewModifier {
     var cornerRadius: CGFloat = AppRadius.card
     var fillColor: Color = AppTheme.panel
     var strokeOpacity: Double = 0.78
+    var style: AppCardStyle = .lightweight
 
     func body(content: Content) -> some View {
         content
@@ -15,7 +21,11 @@ struct AppCardSurfaceModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(AppTheme.line.opacity(strokeOpacity), lineWidth: 1)
             }
-            .shadow(color: AppTheme.cardShadow, radius: AppShadow.cardRadius, y: AppShadow.cardY)
+            .shadow(
+                color: AppTheme.cardShadow.opacity(style == .emphasized ? 1 : 0.46),
+                radius: style == .emphasized ? AppShadow.cardRadius : 3,
+                y: style == .emphasized ? AppShadow.cardY : 1
+            )
     }
 }
 
@@ -23,15 +33,57 @@ extension View {
     func appCardSurface(
         cornerRadius: CGFloat = AppRadius.card,
         fillColor: Color = AppTheme.panel,
-        strokeOpacity: Double = 0.78
+        strokeOpacity: Double = 0.78,
+        style: AppCardStyle = .lightweight
     ) -> some View {
         modifier(
             AppCardSurfaceModifier(
                 cornerRadius: cornerRadius,
                 fillColor: fillColor,
-                strokeOpacity: strokeOpacity
+                strokeOpacity: strokeOpacity,
+                style: style
             )
         )
+    }
+}
+
+struct AppPageScaffold<Content: View>: View {
+    let title: String
+    var titleDisplayMode: NavigationBarItem.TitleDisplayMode = .large
+    var horizontalPadding: CGFloat = AppSpacing.page
+    var topPadding: CGFloat = 16
+    var bottomPadding: CGFloat = 28
+    @ViewBuilder let content: Content
+
+    init(
+        title: String,
+        titleDisplayMode: NavigationBarItem.TitleDisplayMode = .large,
+        horizontalPadding: CGFloat = AppSpacing.page,
+        topPadding: CGFloat = 16,
+        bottomPadding: CGFloat = 28,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.titleDisplayMode = titleDisplayMode
+        self.horizontalPadding = horizontalPadding
+        self.topPadding = topPadding
+        self.bottomPadding = bottomPadding
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: AppSpacing.section) {
+                content
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, topPadding)
+            .padding(.bottom, bottomPadding)
+        }
+        .scrollContentBackground(.hidden)
+        .background(AppTheme.background.ignoresSafeArea())
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(titleDisplayMode)
     }
 }
 

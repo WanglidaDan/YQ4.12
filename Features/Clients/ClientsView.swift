@@ -133,45 +133,37 @@ struct ClientsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    header
-                    quickToolsCard
+            AppPageScaffold(title: "客户") {
+                header
+                quickToolsCard
 
-                    if featuredClients.isEmpty == false {
-                        clientsBlock(
-                            title: "优先关注",
-                            subtitle: "高价值、临近跟进与待回款客户"
-                        ) {
-                            ForEach(featuredClients) { client in
-                                clientRow(client)
-                            }
-                        }
-                    }
-
+                if featuredClients.isEmpty == false {
                     clientsBlock(
-                        title: scope == .active ? "客户列表" : "归档客户",
-                        subtitle: filteredClients.isEmpty ? "当前没有符合条件的客户" : "共 \(filteredClients.count) 位"
+                        title: "优先关注",
+                        subtitle: "高价值、临近跟进与待回款客户"
                     ) {
-                        if filteredClients.isEmpty {
-                            emptyStateRow(
-                                title: trimmedSearchText.isEmpty ? (scope == .active ? "还没有客户数据" : "还没有归档客户") : "没有找到相关客户",
-                                subtitle: trimmedSearchText.isEmpty ? (scope == .active ? "从工作台新建客户后，这里会自动形成经营清单与优先级。" : "已归档客户会集中沉淀在这里，方便恢复和回看历史合作。") : "试试搜索客户名、城市、来源渠道或手机号。"
-                            )
-                        } else {
-                            ForEach(filteredClients) { client in
-                                clientRow(client)
-                            }
+                        ForEach(featuredClients) { client in
+                            clientRow(client)
                         }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 28)
+
+                clientsBlock(
+                    title: scope == .active ? "客户列表" : "归档客户",
+                    subtitle: filteredClients.isEmpty ? "当前没有符合条件的客户" : "共 \(filteredClients.count) 位"
+                ) {
+                    if filteredClients.isEmpty {
+                        emptyStateRow(
+                            title: trimmedSearchText.isEmpty ? (scope == .active ? "还没有客户数据" : "还没有归档客户") : "没有找到相关客户",
+                            subtitle: trimmedSearchText.isEmpty ? (scope == .active ? "从工作台新建客户后，这里会自动形成经营清单与优先级。" : "已归档客户会集中沉淀在这里，方便恢复和回看历史合作。") : "试试搜索客户名、城市、来源渠道或手机号。"
+                        )
+                    } else {
+                        ForEach(filteredClients) { client in
+                            clientRow(client)
+                        }
+                    }
+                }
             }
-            .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
-            .navigationTitle("客户")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
@@ -707,7 +699,8 @@ private struct ClientSearchSheet: View {
                 .padding(.top, 16)
                 .padding(.bottom, 28)
             }
-            .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("搜索")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "搜索客户、城市、来源、手机号")

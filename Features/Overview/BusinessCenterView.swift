@@ -125,6 +125,27 @@ struct BusinessCenterView: View {
         return bookings.isEmpty ? store.activeBookings : bookings
     }
 
+    private var latestWorkflowDocumentsByKind: [BusinessDocumentKind: BusinessDocumentRecord] {
+        Dictionary(grouping: scopedDocuments, by: \.kind)
+            .compactMapValues { documents in
+                documents.max { $0.updatedAt < $1.updatedAt }
+            }
+    }
+
+    private var completedWorkflowStepCount: Int {
+        BusinessDocumentKind.allCases.filter { kind in
+            guard let document = latestWorkflowDocumentsByKind[kind] else { return false }
+            return document.status != .draft && document.status != .voided
+        }.count
+    }
+
+    private var nextWorkflowKind: BusinessDocumentKind? {
+        BusinessDocumentKind.allCases.first { kind in
+            guard let document = latestWorkflowDocumentsByKind[kind] else { return true }
+            return document.status == .draft || document.status == .voided
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -271,6 +292,8 @@ struct BusinessCenterView: View {
 
     private var workflowSection: some View {
         VStack(spacing: 16) {
+            workflowProgressCard
+
             AppInfoCard(title: "合同 / 报价 / 收据 / 发票", subtitle: "从报价到签约、收款、开票全部串起来。") {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     ForEach(BusinessDocumentKind.allCases) { kind in
@@ -312,6 +335,64 @@ struct BusinessCenterView: View {
                 }
             }
         }
+    }
+
+    private var workflowProgressCard: some View {
+        let progress = Double(completedWorkflowStepCount) / Double(BusinessDocumentKind.allCases.count)
+
+        return GlassCard(title: "闭环进度", subtitle: nextWorkflowKind.map { "下一步建议补齐：\($0.title)" } ?? "报价、合同、收据和发票都已经进入流程。") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("\(completedWorkflowStepCount) / \(BusinessDocumentKind.allCases.count)")
+                        .font(AppTypography.dataCompact)
+                        .foregroundStyle(AppTheme.ink)
+                    Spacer()
+                    Text(nextWorkflowKind?.title ?? "已闭环")
+                        .font(AppTypography.meta.weight(.semibold))
+                        .foregroundStyle(AppTheme.accent)
+                }
+
+                ProgressView(value: progress)
+                    .tint(AppTheme.accent)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    ForEach(BusinessDocumentKind.allCases) { kind in
+                        workflowStepTile(kind)
+                    }
+                }
+            }
+        }
+    }
+
+    private func workflowStepTile(_ kind: BusinessDocumentKind) -> some View {
+        let document = latestWorkflowDocumentsByKind[kind]
+        let statusText = document?.status.title ?? "待创建"
+        let isReady = document.map { $0.status != .draft && $0.status != .voided } ?? false
+
+        return Button {
+            editingDocument = document ?? store.makeSuggestedDocument(kind: kind, bookingID: effectiveBookingID, clientID: effectiveClientID)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: isReady ? "checkmark.seal.fill" : kind.symbolName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isReady ? AppTheme.accent : AppTheme.secondaryInk)
+                    .frame(width: 28, height: 28)
+                    .background((isReady ? AppTheme.accent : AppTheme.secondaryInk).opacity(0.1), in: Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(kind.title)
+                        .font(AppTypography.meta.weight(.semibold))
+                        .foregroundStyle(AppTheme.ink)
+                    Text(statusText)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .appCardSurface(fillColor: AppTheme.panelStrong)
+        }
+        .buttonStyle(.plain)
     }
 
     private func documentCard(_ document: BusinessDocumentRecord) -> some View {

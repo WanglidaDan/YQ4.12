@@ -34,20 +34,12 @@ struct TeamView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    summarySection
-                    dispatchSection
-                    teamPreferencesSection
-                    rosterSection
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 28)
+            AppPageScaffold(title: "团队") {
+                summarySection
+                dispatchSection
+                teamPreferencesSection
+                rosterSection
             }
-            .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
-            .navigationTitle("团队")
-            .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showingNewCrewMember) {
                 TeamMemberEditorView()
                     .environment(store)
