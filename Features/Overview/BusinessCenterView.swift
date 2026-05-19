@@ -7,7 +7,6 @@ import UniformTypeIdentifiers
 
 enum BusinessCenterMode: String, CaseIterable, Identifiable {
     case workflow
-    case calendar
     case assets
     case collaboration
     case analytics
@@ -17,7 +16,6 @@ enum BusinessCenterMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .workflow: "业务闭环"
-        case .calendar: "日历整备"
         case .assets: "资料中心"
         case .collaboration: "团队权限"
         case .analytics: "经营报表"
@@ -27,7 +25,6 @@ enum BusinessCenterMode: String, CaseIterable, Identifiable {
     var symbolName: String {
         switch self {
         case .workflow: "doc.text.fill"
-        case .calendar: "calendar.badge.clock"
         case .assets: "paperclip.circle.fill"
         case .collaboration: "person.3.sequence.fill"
         case .analytics: "chart.bar.xaxis"
@@ -100,16 +97,6 @@ struct BusinessCenterView: View {
         store.attachments(for: effectiveBookingID, clientID: effectiveClientID)
     }
 
-    private var systemCalendarLink: CalendarSyncLinkRecord? {
-        guard let effectiveBookingID else { return nil }
-        return store.calendarLink(for: effectiveBookingID, provider: .system)
-    }
-
-    private var googleCalendarLink: CalendarSyncLinkRecord? {
-        guard let effectiveBookingID else { return nil }
-        return store.calendarLink(for: effectiveBookingID, provider: .google)
-    }
-
     private var scopeTitle: String {
         if let booking = selectedBooking {
             return booking.title
@@ -156,8 +143,6 @@ struct BusinessCenterView: View {
                     switch selectedMode {
                     case .workflow:
                         workflowSection
-                    case .calendar:
-                        calendarSection
                     case .assets:
                         assetsSection
                     case .collaboration:
@@ -222,7 +207,7 @@ struct BusinessCenterView: View {
     }
 
     private var heroSection: some View {
-        AppInfoCard(title: scopeTitle, subtitle: "围绕合同、外部日历整备、资料、团队权限和报表形成完整闭环。") {
+        AppInfoCard(title: scopeTitle, subtitle: "围绕合同、资料、团队权限和报表形成完整闭环。") {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 AppMetricTile(title: "文档", value: "\(scopedDocuments.count)", subtitle: "合同 / 报价 / 收据 / 发票")
                 AppMetricTile(title: "资料", value: "\(scopedAttachments.count)", subtitle: "参考图、合同附件、交付素材")
@@ -564,45 +549,6 @@ struct BusinessCenterView: View {
                     }
                     .buttonStyle(AppSecondaryButtonStyle())
                 }
-            }
-        }
-    }
-
-    private var calendarSection: some View {
-        VStack(spacing: 16) {
-            AppInfoCard(title: "外部日历接入准备", subtitle: "当前正式版不直接写入系统日历或 Google Calendar，先保留订单级接入说明与状态记录。") {
-                if let booking = selectedBooking {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(booking.title)
-                            .font(AppTypography.bodyStrong)
-                            .foregroundStyle(AppTheme.ink)
-                        Text("\(AppFormatters.fullDate(booking.startAt)) · \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
-                            .font(AppTypography.meta)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                        if booking.fullAddressText.isEmpty == false {
-                            Text(booking.fullAddressText)
-                                .font(AppTypography.meta)
-                                .foregroundStyle(AppTheme.secondaryInk)
-                        }
-                    }
-                } else {
-                    AppInlineNote(systemImage: "calendar", text: "请先在上方选择一条订单，再查看外部日历接入说明。")
-                }
-            }
-
-            GlassCard(title: "当前版本范围", subtitle: "避免宣传与实际不一致：本版本只展示准备状态，不伪造真实双向同步。") {
-                HStack(spacing: 12) {
-                    AppMetricTile(title: "系统日历", value: systemCalendarLink?.status.title ?? "未启用", subtitle: "预留接入位", fillColor: AppTheme.panelStrong)
-                    AppMetricTile(title: "Google", value: googleCalendarLink?.status.title ?? "未启用", subtitle: "预留接入位", fillColor: AppTheme.panelStrong)
-                }
-                AppInlineNote(systemImage: "checkmark.shield", text: "这样处理后，送审时不会出现“UI 说双向同步，但底层其实没接外部日历”的风险。")
-            }
-
-            GlassCard(title: "接入说明", subtitle: store.googleCalendarConnection.accountEmail.isEmpty ? "尚未配置外部日历账号" : store.googleCalendarConnection.accountEmail) {
-                AppKeyValueRow(title: "系统日历", value: "当前正式版未启用写入与回写")
-                AppKeyValueRow(title: "Google Calendar", value: store.googleCalendarConnection.accountEmail.isEmpty ? "未配置" : "已记录接入账号信息")
-                AppKeyValueRow(title: "日历 ID", value: store.googleCalendarConnection.calendarID)
-                AppInlineNote(systemImage: "info.circle", text: "如需后续接入，请在完成真实 EventKit / Google API 能力后，再重新开放自动同步入口与权限文案。")
             }
         }
     }

@@ -18,8 +18,6 @@ struct SettingsView: View {
     @State private var confirmingClearData = false
     @State private var confirmingSignOut = false
     @State private var confirmingDeleteAccount = false
-    @State private var confirmingImportSampleData = false
-    @State private var businessCenterRoute: BusinessCenterRoute?
 
     init(store: StudioStore? = nil, showsCloseButton: Bool = true) {
         self.showsCloseButton = showsCloseButton
@@ -101,29 +99,8 @@ struct SettingsView: View {
             .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if $0 == false { shareURL = nil } })) {
                 if let shareURL { ShareSheetView(activityItems: [shareURL]) }
             }
-            .sheet(item: $businessCenterRoute) { route in
-                BusinessCenterView(
-                    initialMode: route.mode,
-                    bookingID: route.bookingID,
-                    clientID: route.clientID
-                )
-                .environment(store)
-            }
             .fileImporter(isPresented: $showingRestoreImporter, allowedContentTypes: [.json, .folder], allowsMultipleSelection: false) { result in
                 handleRestore(result)
-            }
-            .confirmationDialog("确认导入示例数据？", isPresented: $confirmingImportSampleData) {
-                Button("导入", role: .destructive) {
-                    if store.importSampleDataIfEmpty() {
-                        AppHaptics.success()
-                    } else {
-                        fileImportError = "当前工作区已有数据，请先备份并清空当前工作区后再导入示例数据。"
-                        AppHaptics.error()
-                    }
-                }
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text("仅当当前工作区为空时才会导入演示客户、档期和跟进数据。")
             }
             .confirmationDialog("确认清空当前工作区？", isPresented: $confirmingClearData) {
                 Button("清空工作区", role: .destructive) {
@@ -258,21 +235,12 @@ struct SettingsView: View {
     }
 
     private var toolsSection: some View {
-        settingsCard(title: "工具与支持", subtitle: "业务入口、数据操作和支持信息集中到一个区域。") {
-            subsectionTitle("业务中心")
-            businessActionRow(title: "合同 / 报价 / 收据 / 发票", subtitle: "生成与管理业务文档", mode: .workflow)
-            businessActionRow(title: "外部日历整备", subtitle: "查看订单级日历接入状态", mode: .calendar)
-            businessActionRow(title: "附件与参考资料", subtitle: "管理合同附件与交付资料", mode: .assets)
-            businessActionRow(title: "经营分析报表", subtitle: "查看收款、成交和经营表现", mode: .analytics)
-
-            minorSeparator
-
+        settingsCard(title: "工具与支持", subtitle: "保留备份、恢复和支持信息，减少低频业务入口干扰。") {
             subsectionTitle("数据管理")
             actionRow(title: "导出 JSON", subtitle: "用于结构化备份和迁移") { exportJSON() }
             actionRow(title: "导出 CSV", subtitle: "用于表格分析或外部归档") { exportCSV() }
             actionRow(title: "完整备份（含附件）", subtitle: "打包工作区和资料文件") { backup() }
             actionRow(title: "恢复备份", subtitle: "从 JSON 或完整备份目录恢复") { showingRestoreImporter = true }
-            actionRow(title: "导入示例数据", subtitle: "仅在空工作区中导入演示内容") { confirmingImportSampleData = true }
             actionRow(title: "清空当前工作区", subtitle: "删除客户、档期、跟进与付款记录", role: .destructive) { confirmingClearData = true }
 
             minorSeparator
@@ -455,23 +423,12 @@ struct SettingsView: View {
         }
     }
 
-    private var operationsSection: some View {
-        settingsCard(title: "业务中心", subtitle: "保持完整功能，但按业务目的重新分组。") {
-            businessActionRow(title: "合同 / 报价 / 收据 / 发票", subtitle: "生成与管理业务文档", mode: .workflow)
-            businessActionRow(title: "外部日历整备", subtitle: "查看订单级日历接入状态", mode: .calendar)
-            businessActionRow(title: "附件与参考资料", subtitle: "管理合同附件与交付资料", mode: .assets)
-            businessActionRow(title: "团队权限与留痕", subtitle: "查看协作角色与关键操作记录", mode: .collaboration)
-            businessActionRow(title: "经营分析报表", subtitle: "查看收款、成交和经营表现", mode: .analytics)
-        }
-    }
-
     private var dataSection: some View {
         settingsCard(title: "数据管理", subtitle: "导出、备份、恢复和清理当前工作区。") {
             actionRow(title: "导出 JSON", subtitle: "用于结构化备份和迁移") { exportJSON() }
             actionRow(title: "导出 CSV", subtitle: "用于表格分析或外部归档") { exportCSV() }
             actionRow(title: "完整备份（含附件）", subtitle: "打包工作区和资料文件") { backup() }
             actionRow(title: "恢复备份", subtitle: "从 JSON 或完整备份目录恢复") { showingRestoreImporter = true }
-            actionRow(title: "导入示例数据", subtitle: "仅在空工作区中导入演示内容") { confirmingImportSampleData = true }
             actionRow(title: "清空当前工作区", subtitle: "删除客户、档期、跟进与付款记录", role: .destructive) { confirmingClearData = true }
         }
     }
@@ -612,15 +569,6 @@ struct SettingsView: View {
     private func actionRow(title: String, subtitle: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
         Button(role: role, action: action) {
             navigationActionLabel(title: title, subtitle: subtitle, tint: role == .destructive ? .red : AppTheme.ink)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func businessActionRow(title: String, subtitle: String, mode: BusinessCenterMode) -> some View {
-        Button {
-            businessCenterRoute = BusinessCenterRoute(mode: mode, bookingID: nil, clientID: nil)
-        } label: {
-            navigationActionLabel(title: title, subtitle: subtitle)
         }
         .buttonStyle(.plain)
     }

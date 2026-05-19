@@ -360,6 +360,8 @@ struct CreateBookingFlowView: View {
     @State private var deliverableText = ""
     @State private var notesText: String
     @State private var shouldCreateFollowUp = true
+    @State private var shouldSaveAsTemplate = false
+    @State private var templateName = ""
     @State private var selectedCrewMemberName: String
     @State private var showingConflictConfirmation = false
 
@@ -528,6 +530,16 @@ struct CreateBookingFlowView: View {
                     .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.secondaryInk)
             }
+
+            Section("保存为模板") {
+                Toggle("保存当前内容为模板", isOn: $shouldSaveAsTemplate)
+                if shouldSaveAsTemplate {
+                    TextField("模板名称", text: $templateName)
+                    Text("模板只保存你的当前服务类型、时长、报价、交付和项目说明，不再提供系统预设内容。")
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
+            }
         }
     }
 
@@ -554,6 +566,9 @@ struct CreateBookingFlowView: View {
                 Label("系统拍摄提醒", systemImage: "bell.badge")
                 if shouldCreateFollowUp {
                     Label("拍前确认跟进", systemImage: "checklist")
+                }
+                if shouldSaveAsTemplate {
+                    Label("保存为我的模板", systemImage: "square.grid.2x2")
                 }
                 Label("可继续补充合同、回款、收据和发票", systemImage: "doc.text")
             }
@@ -657,6 +672,10 @@ struct CreateBookingFlowView: View {
 
         store.upsert(booking: booking)
 
+        if shouldSaveAsTemplate {
+            saveCurrentDraftAsTemplate()
+        }
+
         if shouldCreateFollowUp {
             let dueAt = Calendar.current.date(byAdding: .day, value: -2, to: startAt) ?? startAt
             let reminder = TouchpointRecord(
@@ -681,6 +700,27 @@ struct CreateBookingFlowView: View {
 
         AppHaptics.success()
         dismiss()
+    }
+
+    private func saveCurrentDraftAsTemplate() {
+        let name = templateName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackName = trimmedTitle.isEmpty ? "\(category.title)模板" : trimmedTitle
+        let durationHours = max(Int((endAt.timeIntervalSince(startAt) / 3_600).rounded()), 1)
+        let depositRatio = normalizedFee > 0 ? min(max(normalizedDeposit / normalizedFee, 0), 1) : store.settings.defaultDepositRatio
+
+        let template = BookingTemplate(
+            name: name.isEmpty ? fallbackName : name,
+            category: category,
+            defaultDurationHours: durationHours,
+            defaultPrice: normalizedFee,
+            defaultDepositRatio: depositRatio,
+            defaultReminderDays: 3,
+            defaultDeliverableText: deliverableText.trimmingCharacters(in: .whitespacesAndNewlines),
+            defaultNotesText: notesText.trimmingCharacters(in: .whitespacesAndNewlines),
+            defaultShootingAttributes: ShootingAttribute.defaultSelection(for: category),
+            isUserCreated: true
+        )
+        store.upsert(template: template)
     }
 
     private func applyStoreDefaultsIfNeeded() {

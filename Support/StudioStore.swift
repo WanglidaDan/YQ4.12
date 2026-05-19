@@ -131,7 +131,7 @@ final class StudioStore {
         bookings = loadedSnapshot.bookings
         touchpoints = loadedSnapshot.touchpoints
         payments = loadedSnapshot.payments
-        templates = loadedSnapshot.templates.isEmpty ? Self.defaultTemplates() : loadedSnapshot.templates
+        templates = Self.userTemplates(from: loadedSnapshot.templates)
         settings = loadedSnapshot.settings
         crewMembers = loadedSnapshot.crewMembers
         workspaceMembers = loadedSnapshot.workspaceMembers
@@ -605,7 +605,7 @@ final class StudioStore {
             payments: [],
             crewMembers: [],
             studioProfile: .empty,
-            templates: Self.defaultTemplates(),
+            templates: [],
             settings: emptySettings,
             authProfile: nil,
             workspaceOwnerAppleUserID: nil,
@@ -656,6 +656,32 @@ final class StudioStore {
         appendActivity(actionTitle: isExisting ? "更新订单" : "新建订单", target: .booking, targetID: syncedBooking.id.uuidString, summary: syncedBooking.title)
         normalizeAndPersistIfNeeded()
         scheduleBookingReminderIfEnabled(for: syncedBooking)
+    }
+
+    func upsert(template: BookingTemplate) {
+        guard requirePermission(.manageBookings) else { return }
+        var normalized = template
+        normalized.name = normalized.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.defaultDurationHours = max(normalized.defaultDurationHours, 1)
+        normalized.defaultPrice = max(normalized.defaultPrice, 0)
+        normalized.defaultDepositRatio = min(max(normalized.defaultDepositRatio, 0), 1)
+        normalized.defaultReminderDays = max(normalized.defaultReminderDays, 0)
+        normalized.defaultDeliverableText = normalized.defaultDeliverableText.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.defaultNotesText = normalized.defaultNotesText.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalized.defaultShootingAttributes = ShootingAttribute.normalized(normalized.defaultShootingAttributes)
+        normalized.isUserCreated = true
+
+        guard normalized.name.isEmpty == false else { return }
+
+        if let index = templates.firstIndex(where: { $0.id == normalized.id }) {
+            templates[index] = normalized
+        } else {
+            templates.append(normalized)
+        }
+
+        templates = Self.userTemplates(from: templates)
+        appendActivity(actionTitle: "保存档期模板", target: .booking, targetID: normalized.id.uuidString, summary: normalized.name)
+        normalizeAndPersistIfNeeded()
     }
 
     func upsert(touchpoint: TouchpointRecord) {
@@ -1032,7 +1058,7 @@ final class StudioStore {
         collaborationActivities = migratedRemoteSnapshot.collaborationActivities
         googleCalendarConnection = migratedRemoteSnapshot.googleCalendarConnection
         studioProfile = migratedRemoteSnapshot.studioProfile
-        templates = migratedRemoteSnapshot.templates.isEmpty ? Self.defaultTemplates() : migratedRemoteSnapshot.templates
+        templates = Self.userTemplates(from: migratedRemoteSnapshot.templates)
         authProfile = migratedRemoteSnapshot.authProfile ?? authProfile
         workspaceOwnerAppleUserID = migratedRemoteSnapshot.workspaceOwnerAppleUserID ?? workspaceOwnerAppleUserID
         lastModifiedAt = migratedRemoteSnapshot.lastModifiedAt
@@ -1123,7 +1149,7 @@ final class StudioStore {
             payments: [],
             crewMembers: [],
             studioProfile: .empty,
-            templates: Self.defaultTemplates(),
+            templates: [],
             settings: isolatedSettings,
             authProfile: authProfile,
             workspaceOwnerAppleUserID: authProfile.appleUserID,
@@ -1353,7 +1379,7 @@ final class StudioStore {
         collaborationActivities = snapshot.collaborationActivities
         googleCalendarConnection = snapshot.googleCalendarConnection.redactedForPersistence
         studioProfile = snapshot.studioProfile
-        templates = snapshot.templates.isEmpty ? Self.defaultTemplates() : snapshot.templates
+        templates = Self.userTemplates(from: snapshot.templates)
         settings = snapshot.settings
         authProfile = snapshot.authProfile
         workspaceOwnerAppleUserID = snapshot.workspaceOwnerAppleUserID
@@ -1401,9 +1427,7 @@ final class StudioStore {
         }
         migrated.settings.currencyCode = AppSettings.normalizedCurrencyCode(migrated.settings.currencyCode)
 
-        if migrated.templates.isEmpty {
-            migrated.templates = defaultTemplates()
-        }
+        migrated.templates = userTemplates(from: migrated.templates)
 
         if migrated.payments.isEmpty {
             migrated.payments = migrated.bookings.compactMap { booking in
@@ -1488,179 +1512,15 @@ final class StudioStore {
         try? fileManager.moveItem(at: saveURL, to: corruptURL)
     }
 
-    private static func defaultTemplates() -> [BookingTemplate] {
-        [
-            BookingTemplate(
-                name: "婚礼",
-                category: .wedding,
-                defaultDurationHours: 10,
-                defaultPrice: 16800,
-                defaultDepositRatio: 0.3,
-                defaultReminderDays: 3,
-                defaultDeliverableText: "精修照片 + 婚礼预告片",
-                defaultNotesText: "确认时间线、联系人、机位和出行安排。"
-            ),
-            BookingTemplate(
-                name: "个人写真",
-                category: .portrait,
-                defaultDurationHours: 3,
-                defaultPrice: 3200,
-                defaultDepositRatio: 0.5,
-                defaultReminderDays: 1,
-                defaultDeliverableText: "精修 12 张 + 底片",
-                defaultNotesText: "提前确认妆造、服装和场地风格。"
-            ),
-            BookingTemplate(
-                name: "情侣写真",
-                category: .couple,
-                defaultDurationHours: 2,
-                defaultPrice: 2999,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 1,
-                defaultDeliverableText: "精修 18 张 + 双人合辑",
-                defaultNotesText: "确认服装色系、情绪参考图和拍摄节奏。"
-            ),
-            BookingTemplate(
-                name: "旅拍",
-                category: .travel,
-                defaultDurationHours: 5,
-                defaultPrice: 6999,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 3,
-                defaultDeliverableText: "精修 36 张 + 行程花絮",
-                defaultNotesText: "确认路线、集合时间、交通和天气备选方案。"
-            ),
-            BookingTemplate(
-                name: "企业形象照",
-                category: .corporate,
-                defaultDurationHours: 4,
-                defaultPrice: 5200,
-                defaultDepositRatio: 0.5,
-                defaultReminderDays: 3,
-                defaultDeliverableText: "团队形象照 + 单人头像",
-                defaultNotesText: "确认人数、服装规范、拍摄背景和选片规则。"
-            ),
-            BookingTemplate(
-                name: "产品拍摄",
-                category: .product,
-                defaultDurationHours: 4,
-                defaultPrice: 4200,
-                defaultDepositRatio: 0.5,
-                defaultReminderDays: 3,
-                defaultDeliverableText: "主图 + 细节图 + 横竖版素材",
-                defaultNotesText: "确认拍摄清单、背景、道具和出图尺寸。"
-            ),
-            BookingTemplate(
-                name: "美食拍摄",
-                category: .food,
-                defaultDurationHours: 4,
-                defaultPrice: 4600,
-                defaultDepositRatio: 0.5,
-                defaultReminderDays: 3,
-                defaultDeliverableText: "菜单主图 + 场景图 + 竖版素材",
-                defaultNotesText: "确认出餐节奏、餐具道具、菜品数量与上菜顺序。"
-            ),
-            BookingTemplate(
-                name: "空间摄影",
-                category: .space,
-                defaultDurationHours: 3,
-                defaultPrice: 3800,
-                defaultDepositRatio: 0.5,
-                defaultReminderDays: 3,
-                defaultDeliverableText: "空间全景 + 细节图 + 宣传横图",
-                defaultNotesText: "确认采光时段、清场情况、重点区域和使用用途。"
-            ),
-            BookingTemplate(
-                name: "活动跟拍",
-                category: .event,
-                defaultDurationHours: 5,
-                defaultPrice: 4800,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 1,
-                defaultDeliverableText: "活动纪实照片 + 关键环节快修",
-                defaultNotesText: "确认流程表、嘉宾名单、主舞台和关键镜头。"
-            ),
-            BookingTemplate(
-                name: "纪录片摄像",
-                category: .documentaryFilm,
-                defaultDurationHours: 8,
-                defaultPrice: 8800,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 3,
-                defaultDeliverableText: "纪录短片 + 采访素材 + 精简字幕版",
-                defaultNotesText: "确认采访对象、拍摄提纲、授权范围和素材归档方式。"
-            ),
-            BookingTemplate(
-                name: "航拍",
-                category: .aerial,
-                defaultDurationHours: 2,
-                defaultPrice: 2600,
-                defaultDepositRatio: 0.5,
-                defaultReminderDays: 1,
-                defaultDeliverableText: "航拍照片 + 4K 航拍视频片段",
-                defaultNotesText: "确认空域、报备要求、天气风速和起降点。"
-            ),
-            BookingTemplate(
-                name: "视频拍摄",
-                category: .video,
-                defaultDurationHours: 6,
-                defaultPrice: 7600,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 3,
-                defaultDeliverableText: "横版主片 + 竖版短视频素材",
-                defaultNotesText: "确认脚本、分镜、收音、灯光和交付比例。"
-            ),
-            BookingTemplate(
-                name: "亲子全家福",
-                category: .family,
-                defaultDurationHours: 2,
-                defaultPrice: 2600,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 1,
-                defaultDeliverableText: "精修 24 张",
-                defaultNotesText: "确认儿童作息、天气与备用场地。"
-            ),
-            BookingTemplate(
-                name: "孕妇写真",
-                category: .maternity,
-                defaultDurationHours: 2,
-                defaultPrice: 3600,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 2,
-                defaultDeliverableText: "精修 20 张 + 海报 1 张",
-                defaultNotesText: "确认孕周、服装、陪拍家属与体力安排。"
-            ),
-            BookingTemplate(
-                name: "新生儿拍摄",
-                category: .newborn,
-                defaultDurationHours: 3,
-                defaultPrice: 4200,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 2,
-                defaultDeliverableText: "精修 20 张 + 亲子合照",
-                defaultNotesText: "确认宝宝作息、保暖、喂奶时间和拍摄道具。"
-            ),
-            BookingTemplate(
-                name: "宠物写真",
-                category: .pet,
-                defaultDurationHours: 2,
-                defaultPrice: 1999,
-                defaultDepositRatio: 0.5,
-                defaultReminderDays: 1,
-                defaultDeliverableText: "精修 15 张 + 连拍底片精选",
-                defaultNotesText: "确认宠物状态、零食玩具、牵引要求和清洁安排。"
-            ),
-            BookingTemplate(
-                name: "毕业照",
-                category: .graduation,
-                defaultDurationHours: 2,
-                defaultPrice: 2200,
-                defaultDepositRatio: 0.4,
-                defaultReminderDays: 1,
-                defaultDeliverableText: "精修 18 张 + 合影底片",
-                defaultNotesText: "确认学位服、场地、同伴人数与天气方案。"
-            )
-        ]
+    private static func userTemplates(from templates: [BookingTemplate]) -> [BookingTemplate] {
+        templates
+            .filter(\.isUserCreated)
+            .sorted { lhs, rhs in
+                if lhs.createdAt != rhs.createdAt {
+                    return lhs.createdAt > rhs.createdAt
+                }
+                return lhs.name < rhs.name
+            }
     }
 }
 
@@ -2054,28 +1914,28 @@ extension StudioStore {
         guard requirePermission(.manageCalendarSync) else {
             throw BusinessModuleError.permissionDenied(lastWorkspaceNoticeMessage ?? "没有日历同步权限。")
         }
-        throw BusinessModuleError.calendarSyncUnavailable("当前正式版暂未启用系统日历写入，请先在经营中心查看接入说明。")
+        throw BusinessModuleError.calendarSyncUnavailable("当前正式版暂未启用系统日历写入。")
     }
 
     func pullSystemCalendarChanges(_ bookingID: UUID) async throws {
         guard requirePermission(.manageCalendarSync) else {
             throw BusinessModuleError.permissionDenied(lastWorkspaceNoticeMessage ?? "没有日历同步权限。")
         }
-        throw BusinessModuleError.calendarSyncUnavailable("当前正式版暂未启用系统日历回写，请先在经营中心查看接入说明。")
+        throw BusinessModuleError.calendarSyncUnavailable("当前正式版暂未启用系统日历回写。")
     }
 
     func pushBookingToGoogleCalendar(_ bookingID: UUID) async throws {
         guard requirePermission(.manageCalendarSync) else {
             throw BusinessModuleError.permissionDenied(lastWorkspaceNoticeMessage ?? "没有日历同步权限。")
         }
-        throw BusinessModuleError.calendarSyncUnavailable("当前正式版暂未启用 Google Calendar 写入，请先在经营中心查看接入说明。")
+        throw BusinessModuleError.calendarSyncUnavailable("当前正式版暂未启用 Google Calendar 写入。")
     }
 
     func pullGoogleCalendarChanges(_ bookingID: UUID) async throws {
         guard requirePermission(.manageCalendarSync) else {
             throw BusinessModuleError.permissionDenied(lastWorkspaceNoticeMessage ?? "没有日历同步权限。")
         }
-        throw BusinessModuleError.calendarSyncUnavailable("当前正式版暂未启用 Google Calendar 回写，请先在经营中心查看接入说明。")
+        throw BusinessModuleError.calendarSyncUnavailable("当前正式版暂未启用 Google Calendar 回写。")
     }
 
     @discardableResult

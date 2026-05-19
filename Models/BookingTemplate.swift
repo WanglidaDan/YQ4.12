@@ -11,6 +11,7 @@ struct BookingTemplate: Identifiable, Codable, Hashable, Sendable {
     var defaultDeliverableText: String
     var defaultNotesText: String
     var defaultShootingAttributes: [ShootingAttribute]
+    var isUserCreated: Bool
     var createdAt: Date
 
     init(
@@ -24,6 +25,7 @@ struct BookingTemplate: Identifiable, Codable, Hashable, Sendable {
         defaultDeliverableText: String,
         defaultNotesText: String,
         defaultShootingAttributes: [ShootingAttribute]? = nil,
+        isUserCreated: Bool = true,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -36,11 +38,12 @@ struct BookingTemplate: Identifiable, Codable, Hashable, Sendable {
         self.defaultDeliverableText = defaultDeliverableText
         self.defaultNotesText = defaultNotesText
         self.defaultShootingAttributes = ShootingAttribute.normalized(defaultShootingAttributes ?? ShootingAttribute.defaultSelection(for: category))
+        self.isUserCreated = isUserCreated
         self.createdAt = createdAt
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, category, defaultDurationHours, defaultPrice, defaultDepositRatio, defaultReminderDays, defaultDeliverableText, defaultNotesText, defaultShootingAttributes, createdAt
+        case id, name, category, defaultDurationHours, defaultPrice, defaultDepositRatio, defaultReminderDays, defaultDeliverableText, defaultNotesText, defaultShootingAttributes, isUserCreated, createdAt
     }
 
     private enum LegacyCodingKeys: String, CodingKey {
@@ -66,6 +69,7 @@ struct BookingTemplate: Identifiable, Codable, Hashable, Sendable {
         } else {
             self.defaultShootingAttributes = ShootingAttribute.defaultSelection(for: category)
         }
+        isUserCreated = try container.decodeIfPresent(Bool.self, forKey: .isUserCreated) ?? false
         createdAt = try container.decode(Date.self, forKey: .createdAt)
     }
 }

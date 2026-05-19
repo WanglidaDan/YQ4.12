@@ -122,8 +122,8 @@ struct ClientsView: View {
     var body: some View {
         NavigationStack {
             AppPageScaffold(title: "客户", topPadding: 14, bottomPadding: 32) {
-                heroCard
-                controlCard
+                scopePicker
+                summaryStrip
 
                 if featuredClients.isEmpty == false {
                     clientsBlock(title: "优先关注", subtitle: "高价值、临近跟进与待回款客户") {
@@ -168,6 +168,15 @@ struct ClientsView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("打开筛选")
+
+                    Button {
+                        AppHaptics.tapLight()
+                        showingNewClient = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("新增客户")
                 }
             }
             .navigationDestination(for: ClientRoute.self) { route in
@@ -180,14 +189,6 @@ struct ClientsView: View {
             .sheet(item: $editingClient) { client in
                 ClientEditorView(client: client)
                     .environment(store)
-            }
-            .sheet(item: $businessCenterRoute) { route in
-                BusinessCenterView(
-                    initialMode: route.mode,
-                    bookingID: route.bookingID,
-                    clientID: route.clientID
-                )
-                .environment(store)
             }
             .sheet(isPresented: $showingSearchSheet) {
                 ClientSearchSheet(searchText: $searchText, clients: filteredClients, scope: scope)
@@ -226,6 +227,56 @@ struct ClientsView: View {
                 Text(deletionResultMessage ?? "")
             }
         }
+    }
+
+    private var scopePicker: some View {
+        Picker("范围", selection: $scope) {
+            ForEach(ClientScope.allCases) { item in
+                Text(item.title).tag(item)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var summaryStrip: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                summaryMetric(title: "客户", value: "\(sourceClients.count)")
+                summaryMetric(title: "待经营", value: "\(followUpClientCount)")
+                summaryMetric(title: "签约额", value: AppFormatters.currency(totalLifetimeValue))
+            }
+
+            HStack(spacing: 8) {
+                Label(filter.title, systemImage: "line.3.horizontal.decrease.circle")
+                Text(sort.title)
+                Spacer(minLength: 8)
+                Button("调整") {
+                    AppHaptics.tapLight()
+                    showingFilterSheet = true
+                }
+                .font(AppTypography.meta.weight(.semibold))
+            }
+            .font(AppTypography.meta)
+            .foregroundStyle(AppTheme.secondaryInk)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(fillColor: AppTheme.panelSoft)
+    }
+
+    private func summaryMetric(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(AppTypography.meta)
+                .foregroundStyle(AppTheme.secondaryInk)
+            Text(value)
+                .font(AppTypography.bodyStrong)
+                .foregroundStyle(AppTheme.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var heroCard: some View {

@@ -554,22 +554,17 @@ struct BookingDetailView: View {
 
     private func businessCenterSection(_ booking: BookingRecord) -> some View {
         let summary = store.businessSummary(for: booking.id, clientID: booking.clientID)
-        let systemStatus = store.calendarLink(for: booking.id, provider: .system)?.status.title ?? "未启用"
-        let googleStatus = store.calendarLink(for: booking.id, provider: .google)?.status.title ?? (store.googleCalendarConnection.accountEmail.isEmpty ? "未配置" : "已记录账号")
 
         return GlassCard(title: "业务协同") {
-            AppKeyValueRow(title: "系统日历整备", value: systemStatus)
-            AppKeyValueRow(title: "Google 接入", value: googleStatus)
             AppInlineNote(systemImage: "doc.text.magnifyingglass", text: "文档 \(summary.documents) 份 · 资料 \(summary.attachments) 份")
 
             DisclosureGroup(isExpanded: $businessToolsExpanded) {
                 VStack(spacing: 10) {
                     HStack(spacing: 10) {
                         bookingBusinessButton(mode: .workflow, subtitle: "报价到开票闭环", booking: booking)
-                        bookingBusinessButton(mode: .calendar, subtitle: "接入准备", booking: booking)
+                        bookingBusinessButton(mode: .assets, subtitle: "资料与附件", booking: booking)
                     }
                     HStack(spacing: 10) {
-                        bookingBusinessButton(mode: .assets, subtitle: "资料与附件", booking: booking)
                         bookingBusinessButton(mode: .collaboration, subtitle: "团队权限与留痕", booking: booking)
                     }
                 }
@@ -580,7 +575,7 @@ struct BookingDetailView: View {
                         .font(AppTypography.bodyStrong)
                         .foregroundStyle(AppTheme.ink)
                     Spacer()
-                    Text("合同、日历、资料、协作")
+                    Text("合同、资料、协作")
                         .font(AppTypography.meta)
                         .foregroundStyle(AppTheme.secondaryInk)
                 }

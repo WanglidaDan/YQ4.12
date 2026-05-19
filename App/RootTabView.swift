@@ -364,7 +364,6 @@ struct TeamView: View {
 
     @State private var showingNewCrewMember = false
     @State private var editingCrewMember: CrewMemberRecord?
-    @State private var businessCenterRoute: BusinessCenterRoute?
 
     private var todayBookings: [BookingRecord] {
         store.bookings(on: .now)
@@ -402,7 +401,8 @@ struct TeamView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 28)
             }
-            .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("团队")
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showingNewCrewMember) {
@@ -413,14 +413,6 @@ struct TeamView: View {
                 TeamMemberEditorView(member: member)
                     .environment(store)
             }
-            .sheet(item: $businessCenterRoute) { route in
-                BusinessCenterView(
-                    initialMode: route.mode,
-                    bookingID: route.bookingID,
-                    clientID: route.clientID
-                )
-                .environment(store)
-            }
         }
     }
 
@@ -428,25 +420,13 @@ struct TeamView: View {
         AppInfoCard(title: "团队工作台", subtitle: isTeamModeEnabled ? "今日排班、成员设置和协作权限集中管理。" : "当前为个人模式，可先开启团队模式再分配成员。") {
             HStack(spacing: 12) {
                 AppMetricTile(title: "团队成员", value: "\(store.activeCrewMembers.count)", subtitle: isTeamModeEnabled ? "团队模式已开启" : "团队模式未开启", fillColor: AppTheme.panelStrong)
-                AppMetricTile(title: "协作角色", value: store.currentWorkspaceRole.title, subtitle: "\(store.activeWorkspaceMembers.count) 位协作成员", fillColor: AppTheme.panelStrong)
-            }
-
-            HStack(spacing: 12) {
                 AppMetricTile(title: "今日安排", value: "\(todayBookings.count)", subtitle: currentCrewMemberName == nil ? "全部档期" : "含我的安排", fillColor: AppTheme.panelStrong)
-                AppMetricTile(title: "近期留痕", value: "\(store.collaborationActivities.prefix(20).count)", subtitle: "客户 / 订单 / 文档 / 附件", fillColor: AppTheme.panelStrong)
             }
 
-            HStack(spacing: 10) {
-                Button("打开档期") {
-                    onOpenSchedule()
-                }
-                .buttonStyle(AppPrimaryButtonStyle())
-
-                Button("团队权限") {
-                    businessCenterRoute = BusinessCenterRoute(mode: .collaboration, bookingID: nil, clientID: nil)
-                }
-                .buttonStyle(AppSecondaryButtonStyle())
+            Button("打开档期") {
+                onOpenSchedule()
             }
+            .buttonStyle(AppPrimaryButtonStyle())
         }
     }
 
