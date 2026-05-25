@@ -159,11 +159,11 @@ struct OverviewView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(featuredBooking.map { "下一场 · \(AppFormatters.shortDate($0.startAt))" } ?? "暂无排期")
+                    Text(AppFormatters.day(.now))
                         .font(AppTypography.meta.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.88))
 
-                    Text(featuredBooking == nil ? "近期暂无下一场拍摄" : "下一场拍摄提醒")
+                    Text(featuredBooking == nil ? "近期暂无拍摄" : "下一场拍摄")
                         .font(AppTypography.sectionTitle)
                         .foregroundStyle(.white)
                 }
@@ -188,13 +188,11 @@ struct OverviewView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 10) {
-                            heroInfoRow(title: "拍摄日期", value: AppFormatters.day(booking.startAt))
                             heroInfoRow(title: "客户", value: store.clientName(for: booking))
-                            heroInfoRow(title: "时间", value: AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))
-                            heroInfoRow(title: "地点", value: "\(booking.city) \(booking.venue)")
-                            heroInfoRow(title: "拍摄内容", value: ShootingAttribute.displayTitle(for: booking.shootingAttributes))
+                            heroInfoRow(title: "时间", value: "\(AppFormatters.shortDate(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
+                            heroInfoRow(title: "地点", value: recentBookingLocationText(for: booking))
                             if isTeamModeEnabled, booking.crewAssignments.isEmpty == false {
-                                heroInfoRow(title: "工作分工", value: crewAssignmentSummary(for: booking))
+                                heroInfoRow(title: "分工", value: crewAssignmentSummary(for: booking))
                             }
                         }
                     }
@@ -202,7 +200,7 @@ struct OverviewView: View {
                 .buttonStyle(.plain)
             } else {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("先把接下来要拍的项目排进来，提醒会在这里自动聚焦。")
+                    Text("新建档期后自动聚焦下一场。")
                         .font(AppTypography.body)
                         .foregroundStyle(.white.opacity(0.84))
                         .fixedSize(horizontal: false, vertical: true)
@@ -260,9 +258,9 @@ struct OverviewView: View {
                     if isTeamModeEnabled, let currentCrewMemberName {
                         AppInlineNote(systemImage: "person.crop.circle.fill", text: "当前成员：\(currentCrewMemberName)")
                     } else if isTeamModeEnabled {
-                        AppInlineNote(systemImage: "person.crop.circle.badge.questionmark", text: "未选择当前成员，先去“我的”里指定自己是谁。")
+                        AppInlineNote(systemImage: "person.crop.circle.badge.questionmark", text: "未选择当前成员。")
                     } else {
-                        AppInlineNote(systemImage: "calendar", text: "当前为个人模式，这里直接展示今天全部安排。")
+                        AppInlineNote(systemImage: "calendar", text: "个人模式。")
                     }
 
                     Spacer(minLength: 8)
@@ -278,14 +276,14 @@ struct OverviewView: View {
                         Text("今天暂无拍摄安排")
                             .font(AppTypography.bodyStrong)
                             .foregroundStyle(AppTheme.ink)
-                        Text("当日有多场拍摄时，这里会直接告诉你自己该去哪场、团队其他人在拍什么。")
+                        Text("有安排时会按成员聚合。")
                             .font(AppTypography.meta)
                             .foregroundStyle(AppTheme.secondaryInk)
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
                         if let currentCrewMemberName, myTodayBookings.isEmpty {
-                            AppInlineNote(systemImage: "person.crop.circle.badge.xmark", text: "\(currentCrewMemberName) 今天暂未被分配，继续看团队其他安排。")
+                            AppInlineNote(systemImage: "person.crop.circle.badge.xmark", text: "\(currentCrewMemberName) 今天未分配。")
                         }
                         if currentCrewMemberName != nil, myTodayBookings.isEmpty == false {
                             todayDispatchGroup(title: "我的安排", bookings: myTodayBookings, highlight: true)
@@ -305,12 +303,12 @@ struct OverviewView: View {
 
     private var todayDispatchSubtitle: String {
         if isTeamModeEnabled == false {
-            return todayBookings.isEmpty ? "当前没有排班" : "个人模式下按今日日期聚合全部项目。"
+            return todayBookings.isEmpty ? "无排班" : "今日全部项目"
         }
         if currentCrewMemberName != nil {
-            return todayBookings.isEmpty ? "当前没有排班" : "快速查看我的安排与团队其他安排。"
+            return todayBookings.isEmpty ? "无排班" : "我的安排 / 团队其他"
         }
-        return todayBookings.isEmpty ? "当前没有排班" : "适合工作室快速查看我的安排与团队其他安排。"
+        return todayBookings.isEmpty ? "无排班" : "按成员查看"
     }
 
     private func todayDispatchGroup(title: String, bookings: [BookingRecord], highlight: Bool) -> some View {
@@ -394,7 +392,7 @@ struct OverviewView: View {
                         Text("暂无最近档期")
                             .font(AppTypography.bodyStrong)
                             .foregroundStyle(AppTheme.ink)
-                        Text("新建拍摄后，这里会按时间轴自动显示未来最近的拍摄。")
+                        Text("新建后自动显示。")
                             .font(AppTypography.meta)
                             .foregroundStyle(AppTheme.secondaryInk)
                     }

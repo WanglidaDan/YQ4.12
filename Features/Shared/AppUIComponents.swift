@@ -156,6 +156,8 @@ struct AppSectionHeader: View {
                 Text(subtitle)
                     .font(AppTypography.sectionSubtitle)
                     .foregroundStyle(AppTheme.mutedInk)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
         .textCase(nil)
@@ -351,7 +353,8 @@ struct AppMetricTile: View {
                 Text(subtitle)
                     .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.secondaryInk)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
         .padding(.horizontal, 14)
@@ -402,7 +405,8 @@ struct AppInlineNote: View {
             Text(text)
                 .font(AppTypography.meta)
                 .foregroundStyle(AppTheme.secondaryInk)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

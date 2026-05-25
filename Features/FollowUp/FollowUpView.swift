@@ -111,7 +111,7 @@ struct FollowUpView: View {
                 FollowUpSectionModel(
                     id: "archived",
                     title: "已归档",
-                    subtitle: "历史跟进记录会沉淀在这里，必要时可以恢复",
+                    subtitle: "历史记录",
                     items: archivedItems
                 )
             ]
@@ -121,19 +121,19 @@ struct FollowUpView: View {
         switch filter {
         case .all:
             models = [
-                FollowUpSectionModel(id: "overdue", title: "已逾期", subtitle: "优先清理这些任务，避免影响客户体验", items: overdue),
-                FollowUpSectionModel(id: "today", title: "今天要做", subtitle: "当天需要完成的提醒和触达", items: today),
-                FollowUpSectionModel(id: "upcoming", title: "接下来", subtitle: "按时间顺序安排后续动作", items: upcoming),
-                FollowUpSectionModel(id: "completed", title: "已完成", subtitle: "已结束的沟通动作会沉淀在这里", items: completed)
+                FollowUpSectionModel(id: "overdue", title: "已逾期", subtitle: "优先处理", items: overdue),
+                FollowUpSectionModel(id: "today", title: "今天要做", subtitle: "今日提醒", items: today),
+                FollowUpSectionModel(id: "upcoming", title: "接下来", subtitle: "后续动作", items: upcoming),
+                FollowUpSectionModel(id: "completed", title: "已完成", subtitle: "历史触达", items: completed)
             ]
         case .overdue:
-            models = [FollowUpSectionModel(id: "overdue", title: "已逾期", subtitle: "建议先完成或顺延这些任务", items: overdue)]
+            models = [FollowUpSectionModel(id: "overdue", title: "已逾期", subtitle: "优先处理", items: overdue)]
         case .today:
-            models = [FollowUpSectionModel(id: "today", title: "今天要做", subtitle: "今天内要完成的提醒", items: today)]
+            models = [FollowUpSectionModel(id: "today", title: "今天要做", subtitle: "今日提醒", items: today)]
         case .upcoming:
-            models = [FollowUpSectionModel(id: "upcoming", title: "接下来", subtitle: "未来的跟进动作", items: upcoming)]
+            models = [FollowUpSectionModel(id: "upcoming", title: "接下来", subtitle: "后续动作", items: upcoming)]
         case .completed:
-            models = [FollowUpSectionModel(id: "completed", title: "已完成", subtitle: "沉淀下来的客户触达记录", items: completed)]
+            models = [FollowUpSectionModel(id: "completed", title: "已完成", subtitle: "历史触达", items: completed)]
         }
 
         return models.filter { $0.items.isEmpty == false }
@@ -141,8 +141,8 @@ struct FollowUpView: View {
 
     private var filterSummary: String {
         [
-            "范围：\(scope.title)",
-            "筛选：\(filter.title)"
+            scope.title,
+            filter.title
         ].joined(separator: " · ")
     }
 
@@ -160,7 +160,7 @@ struct FollowUpView: View {
                         if snapshot.receivableBookings.isEmpty {
                             emptyStateRow(
                                 title: "当前没有待回款订单",
-                                subtitle: "待收金额会在这里集中展示，方便你跟进最近需要确认的订单。"
+                                subtitle: "有待收时会显示在这里。"
                             )
                         } else {
                             receivablesSummaryRow
@@ -178,7 +178,7 @@ struct FollowUpView: View {
                     Section {
                         emptyStateRow(
                             title: trimmedSearchText.isEmpty ? (scope == .active ? "暂无跟进事项" : "暂无归档跟进") : "没有搜索到相关内容",
-                            subtitle: trimmedSearchText.isEmpty ? (scope == .active ? "可以从档期页或详情页创建提醒，新的待办会自动出现在这里。" : "归档任务为空时，这里会保持清爽。") : "试试更换关键词，搜索客户名、项目名或跟进备注。"
+                            subtitle: trimmedSearchText.isEmpty ? (scope == .active ? "从档期或详情页创建提醒。" : "归档任务为空。") : "换个关键词试试。"
                         )
                     }
                 } else {

@@ -116,7 +116,7 @@ struct ClientsView: View {
     }
 
     private var filterSummary: String {
-        ["范围：\(scope.title)", "筛选：\(filter.title)", "排序：\(sort.title)"].joined(separator: " · ")
+        [scope.title, filter.title, sort.title].joined(separator: " · ")
     }
 
     var body: some View {
@@ -126,7 +126,7 @@ struct ClientsView: View {
                 summaryStrip
 
                 if featuredClients.isEmpty == false {
-                    clientsBlock(title: "优先关注", subtitle: "高价值、临近跟进与待回款客户") {
+                    clientsBlock(title: "优先关注", subtitle: "高价值 / 待跟进 / 待回款") {
                         ForEach(featuredClients) { client in
                             clientRow(client)
                         }
@@ -437,16 +437,16 @@ struct ClientsView: View {
     }
 
     private var heroTitle: String {
-        if scope == .archived { return "沉淀历史合作，必要时一键恢复" }
+        if scope == .archived { return "历史合作沉淀" }
         if followUpClientCount > 0 { return "今天有 \(followUpClientCount) 位客户需要关注" }
-        if sourceClients.isEmpty { return "从第一个客户开始建立经营资产" }
+        if sourceClients.isEmpty { return "从第一个客户开始" }
         return "客户、跟进、回款集中管理"
     }
 
     private var heroSubtitle: String {
-        if scope == .archived { return "归档客户不会打乱主列表，但仍保留历史订单、回款与沟通记录。" }
-        if followUpClientCount > 0 { return "优先处理临近跟进、高价值与待回款客户，别让线索沉下去。" }
-        return "用统一的客户卡片管理来源、阶段、价值、回款和下次跟进。"
+        if scope == .archived { return "保留订单、回款与沟通记录。" }
+        if followUpClientCount > 0 { return "优先处理跟进与待回款。" }
+        return "来源、阶段、价值、下次跟进。"
     }
 
     private var emptyTitle: String {
@@ -455,8 +455,8 @@ struct ClientsView: View {
     }
 
     private var emptySubtitle: String {
-        if trimmedSearchText.isEmpty == false { return "试试搜索客户名、城市、来源渠道或手机号。" }
-        return scope == .active ? "点击顶部“新增客户”，先把客户关系沉淀下来。" : "已归档客户会集中沉淀在这里，方便恢复和回看历史合作。"
+        if trimmedSearchText.isEmpty == false { return "换个关键词试试。" }
+        return scope == .active ? "点击顶部新增客户。" : "归档客户会显示在这里。"
     }
 
     private func heroActionButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
@@ -771,17 +771,17 @@ private struct ClientSearchSheet: View {
     }
 
     private var searchHeroCard: some View {
-        GlassCard(title: scope == .active ? "搜索主列表" : "搜索归档", subtitle: isEmptyQuery ? "输入客户名、城市、来源或手机号。" : "共找到 \(clients.count) 位相关客户") {
+        GlassCard(title: scope == .active ? "搜索主列表" : "搜索归档", subtitle: isEmptyQuery ? "输入关键词。" : "\(clients.count) 个结果") {
             EmptyView()
         }
     }
 
     private var promptCard: some View {
-        GlassCard(title: "开始搜索", subtitle: "支持搜索客户名、城市、来源渠道与手机号。") { EmptyView() }
+        GlassCard(title: "开始搜索", subtitle: "客户名、城市、来源、手机号") { EmptyView() }
     }
 
     private var emptyCard: some View {
-        GlassCard(title: "没有找到相关客户", subtitle: "换一个关键词试试，或回到筛选页调整范围和排序。") { EmptyView() }
+        GlassCard(title: "没有找到相关客户", subtitle: "换个关键词试试。") { EmptyView() }
     }
 
     private var resultCard: some View {

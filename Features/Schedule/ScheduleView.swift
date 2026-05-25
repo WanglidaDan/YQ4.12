@@ -237,9 +237,9 @@ struct ScheduleView: View {
 
     private var filterSummary: String {
         [
-            "范围：\(scope.title)",
-            "筛选：\(filter.title)",
-            "视图：\(viewMode.title)"
+            scope.title,
+            filter.title,
+            viewMode.title
         ].joined(separator: " · ")
     }
 
@@ -517,10 +517,10 @@ struct ScheduleView: View {
             }
 
             if bookingsForFocusDate.isEmpty {
-                AppInlineNote(systemImage: "calendar.badge.exclamationmark", text: scope == .active ? "这一天还没有档期，选中有拍摄的日期后，这里会自动分出“我负责”和“团队其他”。" : "当前日期没有归档项目。")
+                AppInlineNote(systemImage: "calendar.badge.exclamationmark", text: scope == .active ? "这一天暂无档期。" : "这天没有归档。")
             } else if let memberName = currentCrewMemberName {
                 if personalFocusBookings.isEmpty {
-                    AppInlineNote(systemImage: "person.crop.circle.badge.xmark", text: "\(memberName) 这一天没有被分配到场次，下面继续看团队其他安排。")
+                    AppInlineNote(systemImage: "person.crop.circle.badge.xmark", text: "\(memberName) 这天未分配。")
                 } else {
                     VStack(spacing: 10) {
                         ForEach(personalFocusBookings) { booking in
@@ -542,7 +542,7 @@ struct ScheduleView: View {
                     }
                 }
             } else {
-                AppInlineNote(systemImage: "sparkles", text: isTeamModeEnabled ? (knownCrewMemberNames.isEmpty ? "当前档期还没有成员分工。录入成员后，这里会自动告诉每个人该去哪场。" : "点右上角选择成员后，这里会切成“我负责”的视角。") : "当前为个人模式，这里按日期展示全部安排，不再拆分“我负责”和“团队其他”。")
+                AppInlineNote(systemImage: "sparkles", text: isTeamModeEnabled ? (knownCrewMemberNames.isEmpty ? "暂无成员分工。" : "选择成员看个人安排。") : "个人模式。")
                 VStack(spacing: 10) {
                     ForEach(bookingsForFocusDate.prefix(3)) { booking in
                         focusAssignmentCard(booking, isMine: false)
@@ -807,8 +807,8 @@ struct ScheduleView: View {
 
                     Text(
                         scope == .active
-                        ? "切换视图查看今天、近期与历史档期。"
-                        : "切换回主列表，可以继续查看仍在推进中的拍摄安排。"
+                        ? "切换视图查看其他日期。"
+                        : "切回主列表查看进行中项目。"
                     )
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(SchedulePalette.secondary)
@@ -845,8 +845,8 @@ struct ScheduleView: View {
                         .foregroundStyle(SchedulePalette.ink)
                     Text(
                         trimmedSearchText.isEmpty
-                        ? (scope == .active ? "新建后会自动出现在这里，方便按日期查看过去、今天与未来安排。" : "已完成或暂不处理的档期会保留在这里。")
-                        : "试试换一个关键词，搜索客户、项目名称、地点或备注。"
+                        ? (scope == .active ? "新建后自动出现在这里。" : "已归档项目会保留在这里。")
+                        : "换个关键词试试。"
                     )
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(SchedulePalette.secondary)
@@ -1378,7 +1378,7 @@ private struct ScheduleSearchSheet: View {
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(SchedulePalette.ink)
 
-            Text(isEmptyQuery ? "输入客户、项目、地点、成员或备注。" : "共找到 \(bookings.count) 个相关档期。")
+            Text(isEmptyQuery ? "输入关键词。" : "\(bookings.count) 个结果")
                 .font(.system(size: 13.5, weight: .medium))
                 .foregroundStyle(SchedulePalette.secondary)
         }
@@ -1392,7 +1392,7 @@ private struct ScheduleSearchSheet: View {
             Text("开始搜索")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(SchedulePalette.ink)
-            Text("支持搜索客户、项目名称、地点、团队成员与备注。")
+            Text("客户、项目、地点、成员、备注")
                 .font(.system(size: 13.5, weight: .medium))
                 .foregroundStyle(SchedulePalette.secondary)
         }
@@ -1406,7 +1406,7 @@ private struct ScheduleSearchSheet: View {
             Text("没有找到相关档期")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(SchedulePalette.ink)
-            Text("换一个关键词试试，或回到筛选页调整范围和状态。")
+            Text("换个关键词试试。")
                 .font(.system(size: 13.5, weight: .medium))
                 .foregroundStyle(SchedulePalette.secondary)
         }
