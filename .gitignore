@@ -4,6 +4,7 @@
 xcuserdata/
 DerivedData/
 .derived/
+build/
 .codex-home/
 __MACOSX/
 *.zip
