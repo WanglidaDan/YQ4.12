@@ -469,7 +469,7 @@ struct ScheduleView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 22)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .appCardSurface(cornerRadius: AppRadius.card, fillColor: Color.white.opacity(0.9), strokeOpacity: 0.74)
+            .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panelStrong, strokeOpacity: 0.74)
         }
         .buttonStyle(.plain)
     }
@@ -707,7 +707,7 @@ struct ScheduleView: View {
                         .frame(height: 34)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(viewMode == mode ? Color.white.opacity(0.72) : Color.clear)
+                                .fill(viewMode == mode ? AppTheme.panelStrong : Color.clear)
                         )
                 }
                 .buttonStyle(.plain)
@@ -717,7 +717,7 @@ struct ScheduleView: View {
         .background(AppTheme.panelSoft, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.52), lineWidth: 1)
+                .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
         }
     }
 

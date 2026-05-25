@@ -282,6 +282,8 @@ private struct LegalSheetView: View {
 }
 
 private struct AppleIDAuthButton: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let onSuccess: (AuthProfile) -> Void
     let onFailure: (String) -> Void
 
@@ -311,7 +313,7 @@ private struct AppleIDAuthButton: View {
                 AppHaptics.error()
             }
         }
-        .signInWithAppleButtonStyle(.white)
+        .signInWithAppleButtonStyle(colorScheme == .dark ? .black : .white)
         .frame(height: 56)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .shadow(color: .black.opacity(0.14), radius: 14, y: 8)

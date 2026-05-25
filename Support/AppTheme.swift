@@ -23,6 +23,14 @@ enum AppTheme {
         dynamic(light: UIColor(hex: "#F2EFEB"), dark: UIColor(hex: "#171918"))
     }
 
+    static var inputSurface: Color {
+        dynamic(light: UIColor(hex: "#FFFFFF"), dark: UIColor(hex: "#242725"))
+    }
+
+    static var sheetBackground: Color {
+        dynamic(light: UIColor(hex: "#FAF8F4"), dark: UIColor(hex: "#111211"))
+    }
+
     static var line: Color {
         dynamic(light: UIColor(hex: "#D9D5CF"), dark: UIColor(hex: "#343734"))
     }
@@ -138,6 +146,18 @@ enum AppTheme {
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
+        )
+    }
+
+    static var sheetGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                dynamic(light: UIColor(hex: "#FFFFFF"), dark: UIColor(hex: "#181A19")),
+                dynamic(light: UIColor(hex: "#F7F5F0"), dark: UIColor(hex: "#141615")),
+                dynamic(light: UIColor(hex: "#F0EEE9"), dark: UIColor(hex: "#101110"))
+            ],
+            startPoint: .top,
+            endPoint: .bottom
         )
     }
 

@@ -25,6 +25,12 @@ struct OverviewView: View {
         Array(snapshot.nextBookings.prefix(3))
     }
 
+    private var recentBookingsSubtitle: String {
+        let count = recentBookings.count
+        guard count > 0 else { return "未来暂无拍摄" }
+        return "未来 \(count) 场拍摄"
+    }
+
     private var todayBookings: [BookingRecord] {
         store.bookings(on: .now)
     }
@@ -153,7 +159,7 @@ struct OverviewView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(AppFormatters.day(.now))
+                    Text(featuredBooking.map { "下一场 · \(AppFormatters.shortDate($0.startAt))" } ?? "暂无排期")
                         .font(AppTypography.meta.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.88))
 
@@ -182,6 +188,7 @@ struct OverviewView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 10) {
+                            heroInfoRow(title: "拍摄日期", value: AppFormatters.day(booking.startAt))
                             heroInfoRow(title: "客户", value: store.clientName(for: booking))
                             heroInfoRow(title: "时间", value: AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))
                             heroInfoRow(title: "地点", value: "\(booking.city) \(booking.venue)")
@@ -380,14 +387,14 @@ struct OverviewView: View {
     }
 
     private var recentBookingsSection: some View {
-        GlassCard(title: "最近档期", subtitle: "未来 3 场拍摄") {
+        GlassCard(title: "最近档期", subtitle: recentBookingsSubtitle) {
             VStack(alignment: .leading, spacing: 12) {
                 if recentBookings.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("暂无最近档期")
                             .font(AppTypography.bodyStrong)
                             .foregroundStyle(AppTheme.ink)
-                        Text("新建拍摄后，这里会按时间轴自动显示未来最近的 3 场。")
+                        Text("新建拍摄后，这里会按时间轴自动显示未来最近的拍摄。")
                             .font(AppTypography.meta)
                             .foregroundStyle(AppTheme.secondaryInk)
                     }
@@ -609,6 +616,11 @@ struct OverviewView: View {
         return "已收 \(percentage)%"
     }
 
+    private var monthlyOutstandingRatio: CGFloat {
+        guard snapshot.monthlyRevenue > 0 else { return 0 }
+        return CGFloat(min(snapshot.monthlyOutstanding / snapshot.monthlyRevenue, 1))
+    }
+
     private var revenueRingProgress: CGFloat {
         guard snapshot.monthlyRevenue > 0 else { return 0 }
         let benchmark = max(50_000, ceil(snapshot.monthlyRevenue / 50_000) * 50_000)
@@ -617,56 +629,69 @@ struct OverviewView: View {
 
     private var monthlySummarySection: some View {
         GlassCard(title: "本月经营摘要", subtitle: AppFormatters.monthYear(.now)) {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 14) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("经营仪表盘")
                             .font(AppTypography.sectionSubtitle.weight(.semibold))
                             .foregroundStyle(AppTheme.accent)
 
-                        Text("成交进度与回款节奏")
-                            .font(AppTypography.bodyStrong)
-                            .foregroundStyle(AppTheme.ink)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    VStack(alignment: .trailing, spacing: 4) {
                         Text(AppFormatters.currency(snapshot.monthlyRevenue))
                             .font(AppTypography.data)
                             .foregroundStyle(AppTheme.ink)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-
-                        Text("本月成交额")
-                            .font(AppTypography.meta)
-                            .foregroundStyle(AppTheme.mutedInk)
+                            .minimumScaleFactor(0.76)
                     }
+
+                    HStack(spacing: 10) {
+                        Label("本月成交额", systemImage: "chart.line.uptrend.xyaxis")
+                            .font(AppTypography.meta)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                        Spacer(minLength: 8)
+                        Text(summaryProgressText)
+                            .font(AppTypography.meta.weight(.semibold))
+                            .foregroundStyle(AppTheme.accent)
+                    }
+
+                    monthlyProgressBar(progress: summaryProgressRatio)
+                }
+                .padding(16)
+                .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                        .stroke(AppTheme.line.opacity(0.56), lineWidth: 1)
                 }
 
-                HStack(alignment: .center, spacing: 16) {
-                    summaryRing(
-                        title: "成交额",
-                        value: AppFormatters.currency(snapshot.monthlyRevenue),
-                        subtitle: "本月累计",
-                        progress: revenueRingProgress,
-                        highlight: AppTheme.success
-                    )
-
-                    summaryRing(
-                        title: "回款率",
-                        value: summaryProgressText,
-                        subtitle: "收款进度",
-                        progress: summaryProgressRatio,
-                        highlight: AppTheme.accent
-                    )
-                }
-
-                HStack(spacing: 12) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     statPill(title: "订单数", value: "\(snapshot.monthlyBookedCount)")
-                    statPill(title: "待收额", value: AppFormatters.currency(snapshot.monthlyOutstanding))
+                    statPill(title: "已收", value: AppFormatters.currency(snapshot.monthlyReceived))
+                    statPill(title: "待收", value: AppFormatters.currency(snapshot.monthlyOutstanding))
+                    statPill(title: "待收占比", value: snapshot.monthlyRevenue > 0 ? AppFormatters.percent(Double(monthlyOutstandingRatio)) : "暂无")
                 }
             }
+        }
+    }
+
+    private func monthlyProgressBar(progress: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(AppTheme.line.opacity(0.44))
+                    Capsule()
+                        .fill(AppTheme.heroGradient)
+                        .frame(width: max(6, proxy.size.width * min(max(progress, 0), 1)))
+                }
+            }
+            .frame(height: 10)
+
+            HStack {
+                Text("已收 \(AppFormatters.currency(snapshot.monthlyReceived))")
+                Spacer(minLength: 8)
+                Text("待收 \(AppFormatters.currency(snapshot.monthlyOutstanding))")
+            }
+            .font(AppTypography.meta)
+            .foregroundStyle(AppTheme.secondaryInk)
         }
     }
 
@@ -687,8 +712,8 @@ struct OverviewView: View {
                     .stroke(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.82, green: 0.95, blue: 0.68),
-                                Color(red: 0.44, green: 0.78, blue: 0.39)
+                                AppTheme.accentSoft,
+                                AppTheme.accent
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -1013,28 +1038,20 @@ private struct BookingReminderSheet: View {
 
     private var bookingSheetBackdrop: some View {
         ZStack {
-            Color(red: 0.985, green: 0.986, blue: 0.982)
+            AppTheme.sheetBackground
 
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.92),
-                    Color(red: 0.98, green: 0.99, blue: 0.985),
-                    Color(red: 0.96, green: 0.97, blue: 0.965)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            AppTheme.sheetGradient
 
             RadialGradient(
                 colors: [
-                    Color.white.opacity(0.64),
+                    AppTheme.panelStrong.opacity(0.46),
                     Color.clear
                 ],
                 center: .topLeading,
                 startRadius: 12,
                 endRadius: 360
             )
-            .blendMode(.screen)
+            .blendMode(.softLight)
         }
     }
 
@@ -1062,7 +1079,7 @@ private struct BookingReminderSheet: View {
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            Color(red: 0.84, green: 0.97, blue: 0.74),
+                                            AppTheme.accentSoft,
                                             AppTheme.success
                                         ],
                                         startPoint: .top,
@@ -1214,7 +1231,7 @@ private struct BookingReminderSheet: View {
                 .padding(.bottom, 24)
             }
             .background(bookingSheetBackdrop.ignoresSafeArea())
-            .presentationBackground(Color(red: 0.985, green: 0.986, blue: 0.982))
+            .presentationBackground(AppTheme.sheetBackground)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("关闭") {

@@ -198,6 +198,138 @@ struct AppInfoCard<Content: View>: View {
     }
 }
 
+struct AppCreateHeader: View {
+    let eyebrow: String
+    let title: String
+    let subtitle: String
+    var systemImage: String = "plus"
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(eyebrow)
+                    .font(AppTypography.meta.weight(.semibold))
+                    .foregroundStyle(AppTheme.secondaryInk)
+
+                Text(title)
+                    .font(AppTypography.sectionTitle)
+                    .foregroundStyle(AppTheme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(subtitle)
+                    .font(AppTypography.meta)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+
+            Image(systemName: systemImage)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(AppTheme.accent)
+                .frame(width: 38, height: 38)
+                .background(AppTheme.panelStrong, in: Circle())
+                .overlay {
+                    Circle()
+                        .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
+                }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(fillColor: AppTheme.panelSoft)
+    }
+}
+
+struct AppStepProgress: View {
+    let titles: [String]
+    let currentIndex: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(titles.enumerated()), id: \.offset) { index, title in
+                VStack(alignment: .leading, spacing: 8) {
+                    Capsule()
+                        .fill(index <= currentIndex ? AppTheme.accent : AppTheme.line.opacity(0.42))
+                        .frame(height: 4)
+
+                    Text(title)
+                        .font(AppTypography.meta.weight(index == currentIndex ? .semibold : .regular))
+                        .foregroundStyle(index == currentIndex ? AppTheme.ink : AppTheme.secondaryInk)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+}
+
+struct AppEditorCard<Content: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    @ViewBuilder let content: Content
+
+    init(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.subtitle = subtitle
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            AppSectionHeader(title: title, subtitle: subtitle)
+
+            VStack(alignment: .leading, spacing: 12) {
+                content
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(fillColor: AppTheme.panel)
+    }
+}
+
+struct AppEditorLabeledField<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(AppTypography.meta.weight(.semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
+
+            content
+                .font(AppTypography.body)
+                .foregroundStyle(AppTheme.ink)
+                .tint(AppTheme.accent)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(AppTheme.inputSurface, in: RoundedRectangle(cornerRadius: AppRadius.control - 4, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppRadius.control - 4, style: .continuous)
+                        .stroke(AppTheme.line.opacity(0.64), lineWidth: 1)
+                }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct AppEditorDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(AppTheme.line.opacity(0.5))
+            .frame(height: 1)
+    }
+}
+
 struct AppMetricTile: View {
     let title: String
     let value: String
@@ -325,6 +457,41 @@ struct CreateBookingContext: Hashable {
     }
 }
 
+private enum ServiceCategoryGroup: String, CaseIterable, Identifiable {
+    case lifeEvent
+    case portraitFamily
+    case commercial
+    case eventVideo
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .lifeEvent: "婚礼纪实"
+        case .portraitFamily: "人像家庭"
+        case .commercial: "商业内容"
+        case .eventVideo: "活动视频"
+        }
+    }
+
+    var categories: [ServiceCategory] {
+        switch self {
+        case .lifeEvent:
+            [.wedding, .engagement, .travel, .documentary]
+        case .portraitFamily:
+            [.portrait, .couple, .bestie, .maternity, .newborn, .children, .family, .graduation, .pet]
+        case .commercial:
+            [.corporate, .product, .ecommerce, .food, .space, .commercial]
+        case .eventVideo:
+            [.event, .video, .documentaryFilm, .aerial]
+        }
+    }
+
+    static func group(for category: ServiceCategory) -> ServiceCategoryGroup {
+        allCases.first { $0.categories.contains(category) } ?? .lifeEvent
+    }
+}
+
 struct CreateBookingFlowView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StudioStore.self) private var store
@@ -348,6 +515,7 @@ struct CreateBookingFlowView: View {
     @State private var step: Step = .essentials
     @State private var title: String
     @State private var selectedClientID: UUID?
+    @State private var categoryGroup: ServiceCategoryGroup
     @State private var category: ServiceCategory
     @State private var status: BookingStatus = .inquiry
     @State private var startAt: Date
@@ -372,8 +540,9 @@ struct CreateBookingFlowView: View {
         let end = Calendar.current.date(byAdding: .hour, value: 4, to: start) ?? start.addingTimeInterval(14_400)
         let contextTitle = context.defaultTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        _title = State(initialValue: contextTitle.isEmpty ? Self.defaultTitle(for: context.source) : contextTitle)
+        _title = State(initialValue: contextTitle)
         _selectedClientID = State(initialValue: context.defaultClientID)
+        _categoryGroup = State(initialValue: ServiceCategoryGroup.group(for: category))
         _category = State(initialValue: category)
         _startAt = State(initialValue: start)
         _endAt = State(initialValue: end)
@@ -384,7 +553,7 @@ struct CreateBookingFlowView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            AppPageScaffold(title: step.title, titleDisplayMode: .inline, topPadding: 14, bottomPadding: 28) {
                 progressSection
 
                 switch step {
@@ -397,8 +566,6 @@ struct CreateBookingFlowView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(step.title)
-            .navigationBarTitleDisplayMode(.inline)
             .task {
                 applyStoreDefaultsIfNeeded()
             }
@@ -431,74 +598,100 @@ struct CreateBookingFlowView: View {
     }
 
     private var progressSection: some View {
-        Section {
-            HStack(spacing: 8) {
-                ForEach(Step.allCases, id: \.self) { item in
-                    VStack(spacing: 6) {
-                        Circle()
-                            .fill(item.rawValue <= step.rawValue ? AppTheme.accent : AppTheme.panelStrong)
-                            .frame(width: 10, height: 10)
-                        Text(item.title)
-                            .font(AppTypography.meta)
-                            .foregroundStyle(item == step ? AppTheme.ink : AppTheme.secondaryInk)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.vertical, 4)
-        } footer: {
-            Text("先把客户、内容、时间、地点、负责人定下来，其他信息可以后补。")
-        }
+        AppStepProgress(titles: Step.allCases.map(\.title), currentIndex: step.rawValue)
     }
 
     private var essentialsSection: some View {
         Group {
-            Section("客户与拍摄内容") {
-                Picker("关联客户", selection: $selectedClientID) {
-                    Text("暂不绑定").tag(Optional<UUID>.none)
-                    ForEach(store.activeClients) { client in
-                        Text(client.name).tag(Optional(client.id))
+            AppEditorCard(title: "拍摄内容") {
+                AppEditorLabeledField("拍摄内容") {
+                    TextField("例如：婚礼全天跟拍", text: $title)
+                }
+
+                AppEditorDivider()
+
+                AppEditorLabeledField("类型大类") {
+                    Picker("类型大类", selection: $categoryGroup) {
+                        ForEach(ServiceCategoryGroup.allCases) { item in
+                            Text(item.title).tag(item)
+                        }
+                    }
+                    .onChange(of: categoryGroup) { _, newValue in
+                        if newValue.categories.contains(category) == false,
+                           let firstCategory = newValue.categories.first {
+                            category = firstCategory
+                        }
                     }
                 }
 
-                TextField("项目标题", text: $title)
+                AppEditorDivider()
 
-                Picker("拍摄类型", selection: $category) {
-                    ForEach(ServiceCategory.allCases) { item in
-                        Text(item.title).tag(item)
+                AppEditorLabeledField("细分类型") {
+                    Picker("细分类型", selection: $category) {
+                        ForEach(categoryGroup.categories) { item in
+                            Text(item.title).tag(item)
+                        }
                     }
                 }
 
-                Picker("当前状态", selection: $status) {
-                    ForEach(BookingStatus.allCases) { item in
-                        Text(item.title).tag(item)
+                AppEditorDivider()
+
+                AppEditorLabeledField("当前状态") {
+                    Picker("当前状态", selection: $status) {
+                        ForEach(BookingStatus.allCases) { item in
+                            Text(item.title).tag(item)
+                        }
                     }
                 }
             }
 
-            Section("时间与地点") {
-                DatePicker("开始时间", selection: $startAt)
-                    .onChange(of: startAt) { oldValue, newValue in
-                        shiftEndDate(from: oldValue, to: newValue)
-                    }
-                DatePicker("结束时间", selection: $endAt, in: startAt...)
+            AppEditorCard(title: "时间与地点") {
+                AppEditorLabeledField("开始时间") {
+                    DatePicker("开始时间", selection: $startAt)
+                        .labelsHidden()
+                        .onChange(of: startAt) { oldValue, newValue in
+                            shiftEndDate(from: oldValue, to: newValue)
+                        }
+                }
 
-                TextField("城市 / 区域", text: $city)
-                TextField("场地名称", text: $venue)
-                TextField("详细地址", text: $addressText, axis: .vertical)
-                    .lineLimit(2...4)
+                AppEditorDivider()
+
+                AppEditorLabeledField("结束时间") {
+                    DatePicker("结束时间", selection: $endAt, in: startAt...)
+                        .labelsHidden()
+                }
+
+                AppEditorDivider()
+
+                AppEditorLabeledField("城市 / 区域") {
+                    TextField("例如：上海", text: $city)
+                }
+
+                AppEditorDivider()
+
+                AppEditorLabeledField("场地名称") {
+                    TextField("影棚、酒店或外景地", text: $venue)
+                }
+
+                AppEditorDivider()
+
+                AppEditorLabeledField("详细地址") {
+                    TextField("门牌、楼层、集合点", text: $addressText, axis: .vertical)
+                        .lineLimit(2...4)
+                }
             }
 
-            Section("负责人") {
-                Picker("默认负责人", selection: $selectedCrewMemberName) {
-                    Text("暂不分配").tag("")
-                    ForEach(store.activeCrewMemberNames, id: \.self) { name in
-                        Text(name).tag(name)
-                    }
-                    if selectedCrewMemberName.isEmpty == false,
-                       store.activeCrewMemberNames.contains(selectedCrewMemberName) == false {
-                        Text(selectedCrewMemberName).tag(selectedCrewMemberName)
+            AppEditorCard(title: "负责人") {
+                AppEditorLabeledField("默认负责人") {
+                    Picker("默认负责人", selection: $selectedCrewMemberName) {
+                        Text("暂不分配").tag("")
+                        ForEach(store.activeCrewMemberNames, id: \.self) { name in
+                            Text(name).tag(name)
+                        }
+                        if selectedCrewMemberName.isEmpty == false,
+                           store.activeCrewMemberNames.contains(selectedCrewMemberName) == false {
+                            Text(selectedCrewMemberName).tag(selectedCrewMemberName)
+                        }
                     }
                 }
             }
@@ -507,37 +700,49 @@ struct CreateBookingFlowView: View {
 
     private var detailsSection: some View {
         Group {
-            Section("报价与回款") {
-                TextField("总报价", value: $fee, format: .number.precision(.fractionLength(0...0)))
-                    .keyboardType(.decimalPad)
-                TextField("已收金额", value: $depositPaid, format: .number.precision(.fractionLength(0...0)))
-                    .keyboardType(.decimalPad)
-                Text("待收：\(AppFormatters.currency(max(fee - depositPaid, 0)))")
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.secondaryInk)
+            AppEditorCard(title: "报价与回款") {
+                AppEditorLabeledField("总报价") {
+                    TextField("0", value: $fee, format: .number.precision(.fractionLength(0...0)))
+                        .keyboardType(.decimalPad)
+                }
+
+                AppEditorDivider()
+
+                AppEditorLabeledField("已收金额") {
+                    TextField("0", value: $depositPaid, format: .number.precision(.fractionLength(0...0)))
+                        .keyboardType(.decimalPad)
+                }
+
+                AppInlineNote(systemImage: "creditcard", text: "待收：\(AppFormatters.currency(max(fee - depositPaid, 0)))")
             }
 
-            Section("交付与备注") {
-                TextField("交付内容，例如：精修 60 张 + 花絮 1 条", text: $deliverableText, axis: .vertical)
-                    .lineLimit(2...5)
-                TextField("项目说明、客户偏好、流程注意事项", text: $notesText, axis: .vertical)
-                    .lineLimit(3...8)
+            AppEditorCard(title: "交付与备注") {
+                AppEditorLabeledField("交付内容") {
+                    TextField("例如：精修 60 张 + 花絮 1 条", text: $deliverableText, axis: .vertical)
+                        .lineLimit(2...5)
+                }
+
+                AppEditorDivider()
+
+                AppEditorLabeledField("项目说明") {
+                    TextField("客户偏好、流程注意事项", text: $notesText, axis: .vertical)
+                        .lineLimit(3...8)
+                }
             }
 
-            Section("自动动作") {
+            AppEditorCard(title: "自动动作") {
                 Toggle("创建拍前确认跟进", isOn: $shouldCreateFollowUp)
-                Text("创建后会保留系统提醒，并可在详情里继续补充分工、回款和合同资料。")
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.secondaryInk)
+                AppInlineNote(systemImage: "bell.badge", text: "创建后会保留系统提醒，并可在详情里继续补充分工、回款和合同资料。")
             }
 
-            Section("保存为模板") {
+            AppEditorCard(title: "保存为模板") {
                 Toggle("保存当前内容为模板", isOn: $shouldSaveAsTemplate)
                 if shouldSaveAsTemplate {
-                    TextField("模板名称", text: $templateName)
-                    Text("模板只保存你的当前服务类型、时长、报价、交付和项目说明，不再提供系统预设内容。")
-                        .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.secondaryInk)
+                    AppEditorDivider()
+                    AppEditorLabeledField("模板名称") {
+                        TextField("例如：婚礼全天拍摄", text: $templateName)
+                    }
+                    AppInlineNote(systemImage: "square.grid.2x2", text: "模板只保存当前服务类型、时长、报价、交付和项目说明。")
                 }
             }
         }
@@ -545,10 +750,12 @@ struct CreateBookingFlowView: View {
 
     private var confirmSection: some View {
         Group {
-            Section("档期摘要") {
-                AppKeyValueRow(title: "项目", value: trimmedTitle)
-                AppKeyValueRow(title: "客户", value: selectedClientName)
-                AppKeyValueRow(title: "类型", value: category.title)
+            AppEditorCard(title: "档期摘要") {
+                AppKeyValueRow(title: "拍摄内容", value: trimmedTitle)
+                if selectedClientID != nil {
+                    AppKeyValueRow(title: "客户", value: selectedClientName)
+                }
+                AppKeyValueRow(title: "类型", value: "\(categoryGroup.title) · \(category.title)")
                 AppKeyValueRow(title: "时间", value: "\(AppFormatters.shortDate(startAt)) · \(AppFormatters.timeRange(start: startAt, end: endAt))")
                 AppKeyValueRow(title: "地点", value: locationSummary)
                 AppKeyValueRow(title: "负责人", value: selectedCrewMemberName.isEmpty ? "暂不分配" : selectedCrewMemberName)
@@ -556,13 +763,13 @@ struct CreateBookingFlowView: View {
             }
 
             if conflictBookings.isEmpty == false {
-                Section("冲突提醒") {
+                AppEditorCard(title: "冲突提醒") {
                     Label(conflictSummaryText, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(AppTheme.warning)
                 }
             }
 
-            Section("创建后自动生成") {
+            AppEditorCard(title: "创建后自动生成") {
                 Label("系统拍摄提醒", systemImage: "bell.badge")
                 if shouldCreateFollowUp {
                     Label("拍前确认跟进", systemImage: "checklist")
@@ -742,18 +949,5 @@ struct CreateBookingFlowView: View {
             components.minute = 0
         }
         return calendar.date(from: components) ?? date
-    }
-
-    private static func defaultTitle(for source: CreateBookingContext.Source) -> String {
-        switch source {
-        case .overview, .quickAction:
-            return "新拍摄档期"
-        case .schedule:
-            return "当天拍摄档期"
-        case .clientDetail:
-            return "客户拍摄档期"
-        case .team:
-            return "团队拍摄档期"
-        }
     }
 }

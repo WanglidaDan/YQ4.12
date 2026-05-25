@@ -43,84 +43,92 @@ struct TouchpointEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "新跟进" : title)
-                            .font(.title3.weight(.bold))
-                        HStack(spacing: 8) {
-                            PriorityBadge(priority: priority)
-                            Label(channel.title, systemImage: channel.symbolName)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(AppTheme.secondaryInk)
-                        }
-                        Text(summaryText)
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.secondaryInk)
+            AppPageScaffold(title: item == nil ? "新增跟进" : "编辑跟进", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 28) {
+                AppCreateHeader(
+                    eyebrow: item == nil ? "新增跟进" : "编辑跟进",
+                    title: trimmedTitle.isEmpty ? "安排一条跟进" : trimmedTitle,
+                    subtitle: summaryText,
+                    systemImage: "checklist.checked"
+                )
+
+                AppEditorCard(title: "跟进信息") {
+                    AppEditorLabeledField("标题") {
+                        TextField("例如：拍前确认", text: $title)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 4)
+
+                    AppEditorDivider()
+
+                    AppEditorLabeledField("内容") {
+                        TextField("沟通重点、客户问题、下一步动作", text: $detailsText, axis: .vertical)
+                            .lineLimit(4...)
+                    }
+
+                    AppEditorDivider()
+
+                    AppEditorLabeledField("截止时间") {
+                        DatePicker("截止时间", selection: $dueAt)
+                            .labelsHidden()
+                    }
                 }
 
-                Section("跟进信息") {
-                    TextField("标题", text: $title)
-                    TextField("内容", text: $detailsText, axis: .vertical)
-                        .lineLimit(4...)
-                    DatePicker("截止时间", selection: $dueAt)
-                }
-
-                Section("方式与优先级") {
-                    Picker("方式", selection: $channel) {
-                        ForEach(TouchpointChannel.allCases) { item in
-                            Text(item.title).tag(item)
+                AppEditorCard(title: "方式与优先级") {
+                    AppEditorLabeledField("方式") {
+                        Picker("方式", selection: $channel) {
+                            ForEach(TouchpointChannel.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
                         }
                     }
 
-                    Picker("优先级", selection: $priority) {
-                        ForEach(TouchpointPriority.allCases) { item in
-                            Text(item.title).tag(item)
+                    AppEditorDivider()
+
+                    AppEditorLabeledField("优先级") {
+                        Picker("优先级", selection: $priority) {
+                            ForEach(TouchpointPriority.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
                         }
                     }
+
+                    AppEditorDivider()
 
                     Toggle("系统通知提醒", isOn: $shouldScheduleSystemReminder)
 
                     if shouldScheduleSystemReminder {
                         notificationPermissionHint
                     } else {
-                        Text("关闭后这条跟进只保留在应用内，不会向系统申请或安排通知。")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.secondaryInk)
+                        AppInlineNote(systemImage: "bell.slash", text: "关闭后这条跟进只保留在应用内，不会向系统申请或安排通知。")
                     }
                 }
 
-                Section("关联对象") {
-                    Picker("客户", selection: $selectedClientID) {
-                        Text("暂不绑定").tag(Optional<UUID>.none)
-                        ForEach(store.clients) { client in
-                            Text(client.name).tag(Optional(client.id))
+                AppEditorCard(title: "关联对象") {
+                    AppEditorLabeledField("客户") {
+                        Picker("客户", selection: $selectedClientID) {
+                            Text("暂不绑定").tag(Optional<UUID>.none)
+                            ForEach(store.clients) { client in
+                                Text(client.name).tag(Optional(client.id))
+                            }
                         }
                     }
 
-                    Picker("相关档期", selection: $selectedBookingID) {
-                        Text("暂不绑定").tag(Optional<UUID>.none)
-                        ForEach(filteredBookings) { booking in
-                            Text(booking.title).tag(Optional(booking.id))
+                    AppEditorDivider()
+
+                    AppEditorLabeledField("相关档期") {
+                        Picker("相关档期", selection: $selectedBookingID) {
+                            Text("暂不绑定").tag(Optional<UUID>.none)
+                            ForEach(filteredBookings) { booking in
+                                Text(booking.title).tag(Optional(booking.id))
+                            }
                         }
                     }
 
-                    if filteredBookings.isEmpty {
-                        Text(selectedClientID == nil ? "当前还没有可关联的档期。" : "该客户暂时没有关联档期。")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    } else {
-                        Text("选择档期后会自动同步关联客户，避免保存出错。")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    }
+                    AppInlineNote(
+                        systemImage: filteredBookings.isEmpty ? "calendar.badge.exclamationmark" : "link",
+                        text: filteredBookings.isEmpty ? (selectedClientID == nil ? "当前还没有可关联的档期。" : "该客户暂时没有关联档期。") : "选择档期后会自动同步关联客户，避免保存出错。"
+                    )
                 }
             }
-            .navigationTitle(item == nil ? "新增跟进" : "编辑跟进")
-            .navigationBarTitleDisplayMode(.inline)
+            .scrollDismissesKeyboard(.interactively)
             .task {
                 await refreshNotificationStatus()
             }
@@ -167,14 +175,10 @@ struct TouchpointEditorView: View {
     private var notificationPermissionHint: some View {
         switch notificationStatus {
         case .authorized, .provisional, .ephemeral:
-            Text("已开启系统通知，保存后会按截止时间提醒你。")
-                .font(.caption)
-                .foregroundStyle(AppTheme.secondaryInk)
+            AppInlineNote(systemImage: "bell.badge", text: "已开启系统通知，保存后会按截止时间提醒你。")
         case .denied:
             VStack(alignment: .leading, spacing: 8) {
-                Text("系统通知未开启，保存后不会收到提醒。")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.warning)
+                AppInlineNote(systemImage: "bell.slash", text: "系统通知未开启，保存后不会收到提醒。", tint: AppTheme.warning)
                 Button("打开系统设置") {
                     guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
                     openURL(settingsURL)
@@ -182,13 +186,9 @@ struct TouchpointEditorView: View {
                 .buttonStyle(.bordered)
             }
         case .notDetermined:
-            Text("只有在你开启这条提醒时，保存后才会请求系统通知权限。")
-                .font(.caption)
-                .foregroundStyle(AppTheme.secondaryInk)
+            AppInlineNote(systemImage: "bell", text: "只有在你开启这条提醒时，保存后才会请求系统通知权限。")
         @unknown default:
-            Text("系统通知状态暂不可用，保存后会尝试请求提醒权限。")
-                .font(.caption)
-                .foregroundStyle(AppTheme.secondaryInk)
+            AppInlineNote(systemImage: "bell", text: "系统通知状态暂不可用，保存后会尝试请求提醒权限。")
         }
     }
 
@@ -201,6 +201,10 @@ struct TouchpointEditorView: View {
         }
 
         return baseBookings.sorted { $0.startAt < $1.startAt }
+    }
+
+    private var trimmedTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func save() {
@@ -224,7 +228,7 @@ struct TouchpointEditorView: View {
 
         let draft = TouchpointRecord(
             id: item?.id ?? UUID(),
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            title: trimmedTitle,
             detailsText: detailsText.trimmingCharacters(in: .whitespacesAndNewlines),
             dueAt: dueAt,
             channel: channel,
