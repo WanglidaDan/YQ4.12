@@ -154,7 +154,9 @@ jobs:
           parse_profile_value() {
             local profile_path="$1"
             local key="$2"
-            security cms -D -i "$profile_path" | /usr/libexec/PlistBuddy -c "Print :${key}" /dev/stdin
+            local plist_path="${profile_path}.plist"
+            security cms -D -i "$profile_path" > "$plist_path"
+            /usr/libexec/PlistBuddy -c "Print :${key}" "$plist_path"
           }
 
           install_profile() {
