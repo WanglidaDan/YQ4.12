@@ -22,6 +22,30 @@ private enum CustomerWorkspaceMode: String, CaseIterable, Identifiable {
         case .team: "团队"
         }
     }
+
+    var headline: String {
+        switch self {
+        case .clients: "客户资产"
+        case .followUp: "跟进节奏"
+        case .team: "团队分工"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .clients: "统一查看客户资料、等级和业务来源"
+        case .followUp: "把待沟通、待确认、待回款串成一条线"
+        case .team: "按成员看今日安排和拍摄责任"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .clients: "person.text.rectangle.fill"
+        case .followUp: "bubble.left.and.bubble.right.fill"
+        case .team: "person.3.fill"
+        }
+    }
 }
 
 private enum QuickActionDestination: String, Identifiable {
@@ -237,17 +261,22 @@ struct RootTabView: View {
 
     private var quickActionMenu: some View {
         VStack(alignment: .trailing, spacing: 12) {
-            Text("快捷新建")
-                .font(AppTypography.meta.weight(.semibold))
-                .foregroundStyle(AppTheme.secondaryInk)
-                .padding(.horizontal, 12)
-                .frame(height: 32)
-                .background(AppTheme.panel, in: Capsule())
-                .overlay {
-                    Capsule()
-                        .stroke(AppTheme.line.opacity(0.82), lineWidth: 1)
-                }
-                .transition(.move(edge: .top).combined(with: .opacity))
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(AppTheme.accentWarmDeep)
+                Text("快捷新建")
+                    .font(AppTypography.meta.weight(.semibold))
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(AppTheme.line.opacity(0.82), lineWidth: 1)
+            }
+            .transition(.move(edge: .top).combined(with: .opacity))
 
             ForEach([QuickActionDestination.touchpoint, .client, .booking]) { item in
                 Button {
@@ -255,9 +284,9 @@ struct RootTabView: View {
                 } label: {
                     HStack(spacing: 12) {
                         ZStack {
-                            Circle()
+                            RoundedRectangle(cornerRadius: 13, style: .continuous)
                                 .fill(item.tint.opacity(0.12))
-                                .frame(width: 34, height: 34)
+                                .frame(width: 36, height: 36)
 
                             Image(systemName: item.symbolName)
                                 .font(.subheadline.weight(.bold))
@@ -275,13 +304,10 @@ struct RootTabView: View {
                     }
                     .foregroundStyle(AppTheme.ink)
                     .padding(.horizontal, 16)
-                    .frame(width: 176, height: 50)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(AppTheme.panel)
-                    )
+                    .frame(width: 184, height: 52)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(AppTheme.line.opacity(0.82), lineWidth: 1)
                     }
                     .shadow(color: AppTheme.cardShadow, radius: AppShadow.cardRadius, y: AppShadow.cardY)
@@ -338,18 +364,50 @@ private struct CustomerWorkspaceView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            VStack(spacing: 0) {
-                Picker("客户与团队", selection: $mode) {
-                    ForEach(CustomerWorkspaceMode.allCases) { item in
-                        Text(item.title).tag(item)
-                    }
+            relationshipModeHeader
+        }
+    }
+
+    private var relationshipModeHeader: some View {
+        VStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(AppTheme.accent.opacity(0.12))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: mode.symbolName)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial)
-                Divider()
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(mode.headline)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(AppTheme.ink)
+                    Text(mode.subtitle)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+
+            Picker("客户与团队", selection: $mode) {
+                ForEach(CustomerWorkspaceMode.allCases) { item in
+                    Text(item.title).tag(item)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+        }
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .bottom) {
+            Divider()
+                .overlay(AppTheme.line.opacity(0.68))
         }
     }
 }
@@ -389,6 +447,7 @@ struct TeamView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 18) {
+                    premiumHeroHeader
                     summarySection
                     dispatchSection
                     teamPreferencesSection
@@ -401,7 +460,7 @@ struct TeamView: View {
             .scrollContentBackground(.hidden)
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("团队")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showingNewCrewMember) {
                 TeamMemberEditorView()
                     .environment(store)
@@ -411,6 +470,44 @@ struct TeamView: View {
                     .environment(store)
             }
         }
+    }
+
+    private var premiumHeroHeader: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(AppTheme.accentWarmSoft)
+                        .frame(width: 54, height: 54)
+                    Image(systemName: isTeamModeEnabled ? "person.3.sequence.fill" : "person.crop.circle")
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(AppTheme.accentWarmDeep)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(isTeamModeEnabled ? "团队协作视图" : "个人工作视图")
+                        .font(AppTypography.sectionTitle)
+                        .foregroundStyle(AppTheme.ink)
+                    Text(isTeamModeEnabled ? "把今日排班、我的分工和成员设置放到同一页。" : "当前保持个人模式，仍可先维护成员资料。")
+                        .font(AppTypography.body)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 10) {
+                statusChip(title: "成员 \(store.activeCrewMembers.count)", systemImage: "person.2.fill", tint: AppTheme.accent)
+                statusChip(title: "今日 \(todayBookings.count)", systemImage: "calendar", tint: AppTheme.info)
+                if let currentCrewMemberName {
+                    statusChip(title: currentCrewMemberName, systemImage: "scope", tint: AppTheme.accentWarmDeep)
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(style: .emphasized)
     }
 
     private var summarySection: some View {
@@ -679,6 +776,20 @@ struct TeamView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
         .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+    }
+
+    private func statusChip(title: String, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+            Text(title)
+                .font(AppTypography.meta.weight(.semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(tint.opacity(0.1), in: Capsule())
     }
 
     private func crewAssignmentSummary(for booking: BookingRecord) -> String {
