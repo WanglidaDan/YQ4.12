@@ -426,6 +426,7 @@
 				0171AB0F297CC24FB8DBEE16 /* Resources */,
 				EAB3056CB73E08DECAD7F007 /* Frameworks */,
 				A3696F256D8FA6606CBA0DFA /* Embed Foundation Extensions */,
+				E8F4FA1E8AE3D2E392D78D5D /* Fix Embedded WeChat SDK MinimumOSVersion */,
 			);
 			buildRules = (
 			);
@@ -552,6 +553,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -e\nMIN_OS=\"${IPHONEOS_DEPLOYMENT_TARGET:-17.0}\"\nfind \"$HOME/Library/Developer/Xcode/DerivedData\" \\\n  -path \"*/SourcePackages/checkouts/WechatOpenSDK/Sources/WechatOpenSDK.xcframework/*/WechatOpenSDK.framework/Info.plist\" \\\n  -print 2>/dev/null | while IFS= read -r plist; do\n    chmod u+w \"$plist\" 2>/dev/null || true\n    /usr/libexec/PlistBuddy -c \"Set :MinimumOSVersion ${MIN_OS}\" \"$plist\" 2>/dev/null || \\\n    /usr/libexec/PlistBuddy -c \"Add :MinimumOSVersion string ${MIN_OS}\" \"$plist\"\n  done\n";
+		};
+		E8F4FA1E8AE3D2E392D78D5D /* Fix Embedded WeChat SDK MinimumOSVersion */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Fix Embedded WeChat SDK MinimumOSVersion";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nMIN_OS=\"${IPHONEOS_DEPLOYMENT_TARGET:-17.0}\"\nFRAMEWORK_PLIST=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/WechatOpenSDK.framework/Info.plist\"\nFRAMEWORK_PATH=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/WechatOpenSDK.framework\"\nif [ -f \"$FRAMEWORK_PLIST\" ]; then\n  chmod u+w \"$FRAMEWORK_PLIST\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Set :MinimumOSVersion ${MIN_OS}\" \"$FRAMEWORK_PLIST\" 2>/dev/null || \\\n  /usr/libexec/PlistBuddy -c \"Add :MinimumOSVersion string ${MIN_OS}\" \"$FRAMEWORK_PLIST\"\n  if [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ] && [ -d \"$FRAMEWORK_PATH\" ]; then\n    /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" \\\n      --preserve-metadata=identifier,entitlements,flags \\\n      \"$FRAMEWORK_PATH\"\n  fi\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -765,7 +784,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026052605;
+				CURRENT_PROJECT_VERSION = 2026052606;
 				DEVELOPMENT_TEAM = 9ZV32GL37D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Widgets/Info.plist;
@@ -883,7 +902,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026052605;
+				CURRENT_PROJECT_VERSION = 2026052606;
 				DEVELOPMENT_TEAM = 9ZV32GL37D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Widgets/Info.plist;

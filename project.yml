@@ -50,6 +50,23 @@ targets:
               /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion ${MIN_OS}" "$plist" 2>/dev/null || \
               /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string ${MIN_OS}" "$plist"
             done
+    postBuildScripts:
+      - name: Fix Embedded WeChat SDK MinimumOSVersion
+        script: |
+          set -e
+          MIN_OS="${IPHONEOS_DEPLOYMENT_TARGET:-17.0}"
+          FRAMEWORK_PLIST="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/WechatOpenSDK.framework/Info.plist"
+          FRAMEWORK_PATH="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/WechatOpenSDK.framework"
+          if [ -f "$FRAMEWORK_PLIST" ]; then
+            chmod u+w "$FRAMEWORK_PLIST" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion ${MIN_OS}" "$FRAMEWORK_PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string ${MIN_OS}" "$FRAMEWORK_PLIST"
+            if [ -n "${EXPANDED_CODE_SIGN_IDENTITY:-}" ] && [ -d "$FRAMEWORK_PATH" ]; then
+              /usr/bin/codesign --force --sign "$EXPANDED_CODE_SIGN_IDENTITY" \
+                --preserve-metadata=identifier,entitlements,flags \
+                "$FRAMEWORK_PATH"
+            fi
+          fi
     scheme:
       testTargets:
         - YingQiTests
@@ -67,7 +84,7 @@ targets:
         PRODUCT_NAME: YingQiWidgetExtension
         PRODUCT_BUNDLE_IDENTIFIER: com.wanglida.YingQi.widget
         MARKETING_VERSION: 1.0.1
-        CURRENT_PROJECT_VERSION: 2026052605
+        CURRENT_PROJECT_VERSION: 2026052606
         DEVELOPMENT_TEAM: 9ZV32GL37D
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: NO
