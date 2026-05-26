@@ -487,7 +487,6 @@
 				TargetAttributes = {
 					863EBCFE8B55A6F41AADE051 = {
 						DevelopmentTeam = 9ZV32GL37D;
-						ProvisioningStyle = Automatic;
 					};
 					A8C1E884345B346D35BCB7FB = {
 						DevelopmentTeam = 9ZV32GL37D;
@@ -495,7 +494,6 @@
 					};
 					AE752C7075C4B7B843C4A3A2 = {
 						DevelopmentTeam = 9ZV32GL37D;
-						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -745,7 +743,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Config/YingQi.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/YingQi-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -754,6 +753,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_NAME = YingQi;
+				PROVISIONING_PROFILE_SPECIFIER = "$(YINGQI_PROFILE_NAME)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -901,7 +901,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 2026052606;
 				DEVELOPMENT_TEAM = 9ZV32GL37D;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -915,6 +916,7 @@
 				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wanglida.YingQi.widget;
 				PRODUCT_NAME = YingQiWidgetExtension;
+				PROVISIONING_PROFILE_SPECIFIER = "$(YINGQI_WIDGET_PROFILE_NAME)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

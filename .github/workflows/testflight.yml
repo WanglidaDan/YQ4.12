@@ -201,7 +201,9 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/YingQi.xcarchive" \
-            DEVELOPMENT_TEAM=9ZV32GL37D
+            DEVELOPMENT_TEAM=9ZV32GL37D \
+            YINGQI_PROFILE_NAME="$YINGQI_PROFILE_NAME" \
+            YINGQI_WIDGET_PROFILE_NAME="$YINGQI_WIDGET_PROFILE_NAME"
 
       - name: Export IPA
         run: |
