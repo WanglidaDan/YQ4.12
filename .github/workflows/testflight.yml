@@ -40,7 +40,34 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$(dirname "$ASC_KEY_PATH")"
-          printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$ASC_KEY_PATH"
+          python3 - <<'PY'
+          import base64
+          import os
+          import pathlib
+          import sys
+
+          key = os.environ["APP_STORE_CONNECT_API_KEY_P8"].strip()
+          if (key.startswith('"') and key.endswith('"')) or (key.startswith("'") and key.endswith("'")):
+              key = key[1:-1].strip()
+          key = key.replace("\\r", "").replace("\r", "")
+          if "\\n" in key:
+              key = key.replace("\\n", "\n")
+
+          if "BEGIN PRIVATE KEY" not in key:
+              try:
+                  decoded = base64.b64decode(key, validate=True).decode("utf-8").strip()
+              except Exception:
+                  decoded = ""
+              if "BEGIN PRIVATE KEY" in decoded:
+                  key = decoded
+
+          if "-----BEGIN PRIVATE KEY-----" not in key or "-----END PRIVATE KEY-----" not in key:
+              print("APP_STORE_CONNECT_API_KEY_P8 must contain the .p8 PEM private key content.", file=sys.stderr)
+              sys.exit(1)
+
+          path = pathlib.Path(os.environ["ASC_KEY_PATH"])
+          path.write_text(key.rstrip() + "\n", encoding="utf-8")
+          PY
           chmod 600 "$ASC_KEY_PATH"
 
       - name: Resolve Swift packages
