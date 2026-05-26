@@ -2,6 +2,11 @@ name: Upload YingQi to TestFlight
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - Config/AppRelease.xcconfig
 
 permissions:
   contents: read
