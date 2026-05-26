@@ -1,6 +1,4 @@
 import SwiftUI
-import UIKit
-import CoreLocation
 
 struct OverviewView: View {
     @Environment(StudioStore.self) private var store
@@ -9,9 +7,6 @@ struct OverviewView: View {
 
     @State private var showingNewBooking = false
     @State private var showingSettings = false
-    @State private var reminderBooking: BookingRecord?
-    @State private var contactErrorMessage: String?
-    @State private var navigationSheetBooking: BookingRecord?
 
     private var snapshot: OverviewSnapshot {
         store.overviewSnapshot
@@ -29,56 +24,6 @@ struct OverviewView: View {
         let count = recentBookings.count
         guard count > 0 else { return "未来暂无拍摄" }
         return "未来 \(count) 场拍摄"
-    }
-
-    private var todayBookings: [BookingRecord] {
-        store.bookings(on: .now)
-    }
-
-    private var isTeamModeEnabled: Bool {
-        store.settings.studioModeEnabled
-    }
-
-    private var currentCrewMemberName: String? {
-        store.preferredCrewMemberName
-    }
-
-    private var myTodayBookings: [BookingRecord] {
-        guard let memberName = currentCrewMemberName else { return [] }
-        return store.bookings(on: .now, assignedTo: memberName)
-    }
-
-    private var otherTodayBookings: [BookingRecord] {
-        guard currentCrewMemberName != nil else { return todayBookings }
-        let myIDs = Set(myTodayBookings.map(\.id))
-        return todayBookings.filter { myIDs.contains($0.id) == false }
-    }
-
-    fileprivate enum NavigationMapChoice: String, CaseIterable, Identifiable {
-        case apple
-        case amap
-        case baidu
-        case tencent
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .apple: "苹果地图"
-            case .amap: "高德地图"
-            case .baidu: "百度地图"
-            case .tencent: "腾讯地图"
-            }
-        }
-
-        var symbolName: String {
-            switch self {
-            case .apple: "map.fill"
-            case .amap: "location.fill"
-            case .baidu: "mappin.and.ellipse"
-            case .tencent: "globe.asia.australia.fill"
-            }
-        }
     }
 
     var body: some View {
@@ -115,44 +60,7 @@ struct OverviewView: View {
                 BookingEditorView()
                     .environment(store)
             }
-            .sheet(item: $reminderBooking) { booking in
-                BookingReminderSheet(
-                    booking: booking,
-                    client: booking.clientID.flatMap { store.client(id: $0) },
-                    monthBookings: store.bookings(inMonthContaining: booking.startAt, includeArchived: false),
-                    onContact: { contactClient(for: booking) },
-                    onNavigate: { openNavigationSheet(for: booking) }
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
-            .sheet(item: $navigationSheetBooking) { booking in
-                NavigationMapSheet(
-                    booking: booking,
-                    onChoose: { choice in
-                        navigationSheetBooking = nil
-                        openNavigation(for: booking, via: choice)
-                    }
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
-            .alert(
-                "联系客户",
-                isPresented: Binding(
-                    get: { contactErrorMessage != nil },
-                    set: { if $0 == false { contactErrorMessage = nil } }
-                )
-            ) {
-                Button("知道了", role: .cancel) {}
-            } message: {
-                Text(contactErrorMessage ?? "")
-            }
         }
-    }
-
-    private var overviewBackdrop: some View {
-        AppTheme.background
     }
 
     private var heroCard: some View {
@@ -172,35 +80,23 @@ struct OverviewView: View {
             }
 
             if let booking = featuredBooking {
-                Button {
-                    reminderBooking = booking
-                } label: {
-                    VStack(alignment: .leading, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(booking.title)
-                                .font(AppTypography.heroTitle)
-                                .foregroundStyle(.white)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(booking.title)
+                        .font(AppTypography.heroTitle)
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                        VStack(alignment: .leading, spacing: 10) {
-                            heroInfoRow(title: "客户", value: store.clientName(for: booking))
-                            heroInfoRow(title: "时间", value: "\(AppFormatters.shortMonthDay(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
-                            heroInfoRow(title: "地点", value: recentBookingLocationText(for: booking))
-                            if isTeamModeEnabled, booking.crewAssignments.isEmpty == false {
-                                heroInfoRow(title: "分工", value: crewAssignmentSummary(for: booking))
-                            }
-                        }
+                    VStack(alignment: .leading, spacing: 10) {
+                        heroInfoRow(title: "客户", value: store.clientName(for: booking))
+                        heroInfoRow(title: "时间", value: "\(AppFormatters.shortMonthDay(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
+                        heroInfoRow(title: "地点", value: recentBookingLocationText(for: booking))
                     }
                 }
-                .buttonStyle(.plain)
             } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("新建档期后自动聚焦下一场。")
-                        .font(AppTypography.body)
-                        .foregroundStyle(.white.opacity(0.84))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text("新建档期后自动聚焦下一场。")
+                    .font(AppTypography.body)
+                    .foregroundStyle(.white.opacity(0.84))
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack(spacing: 10) {
@@ -214,24 +110,13 @@ struct OverviewView: View {
                     showingNewBooking = true
                 }
 
-                if let booking = featuredBooking {
-                    heroActionButton(
-                        title: "联系客户",
-                        systemImage: "phone.fill",
-                        tint: .white.opacity(0.14),
-                        foreground: .white
-                    ) {
-                        contactClient(for: booking)
-                    }
-
-                    heroActionButton(
-                        title: "一键导航",
-                        systemImage: "location.fill",
-                        tint: .white.opacity(0.14),
-                        foreground: .white
-                    ) {
-                        openNavigationSheet(for: booking)
-                    }
+                heroActionButton(
+                    title: "打开档期",
+                    systemImage: "calendar",
+                    tint: .white.opacity(0.14),
+                    foreground: .white
+                ) {
+                    onOpenSchedule()
                 }
             }
         }
@@ -245,139 +130,6 @@ struct OverviewView: View {
                 .stroke(Color.white.opacity(0.14), lineWidth: 1)
         }
         .shadow(color: AppTheme.deepShadow.opacity(0.14), radius: AppShadow.heroRadius, y: AppShadow.heroY)
-    }
-
-    private var todayDispatchSection: some View {
-        GlassCard(title: isTeamModeEnabled ? "团队分工" : "今日安排", subtitle: todayDispatchSubtitle) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline) {
-                    if isTeamModeEnabled, let currentCrewMemberName {
-                        AppInlineNote(systemImage: "person.crop.circle.fill", text: "当前成员：\(currentCrewMemberName)")
-                    } else if isTeamModeEnabled {
-                        AppInlineNote(systemImage: "person.crop.circle.badge.questionmark", text: "未选择当前成员。")
-                    } else {
-                        AppInlineNote(systemImage: "calendar", text: "个人模式。")
-                    }
-
-                    Spacer(minLength: 8)
-
-                    Button("打开档期") {
-                        onOpenSchedule()
-                    }
-                    .buttonStyle(AppGhostButtonStyle())
-                }
-
-                if todayBookings.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("今天暂无拍摄安排")
-                            .font(AppTypography.bodyStrong)
-                            .foregroundStyle(AppTheme.ink)
-                        Text("有安排时会按成员聚合。")
-                            .font(AppTypography.meta)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if let currentCrewMemberName, myTodayBookings.isEmpty {
-                            AppInlineNote(systemImage: "person.crop.circle.badge.xmark", text: "\(currentCrewMemberName) 今天未分配。")
-                        }
-                        if currentCrewMemberName != nil, myTodayBookings.isEmpty == false {
-                            todayDispatchGroup(title: "我的安排", bookings: myTodayBookings, highlight: true)
-                        }
-                        if otherTodayBookings.isEmpty == false {
-                            todayDispatchGroup(
-                                title: isTeamModeEnabled ? (currentCrewMemberName == nil ? "团队其他安排" : "团队其他安排") : "今日安排",
-                                bookings: otherTodayBookings,
-                                highlight: false
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var todayDispatchSubtitle: String {
-        if isTeamModeEnabled == false {
-            return todayBookings.isEmpty ? "无排班" : "今日全部项目"
-        }
-        if currentCrewMemberName != nil {
-            return todayBookings.isEmpty ? "无排班" : "我的安排 / 团队其他"
-        }
-        return todayBookings.isEmpty ? "无排班" : "按成员查看"
-    }
-
-    private func todayDispatchGroup(title: String, bookings: [BookingRecord], highlight: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title)
-                    .font(AppTypography.bodyStrong)
-                    .foregroundStyle(AppTheme.ink)
-                Spacer()
-                Text("\(bookings.count) 场")
-                    .font(AppTypography.meta.weight(.semibold))
-                    .foregroundStyle(AppTheme.mutedInk)
-            }
-
-            VStack(spacing: 10) {
-                ForEach(bookings) { booking in
-                    todayDispatchRow(booking, highlight: highlight)
-                }
-            }
-        }
-    }
-
-    private func todayDispatchRow(_ booking: BookingRecord, highlight: Bool) -> some View {
-        let personalSummary = currentCrewMemberName.flatMap { memberName in
-            let assignments = store.assignments(for: booking, matching: memberName)
-            return assignments.isEmpty ? nil : assignments.map(\.operationalSummaryText).joined(separator: " / ")
-        }
-        let teamSummary = (isTeamModeEnabled && booking.crewAssignments.isEmpty == false) ? crewAssignmentSummary(for: booking) : nil
-
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))
-                    .font(AppTypography.bodyStrong)
-                    .foregroundStyle(AppTheme.ink)
-                Spacer()
-                if highlight {
-                    Text("我的安排")
-                        .font(AppTypography.badge)
-                        .foregroundStyle(AppTheme.accentWarmDeep)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.accentSurface, in: Capsule())
-                }
-            }
-
-            Text(booking.title)
-                .font(AppTypography.bodyStrong)
-                .foregroundStyle(AppTheme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text(store.clientName(for: booking))
-                .font(AppTypography.meta)
-                .foregroundStyle(AppTheme.secondaryInk)
-                .lineLimit(1)
-
-            Text(booking.venue.isEmpty ? booking.fullAddressText : booking.venue)
-                .font(AppTypography.meta)
-                .foregroundStyle(AppTheme.secondaryInk)
-                .lineLimit(2)
-
-            if let personalSummary {
-                AppInlineNote(systemImage: "person.crop.circle.badge.checkmark", text: personalSummary, tint: AppTheme.accentWarmDeep)
-            } else if let teamSummary {
-                AppInlineNote(systemImage: "person.3.fill", text: teamSummary)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 14)
-        .background(highlight ? AppTheme.accentSoft.opacity(0.9) : AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                .stroke((highlight ? AppTheme.accent.opacity(0.22) : AppTheme.line.opacity(0.55)), lineWidth: 1)
-        }
     }
 
     private var recentBookingsSection: some View {
@@ -414,6 +166,144 @@ struct OverviewView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var monthlySummarySection: some View {
+        GlassCard(title: "本月经营摘要", subtitle: AppFormatters.monthYear(.now)) {
+            VStack(alignment: .leading, spacing: 14) {
+                monthlyHeadlineCard
+
+                HStack(spacing: 0) {
+                    compactMonthlyMetric(title: "订单", value: "\(snapshot.monthlyBookedCount)", suffix: "单")
+                    monthlyMetricDivider
+                    compactMonthlyMetric(title: "已收", value: AppFormatters.currency(snapshot.monthlyReceived), suffix: nil)
+                    monthlyMetricDivider
+                    compactMonthlyMetric(title: "待收", value: AppFormatters.currency(snapshot.monthlyOutstanding), suffix: nil)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(AppTheme.panelSoft, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+
+                Button {
+                    onOpenSchedule()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(AppTheme.accent)
+                        Text("查看经营详情")
+                            .font(AppTypography.meta.weight(.semibold))
+                            .foregroundStyle(AppTheme.ink)
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppTheme.mutedInk)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                            .stroke(AppTheme.line.opacity(0.52), lineWidth: 1)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var monthlyHeadlineCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("本月成交额")
+                    .font(AppTypography.meta.weight(.semibold))
+                    .foregroundStyle(AppTheme.secondaryInk)
+                Spacer(minLength: 8)
+                Text(summaryProgressText)
+                    .font(AppTypography.badge)
+                    .foregroundStyle(AppTheme.accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.accentSurface, in: Capsule())
+            }
+
+            Text(AppFormatters.currency(snapshot.monthlyRevenue))
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            monthlyProgressBar(progress: summaryProgressRatio)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.5), lineWidth: 1)
+        }
+    }
+
+    private var monthlyMetricDivider: some View {
+        Rectangle()
+            .fill(AppTheme.line.opacity(0.58))
+            .frame(width: 1, height: 34)
+            .padding(.horizontal, 10)
+    }
+
+    private func compactMonthlyMetric(title: String, value: String, suffix: String?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(AppTypography.meta)
+                .foregroundStyle(AppTheme.mutedInk)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(AppTypography.bodyStrong)
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                if let suffix {
+                    Text(suffix)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var summaryProgressRatio: CGFloat {
+        guard snapshot.monthlyRevenue > 0 else { return 0 }
+        return CGFloat(min(snapshot.monthlyReceived / snapshot.monthlyRevenue, 1))
+    }
+
+    private var summaryProgressText: String {
+        guard snapshot.monthlyRevenue > 0 else { return "暂无成交额" }
+        let percentage = Int((summaryProgressRatio * 100).rounded())
+        return "已收 \(percentage)%"
+    }
+
+    private func monthlyProgressBar(progress: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(AppTheme.line.opacity(0.4))
+                    Capsule()
+                        .fill(AppTheme.heroGradient)
+                        .frame(width: max(6, proxy.size.width * min(max(progress, 0), 1)))
+                }
+            }
+            .frame(height: 8)
+
+            HStack {
+                Text("已收 \(AppFormatters.currency(snapshot.monthlyReceived))")
+                Spacer(minLength: 8)
+                Text("待收 \(AppFormatters.currency(snapshot.monthlyOutstanding))")
+            }
+            .font(AppTypography.meta)
+            .foregroundStyle(AppTheme.secondaryInk)
         }
     }
 
@@ -496,18 +386,9 @@ struct OverviewView: View {
         let city = booking.city.trimmingCharacters(in: .whitespacesAndNewlines)
         let venue = booking.venue.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if venue.isEmpty {
-            return city
-        }
-
-        if city.contains("大庆") {
-            return venue
-        }
-
-        if city.isEmpty {
-            return venue
-        }
-
+        if venue.isEmpty { return city }
+        if city.contains("大庆") { return venue }
+        if city.isEmpty { return venue }
         return "\(city) \(venue)"
     }
 
@@ -518,7 +399,6 @@ struct OverviewView: View {
             .replacingOccurrences(of: "1 天后", with: "1天")
     }
 
-
     private func heroInfoRow(title: String, value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(title)
@@ -528,23 +408,12 @@ struct OverviewView: View {
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
-            .multilineTextAlignment(.trailing)
+                .multilineTextAlignment(.trailing)
         }
-    }
-
-    private func crewAssignmentSummary(for booking: BookingRecord) -> String {
-        let normalized = BookingCrewAssignment.normalized(booking.crewAssignments)
-        guard normalized.isEmpty == false else { return "待安排" }
-
-        let heads = normalized.prefix(2).map { "\($0.displayName)·\($0.role.title)" }
-        if normalized.count > 2 {
-            return heads.joined(separator: "、") + "、+\(normalized.count - 2)"
-        }
-        return heads.joined(separator: "、")
     }
 
     private func countdownPill(for booking: BookingRecord) -> some View {
-        return HStack(spacing: 6) {
+        HStack(spacing: 6) {
             Image(systemName: countdownSymbolName(for: booking))
                 .font(.caption.weight(.semibold))
             Text(countdownTitle(for: booking))
@@ -593,168 +462,6 @@ struct OverviewView: View {
         return calendar.dateComponents([.day], from: today, to: target).day ?? 0
     }
 
-    private var summaryProgressRatio: CGFloat {
-        guard snapshot.monthlyRevenue > 0 else { return 0 }
-        return CGFloat(min(snapshot.monthlyReceived / snapshot.monthlyRevenue, 1))
-    }
-
-    private var summaryProgressText: String {
-        guard snapshot.monthlyRevenue > 0 else { return "暂无成交额" }
-        let percentage = Int((summaryProgressRatio * 100).rounded())
-        return "已收 \(percentage)%"
-    }
-
-    private var monthlyOutstandingRatio: CGFloat {
-        guard snapshot.monthlyRevenue > 0 else { return 0 }
-        return CGFloat(min(snapshot.monthlyOutstanding / snapshot.monthlyRevenue, 1))
-    }
-
-    private var revenueRingProgress: CGFloat {
-        guard snapshot.monthlyRevenue > 0 else { return 0 }
-        let benchmark = max(50_000, ceil(snapshot.monthlyRevenue / 50_000) * 50_000)
-        return CGFloat(min(snapshot.monthlyRevenue / benchmark, 1))
-    }
-
-    private var monthlySummarySection: some View {
-        GlassCard(title: "本月经营摘要", subtitle: AppFormatters.monthYear(.now)) {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("经营仪表盘")
-                            .font(AppTypography.sectionSubtitle.weight(.semibold))
-                            .foregroundStyle(AppTheme.accent)
-
-                        Text(AppFormatters.currency(snapshot.monthlyRevenue))
-                            .font(AppTypography.data)
-                            .foregroundStyle(AppTheme.ink)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.76)
-                    }
-
-                    HStack(spacing: 10) {
-                        Label("本月成交额", systemImage: "chart.line.uptrend.xyaxis")
-                            .font(AppTypography.meta)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                        Spacer(minLength: 8)
-                        Text(summaryProgressText)
-                            .font(AppTypography.meta.weight(.semibold))
-                            .foregroundStyle(AppTheme.accent)
-                    }
-
-                    monthlyProgressBar(progress: summaryProgressRatio)
-                }
-                .padding(16)
-                .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                        .stroke(AppTheme.line.opacity(0.56), lineWidth: 1)
-                }
-
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    statPill(title: "订单数", value: "\(snapshot.monthlyBookedCount)")
-                    statPill(title: "已收", value: AppFormatters.currency(snapshot.monthlyReceived))
-                    statPill(title: "待收", value: AppFormatters.currency(snapshot.monthlyOutstanding))
-                    statPill(title: "待收占比", value: snapshot.monthlyRevenue > 0 ? AppFormatters.percent(Double(monthlyOutstandingRatio)) : "暂无")
-                }
-            }
-        }
-    }
-
-    private func monthlyProgressBar(progress: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(AppTheme.line.opacity(0.44))
-                    Capsule()
-                        .fill(AppTheme.heroGradient)
-                        .frame(width: max(6, proxy.size.width * min(max(progress, 0), 1)))
-                }
-            }
-            .frame(height: 10)
-
-            HStack {
-                Text("已收 \(AppFormatters.currency(snapshot.monthlyReceived))")
-                Spacer(minLength: 8)
-                Text("待收 \(AppFormatters.currency(snapshot.monthlyOutstanding))")
-            }
-            .font(AppTypography.meta)
-            .foregroundStyle(AppTheme.secondaryInk)
-        }
-    }
-
-    private func summaryRing(
-        title: String,
-        value: String,
-        subtitle: String,
-        progress: CGFloat,
-        highlight: Color
-    ) -> some View {
-        VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .stroke(AppTheme.line.opacity(0.38), lineWidth: 11)
-
-                Circle()
-                    .trim(from: 0, to: progress == 0 ? 0 : max(progress, 0.08))
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                AppTheme.accentSoft,
-                                AppTheme.accent
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-
-                VStack(spacing: 4) {
-                    Text(value)
-                        .font(AppTypography.dataCompact)
-                        .foregroundStyle(AppTheme.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Text(subtitle)
-                        .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.mutedInk)
-                }
-                .padding(.horizontal, 8)
-            }
-            .frame(width: 132, height: 132)
-
-            VStack(spacing: 2) {
-                Text(title)
-                    .font(AppTypography.bodyStrong)
-                    .foregroundStyle(AppTheme.ink)
-                Text(progress == 0 ? "暂无数据" : progress >= 1 ? "阶段满格" : "绿色进度")
-                    .font(AppTypography.meta)
-                    .foregroundStyle(highlight)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func statPill(title: String, value: String) -> some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(AppTypography.meta.weight(.semibold))
-                .foregroundStyle(AppTheme.secondaryInk)
-            Spacer(minLength: 0)
-            Text(value)
-                .font(AppTypography.bodyStrong)
-                .foregroundStyle(AppTheme.ink)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.55), lineWidth: 1)
-        }
-    }
-
     private func heroActionButton(
         title: String,
         systemImage: String,
@@ -778,496 +485,5 @@ struct OverviewView: View {
             }
         }
         .buttonStyle(.plain)
-    }
-
-    private func contactClient(for booking: BookingRecord) {
-        guard let client = booking.clientID.flatMap({ store.client(id: $0) }) else {
-            contactErrorMessage = "这条档期还没有绑定客户，暂时无法拨号。"
-            AppHaptics.error()
-            return
-        }
-
-        let digits = AppFormatters.sanitizedPhoneNumber(client.phoneNumber)
-        guard digits.isEmpty == false,
-              let url = URL(string: "tel://\(digits)") else {
-            contactErrorMessage = "\(client.name) 还没有可用的联系电话。"
-            AppHaptics.error()
-            return
-        }
-        AppHaptics.impactMedium()
-        UIApplication.shared.open(url) { success in
-            if success == false {
-                contactErrorMessage = "当前设备无法直接拨号，请到客户详情里手动联系。"
-                AppHaptics.error()
-            }
-        }
-    }
-
-    private func openNavigationSheet(for booking: BookingRecord) {
-        navigationSheetBooking = booking
-    }
-
-    private func openNavigation(for booking: BookingRecord, via choice: NavigationMapChoice) {
-        let query = booking.navigationQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard query.isEmpty == false else { return }
-
-        let coordinate = booking.coordinate
-        let fallbackURL = appleMapsURL(for: booking, query: query, coordinate: coordinate)
-        let url = navigationURL(for: booking, via: choice, query: query, coordinate: coordinate) ?? fallbackURL
-
-        AppHaptics.impactMedium()
-        UIApplication.shared.open(url) { success in
-            if success == false && choice != .apple {
-                UIApplication.shared.open(fallbackURL)
-            }
-        }
-    }
-
-    private func navigationURL(
-        for booking: BookingRecord,
-        via choice: NavigationMapChoice,
-        query: String,
-        coordinate: CLLocationCoordinate2D?
-    ) -> URL? {
-        let encodedName = (booking.venue.isEmpty ? booking.title : booking.venue)
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? booking.title
-        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-
-        switch choice {
-        case .apple:
-            return appleMapsURL(for: booking, query: query, coordinate: coordinate)
-        case .amap:
-            if let coordinate {
-                return URL(string: "iosamap://path?sourceApplication=YingQi&dlat=\(coordinate.latitude)&dlon=\(coordinate.longitude)&dname=\(encodedName)&dev=0&t=0")
-            }
-            return URL(string: "iosamap://search?sourceApplication=YingQi&keyword=\(encodedQuery)")
-        case .baidu:
-            if let coordinate {
-                return URL(string: "baidumap://map/direction?destination=latlng:\(coordinate.latitude),\(coordinate.longitude)|\(encodedName)&mode=driving&src=YingQi")
-            }
-            return URL(string: "baidumap://map/search?query=\(encodedQuery)&src=YingQi")
-        case .tencent:
-            if let coordinate {
-                return URL(string: "qqmap://map/routeplan?type=drive&tocoord=\(coordinate.latitude),\(coordinate.longitude)&to=\(encodedName)&policy=0&referer=YingQi")
-            }
-            return URL(string: "qqmap://map/search?keyword=\(encodedQuery)&referer=YingQi")
-        }
-    }
-
-    private func appleMapsURL(
-        for booking: BookingRecord,
-        query: String,
-        coordinate: CLLocationCoordinate2D?
-    ) -> URL {
-        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-        let fallbackURL = URL(string: "https://maps.apple.com/?daddr=\(encodedQuery)&dirflg=d")
-            ?? URL(fileURLWithPath: "/")
-
-        if let coordinate {
-            let encodedName = (booking.venue.isEmpty ? booking.title : booking.venue)
-                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? booking.title
-            return URL(
-                string: "https://maps.apple.com/?daddr=\(coordinate.latitude),\(coordinate.longitude)&dirflg=d&name=\(encodedName)"
-            ) ?? fallbackURL
-        }
-
-        return fallbackURL
-    }
-
-}
-
-private struct NavigationMapSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let booking: BookingRecord
-    let onChoose: (OverviewView.NavigationMapChoice) -> Void
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(booking.title)
-                            .font(AppTypography.sectionTitle)
-                            .foregroundStyle(AppTheme.ink)
-                            .lineLimit(2)
-
-                        Text("\(AppFormatters.shortDate(booking.startAt)) · \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
-                            .font(AppTypography.meta)
-                            .foregroundStyle(AppTheme.secondaryInk)
-
-                        Text(booking.fullAddressText.isEmpty ? "请先补充地点信息" : booking.fullAddressText)
-                            .font(AppTypography.body)
-                            .foregroundStyle(AppTheme.mutedInk)
-                            .lineLimit(2)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 2)
-                } header: {
-                    Text("当前档期")
-                }
-
-                Section("选择地图") {
-                    ForEach(OverviewView.NavigationMapChoice.allCases) { choice in
-                        Button {
-                            dismiss()
-                            onChoose(choice)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: choice.symbolName)
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(AppTheme.accent)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(choice == .apple ? "\(choice.title)（默认）" : choice.title)
-                                        .font(AppTypography.bodyStrong)
-                                        .foregroundStyle(AppTheme.ink)
-                                    Text(choice == .apple ? "系统地图，优先打开" : "若已安装，将直接跳转")
-                                        .font(AppTypography.meta)
-                                        .foregroundStyle(AppTheme.secondaryInk)
-                                }
-
-                                Spacer(minLength: 0)
-
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(AppTheme.mutedInk)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .navigationTitle("一键导航")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("取消", role: .cancel) {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-private struct BookingReminderSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let booking: BookingRecord
-    let client: ClientRecord?
-    let monthBookings: [BookingRecord]
-    let onContact: () -> Void
-    let onNavigate: () -> Void
-
-    private let calendar = Calendar.current
-
-    private var monthDates: [Date?] {
-        guard let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: booking.startAt)),
-              let dayRange = calendar.range(of: .day, in: .month, for: booking.startAt)
-        else { return [] }
-
-        let firstWeekday = calendar.component(.weekday, from: monthStart)
-        let leadingDays = (firstWeekday - calendar.firstWeekday + 7) % 7
-        var dates: [Date?] = Array(repeating: nil, count: leadingDays)
-
-        for day in dayRange {
-            dates.append(calendar.date(byAdding: .day, value: day - 1, to: monthStart))
-        }
-
-        while dates.count % 7 != 0 {
-            dates.append(nil)
-        }
-
-        return dates
-    }
-
-    private var weekdaySymbols: [String] {
-        AppFormatters.reorderedShortWeekdaySymbols(firstWeekday: calendar.firstWeekday)
-    }
-
-    private var bookingDay: Date {
-        calendar.startOfDay(for: booking.startAt)
-    }
-
-    private var monthBookingCount: Int {
-        monthBookings.filter { calendar.isDate($0.startAt, equalTo: booking.startAt, toGranularity: .month) }.count
-    }
-
-    private var bookedDaysCount: Int {
-        Set(monthBookings.map { calendar.startOfDay(for: $0.startAt) }).count
-    }
-
-    private var peakDayCount: Int {
-        monthBookings.reduce(into: [:]) { counts, item in
-            let day = calendar.startOfDay(for: item.startAt)
-            counts[day, default: 0] += 1
-        }
-        .values
-        .max() ?? 0
-    }
-
-    private var monthGridRows: [[Date?]] {
-        stride(from: 0, to: monthDates.count, by: 7).map { start in
-            Array(monthDates[start..<min(start + 7, monthDates.count)])
-        }
-    }
-
-    private var monthDensityRows: [(label: String, count: Int)] {
-        monthGridRows.enumerated().map { index, row in
-            let rowCount = row.compactMap { $0 }.reduce(0) { total, date in
-                total + bookings(on: date).count
-            }
-            return ("第\(index + 1)周", rowCount)
-        }
-    }
-
-    private var bookingSheetBackdrop: some View {
-        ZStack {
-            AppTheme.sheetBackground
-
-            AppTheme.sheetGradient
-
-            RadialGradient(
-                colors: [
-                    AppTheme.panelStrong.opacity(0.46),
-                    Color.clear
-                ],
-                center: .topLeading,
-                startRadius: 12,
-                endRadius: 360
-            )
-            .blendMode(.softLight)
-        }
-    }
-
-    private var monthDensitySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("当月档期密度")
-                    .font(AppTypography.bodyStrong)
-                    .foregroundStyle(AppTheme.ink)
-                Spacer()
-                Text("\(bookedDaysCount) 天 / \(monthBookingCount) 场")
-                    .font(AppTypography.meta.weight(.semibold))
-                    .foregroundStyle(AppTheme.accent)
-            }
-
-            HStack(alignment: .bottom, spacing: 10) {
-                ForEach(Array(monthDensityRows.enumerated()), id: \.offset) { _, row in
-                    VStack(spacing: 8) {
-                        ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(AppTheme.line.opacity(0.34))
-                                .frame(height: 72)
-
-                            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            AppTheme.accentSoft,
-                                            AppTheme.success
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .frame(height: max(8, 72 * CGFloat(row.count) / CGFloat(max(monthDensityRows.map(\.count).max() ?? 1, 1))))
-                        }
-
-                        VStack(spacing: 2) {
-                            Text(row.label)
-                                .font(AppTypography.meta)
-                                .foregroundStyle(AppTheme.mutedInk)
-                            Text("\(row.count)")
-                                .font(AppTypography.meta.weight(.semibold))
-                                .foregroundStyle(AppTheme.ink)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-
-            HStack(spacing: 8) {
-                Text("峰值 \(peakDayCount) 场")
-                Text("·")
-                Text("密度 \(Int((Double(bookedDaysCount) / Double(max(Calendar.current.range(of: .day, in: .month, for: booking.startAt)?.count ?? 1, 1))) * 100))%")
-            }
-            .font(AppTypography.meta.weight(.semibold))
-            .foregroundStyle(AppTheme.secondaryInk)
-        }
-        .padding(16)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.58), lineWidth: 1)
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("拍摄月视图")
-                            .font(AppTypography.sectionSubtitle.weight(.semibold))
-                            .foregroundStyle(AppTheme.accent)
-
-                        Text(booking.title)
-                            .font(AppTypography.sectionTitle)
-                            .foregroundStyle(AppTheme.ink)
-
-                        Text("\(AppFormatters.countdownText(to: booking.startAt)) · \(AppFormatters.shortDate(booking.startAt))")
-                            .font(AppTypography.body)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("客户")
-                                    .font(AppTypography.meta)
-                                    .foregroundStyle(AppTheme.mutedInk)
-                                Text(client?.name ?? "未绑定客户")
-                                    .font(AppTypography.bodyStrong)
-                                    .foregroundStyle(AppTheme.ink)
-                            }
-
-                            Spacer()
-
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("地点")
-                                    .font(AppTypography.meta)
-                                    .foregroundStyle(AppTheme.mutedInk)
-                                Text("\(booking.city) \(booking.venue)")
-                                    .font(AppTypography.bodyStrong)
-                                    .foregroundStyle(AppTheme.ink)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                        }
-
-                        HStack {
-                            Text(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))
-                                .font(AppTypography.bodyStrong)
-                                .foregroundStyle(AppTheme.ink)
-                            Spacer()
-                            Text("\(monthBookingCount) 场")
-                                .font(AppTypography.meta.weight(.semibold))
-                                .foregroundStyle(AppTheme.accent)
-                        }
-                    }
-                    .padding(16)
-                    .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                            .stroke(AppTheme.line.opacity(0.58), lineWidth: 1)
-                    }
-
-                    monthDensitySection
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text(AppFormatters.monthYear(booking.startAt))
-                                .font(AppTypography.bodyStrong)
-                                .foregroundStyle(AppTheme.ink)
-                            Spacer()
-                            Text("月视图")
-                                .font(AppTypography.meta.weight(.semibold))
-                                .foregroundStyle(AppTheme.accent)
-                        }
-
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 8) {
-                            ForEach(weekdaySymbols, id: \.self) { symbol in
-                                Text(symbol)
-                                    .font(AppTypography.meta)
-                                    .foregroundStyle(AppTheme.mutedInk)
-                                    .frame(maxWidth: .infinity)
-                            }
-
-                            ForEach(Array(monthDates.enumerated()), id: \.offset) { _, date in
-                                if let date {
-                                    dayCell(date)
-                                } else {
-                                    Color.clear
-                                        .frame(height: 50)
-                                }
-                            }
-                        }
-                    }
-
-                    HStack(spacing: 12) {
-                        Button {
-                            onContact()
-                        } label: {
-                            Label("联系客户", systemImage: "phone.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(AppSecondaryButtonStyle())
-
-                        Button {
-                            onNavigate()
-                        } label: {
-                            Label("一键导航", systemImage: "location.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(AppSecondaryButtonStyle())
-                    }
-                }
-                .padding(20)
-                .padding(.bottom, 24)
-            }
-            .background(bookingSheetBackdrop.ignoresSafeArea())
-            .presentationBackground(AppTheme.sheetBackground)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                    .font(AppTypography.meta.weight(.semibold))
-                    .foregroundStyle(AppTheme.accent)
-                }
-            }
-        }
-    }
-
-    private func dayCell(_ date: Date) -> some View {
-        let isBookingDay = calendar.isDate(date, inSameDayAs: bookingDay)
-        let dayBookings = bookings(on: date)
-
-        return VStack(spacing: 5) {
-            Text("\(calendar.component(.day, from: date))")
-                .font(AppTypography.meta.weight(.semibold))
-                .foregroundStyle(isBookingDay ? .white : AppTheme.ink)
-                .frame(width: 36, height: 36)
-                .background {
-                    if isBookingDay {
-                        Circle().fill(AppTheme.heroGradient)
-                    } else if dayBookings.isEmpty == false {
-                        Circle().fill(AppTheme.accent.opacity(0.12))
-                    }
-                }
-
-            HStack(spacing: 3) {
-                ForEach(0..<min(dayBookings.count, 3), id: \.self) { _ in
-                    Circle()
-                        .fill(isBookingDay ? Color.white : AppTheme.accent)
-                        .frame(width: 4, height: 4)
-                }
-
-                if dayBookings.count > 3 {
-                    Text("+")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(isBookingDay ? .white : AppTheme.accent)
-                }
-            }
-            .frame(height: 6)
-        }
-        .frame(maxWidth: .infinity, minHeight: 50)
-    }
-
-    private func bookings(on date: Date) -> [BookingRecord] {
-        monthBookings.filter { calendar.isDate($0.startAt, inSameDayAs: date) }
     }
 }
