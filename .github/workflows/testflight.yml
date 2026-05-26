@@ -3,6 +3,10 @@ name: Upload YingQi to TestFlight
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   upload-testflight:
     name: Archive and upload to TestFlight
@@ -12,6 +16,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          repository: WanglidaDan/YQ4.12
+          ref: main
+          fetch-depth: 1
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
