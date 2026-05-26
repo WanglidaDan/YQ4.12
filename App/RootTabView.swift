@@ -5,13 +5,13 @@ private enum RootTab: Hashable {
     case overview
     case schedule
     case clients
-    case team
     case profile
 }
 
 private enum CustomerWorkspaceMode: String, CaseIterable, Identifiable {
     case clients
     case followUp
+    case team
 
     var id: String { rawValue }
 
@@ -19,6 +19,7 @@ private enum CustomerWorkspaceMode: String, CaseIterable, Identifiable {
         switch self {
         case .clients: "客户"
         case .followUp: "跟进"
+        case .team: "团队"
         }
     }
 }
@@ -99,15 +100,9 @@ struct RootTabView: View {
                     onOpenSchedule: { selectedTab = .schedule }
                 )
                 .tabItem {
-                    Label("客户", systemImage: "person.2")
+                    Label("关系", systemImage: "person.2")
                 }
                 .tag(RootTab.clients)
-
-                TeamView(onOpenSchedule: { selectedTab = .schedule })
-                    .tabItem {
-                        Label("团队", systemImage: "person.3")
-                    }
-                    .tag(RootTab.team)
 
                 SettingsView(showsCloseButton: false)
                     .tabItem {
@@ -221,7 +216,7 @@ struct RootTabView: View {
     }
 
     private static func selectionIndicatorImage() -> UIImage? {
-        let tabCount: CGFloat = 5
+        let tabCount: CGFloat = 4
         let totalWidth = UIScreen.main.bounds.width - 32
         let itemWidth = max((totalWidth / tabCount) - 10, 64)
         let size = CGSize(width: itemWidth, height: 54)
@@ -338,11 +333,13 @@ private struct CustomerWorkspaceView: View {
                 ClientsView()
             case .followUp:
                 FollowUpView(onOpenSchedule: onOpenSchedule, onOpenClients: { mode = .clients })
+            case .team:
+                TeamView(onOpenSchedule: onOpenSchedule)
             }
         }
         .safeAreaInset(edge: .top) {
             VStack(spacing: 0) {
-                Picker("客户工作台", selection: $mode) {
+                Picker("客户与团队", selection: $mode) {
                     ForEach(CustomerWorkspaceMode.allCases) { item in
                         Text(item.title).tag(item)
                     }

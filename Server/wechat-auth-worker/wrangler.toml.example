@@ -1,0 +1,11 @@
+name = "yingqi-wechat-auth"
+main = "worker.js"
+compatibility_date = "2026-05-26"
+
+[vars]
+APPLE_TEAM_ID = "9ZV32GL37D"
+IOS_BUNDLE_ID = "com.wanglida.YingQi"
+WECHAT_APP_ID = "wx_your_app_id"
+
+# Set this as a secret, not a plain var:
+# wrangler secret put WECHAT_APP_SECRET

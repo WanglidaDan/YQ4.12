@@ -1,5 +1,28 @@
 import SwiftUI
 
+struct BookingCrewAssignmentDraft: Identifiable {
+    let id = UUID()
+    var assignment: BookingCrewAssignment
+    let replacingAssignmentID: UUID?
+    let title: String
+
+    static func new(title: String = "添加分工") -> BookingCrewAssignmentDraft {
+        BookingCrewAssignmentDraft(
+            assignment: BookingCrewAssignment(memberName: "", role: .leadPhoto),
+            replacingAssignmentID: nil,
+            title: title
+        )
+    }
+
+    static func edit(_ assignment: BookingCrewAssignment) -> BookingCrewAssignmentDraft {
+        BookingCrewAssignmentDraft(
+            assignment: assignment,
+            replacingAssignmentID: assignment.id,
+            title: "编辑分工"
+        )
+    }
+}
+
 struct BookingCrewAssignmentEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StudioStore.self) private var store

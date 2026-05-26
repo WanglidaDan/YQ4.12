@@ -557,7 +557,7 @@ struct BusinessCenterView: View {
         VStack(spacing: 16) {
             AppInfoCard(title: "团队权限与操作留痕", subtitle: "当前正式版提供角色匹配、本地权限和关键操作记录，不再误导为“多人实时协作”。") {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    AppMetricTile(title: "当前角色", value: store.currentWorkspaceRole.title, subtitle: "按 Apple ID / 邮箱自动匹配")
+                    AppMetricTile(title: "当前角色", value: store.currentWorkspaceRole.title, subtitle: "按账号 ID / 邮箱自动匹配")
                     AppMetricTile(title: "协作成员", value: "\(store.activeWorkspaceMembers.count)", subtitle: "本地权限工作区")
                     AppMetricTile(title: "资料上传", value: store.collaborationSettings.allowAttachmentUploadByPhotographers ? "摄影师可上传" : "仅管理角色可上传", subtitle: "已接入真实权限判断")
                     AppMetricTile(title: "近期留痕", value: "\(store.collaborationActivities.prefix(20).count)", subtitle: "客户 / 订单 / 文档 / 附件")
@@ -1005,7 +1005,7 @@ private struct WorkspaceMemberEditorView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
-                    GlassCard(title: "成员信息", subtitle: "通过 Apple ID / 邮箱自动匹配成员身份。") {
+                    GlassCard(title: "成员信息", subtitle: "通过账号 ID / 邮箱自动匹配成员身份。") {
                         AppLabeledField(title: "姓名") {
                             TextField("成员姓名", text: $draft.displayName)
                         }

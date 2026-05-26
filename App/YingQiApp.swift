@@ -18,6 +18,7 @@ private struct AppRootContainer: View {
     @AppStorage("hasShownLaunchIntro") private var hasShownLaunchIntro = false
     @AppStorage("hasEnteredGuestMode") private var hasEnteredGuestMode = false
     @State private var store: StudioStore
+    @State private var weChatAuthService = WeChatAuthService()
     @State private var showingLaunchIntro = false
 
     init() {
@@ -33,9 +34,12 @@ private struct AppRootContainer: View {
                     RootTabView(store: store)
                 } else {
                     AuthGateView(
-                        onAppleSignIn: { profile in
+                        onAuthenticated: { profile in
                             hasEnteredGuestMode = false
                             store.setAuthProfile(profile)
+                        },
+                        onWeChatSignIn: { completion in
+                            weChatAuthService.signIn(completion: completion)
                         },
                         onContinueWithoutLogin: {
                             hasEnteredGuestMode = true
@@ -68,7 +72,14 @@ private struct AppRootContainer: View {
             )
         }
         .onAppear {
+            weChatAuthService.registerIfPossible()
             showingLaunchIntro = !hasShownLaunchIntro
+        }
+        .onOpenURL { url in
+            _ = weChatAuthService.handleOpenURL(url)
+        }
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
+            _ = weChatAuthService.handleUniversalLink(userActivity)
         }
         .task {
             guard showingLaunchIntro else { return }
@@ -88,13 +99,15 @@ private struct LaunchIntroView: View {
                 StudioBackdrop(mode: .launch)
                     .ignoresSafeArea()
 
-                Text("欢迎来到影期")
-                    .font(.system(size: min(36, proxy.size.width * 0.09), weight: .bold, design: .default))
-                    .tracking(-0.9)
-                    .foregroundStyle(.white.opacity(0.98))
-                    .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
-                    .offset(y: -18)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                VStack(spacing: 18) {
+                    YingQiBrandMark(size: 88, elevated: true)
+                    Text("影期")
+                        .font(.system(size: min(34, proxy.size.width * 0.088), weight: .semibold, design: .default))
+                        .foregroundStyle(.white.opacity(0.98))
+                }
+                .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
+                .offset(y: -18)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
         .allowsHitTesting(false)
@@ -102,58 +115,84 @@ private struct LaunchIntroView: View {
 }
 
 private struct AuthGateView: View {
-    let onAppleSignIn: (AuthProfile) -> Void
+    let onAuthenticated: (AuthProfile) -> Void
+    let onWeChatSignIn: (@escaping (Result<AuthProfile, Error>) -> Void) -> Void
     let onContinueWithoutLogin: () -> Void
 
     @State private var authErrorMessage: String?
+    @State private var wechatNoticeMessage: String?
     @State private var showingLegalDocument: AuthLegalDocument?
 
     var body: some View {
         GeometryReader { proxy in
             let horizontalPadding = max(24, min(34, proxy.size.width * 0.075))
-            let topPadding = max(32, proxy.safeAreaInsets.top + 28)
+            let topPadding = max(30, proxy.safeAreaInsets.top + 24)
             let bottomPadding = max(8, proxy.safeAreaInsets.bottom + 8)
             let maxContentWidth = min(430, proxy.size.width - (horizontalPadding * 2))
             let titleWidth = min(388, proxy.size.width - (horizontalPadding * 2))
 
             ZStack {
-                StudioBackdrop(mode: .auth)
+                AuthPremiumBackdrop()
                     .ignoresSafeArea()
 
-                coverHeadline(maxWidth: titleWidth)
-                    .padding(.top, topPadding)
-                    .padding(.leading, horizontalPadding)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-            .ignoresSafeArea(edges: .top)
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 16) {
-                    AppleIDAuthButton(
-                        onSuccess: onAppleSignIn,
-                        onFailure: { message in
-                            authErrorMessage = message
+                VStack(alignment: .leading, spacing: 0) {
+                    brandHeader
+                        .padding(.top, topPadding)
+
+                    Spacer(minLength: 34)
+
+                    coverHeadline(maxWidth: titleWidth)
+
+                    Spacer(minLength: 42)
+
+                    VStack(spacing: 12) {
+                        Text("继续使用影期")
+                            .font(.system(size: 15, weight: .semibold, design: .default))
+                            .foregroundStyle(Color(red: 0.15, green: 0.19, blue: 0.18))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.bottom, 2)
+
+                        WeChatAuthButton {
+                            AppHaptics.tapLight()
+                            onWeChatSignIn { result in
+                                switch result {
+                                case let .success(profile):
+                                    AppHaptics.success()
+                                    onAuthenticated(profile)
+                                case let .failure(error):
+                                    AppHaptics.error()
+                                    wechatNoticeMessage = error.localizedDescription
+                                }
+                            }
                         }
-                    )
 
-                    Button {
-                        AppHaptics.tapLight()
-                        onContinueWithoutLogin()
-                    } label: {
-                        Text("暂不登录")
-                            .font(.system(size: 16, weight: .medium, design: .default))
-                            .tracking(0.1)
-                            .foregroundStyle(.white.opacity(0.78))
-                            .frame(maxWidth: .infinity)
+                        AppleIDAuthButton(
+                            onSuccess: onAuthenticated,
+                            onFailure: { message in
+                                authErrorMessage = message
+                            }
+                        )
+
+                        Button {
+                            AppHaptics.tapLight()
+                            onContinueWithoutLogin()
+                        } label: {
+                            Text("暂不登录")
+                                .font(.system(size: 16, weight: .medium, design: .default))
+                                .foregroundStyle(Color(red: 0.29, green: 0.34, blue: 0.32))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 42)
+                        }
+                        .buttonStyle(.plain)
+
+                        agreementText
+                            .padding(.top, 2)
                     }
-                    .buttonStyle(.plain)
-
-                    agreementText
-                        .padding(.top, 8)
+                    .frame(maxWidth: maxContentWidth)
+                    .padding(.bottom, bottomPadding)
                 }
-                .frame(maxWidth: maxContentWidth)
                 .padding(.horizontal, horizontalPadding)
-                .padding(.top, 16)
-                .padding(.bottom, bottomPadding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
         .alert("登录失败", isPresented: Binding(
@@ -164,6 +203,14 @@ private struct AuthGateView: View {
         } message: {
             Text(authErrorMessage ?? "")
         }
+        .alert("微信登录", isPresented: Binding(
+            get: { wechatNoticeMessage != nil },
+            set: { if $0 == false { wechatNoticeMessage = nil } }
+        )) {
+            Button("知道了", role: .cancel) {}
+        } message: {
+            Text(wechatNoticeMessage ?? "")
+        }
         .sheet(item: $showingLegalDocument) { document in
             NavigationStack {
                 LegalSheetView(title: document.title, bodyText: document.bodyText)
@@ -171,45 +218,238 @@ private struct AuthGateView: View {
         }
     }
 
+    private var brandHeader: some View {
+        HStack(spacing: 12) {
+            YingQiBrandMark(size: 52, elevated: false)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("影期")
+                    .font(.system(size: 25, weight: .semibold, design: .default))
+                    .foregroundStyle(Color(red: 0.08, green: 0.11, blue: 0.11))
+                Text("YingQi Studio")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color(red: 0.42, green: 0.48, blue: 0.45))
+            }
+        }
+    }
+
     private func coverHeadline(maxWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("把时间留给创作")
-                .font(.system(size: min(38, maxWidth * 0.104), weight: .semibold, design: .default))
-                .tracking(-1.2)
-                .lineSpacing(0)
-                .foregroundStyle(.white.opacity(0.98))
+            Text("把拍摄工作排得清楚")
+                .font(.system(size: min(42, maxWidth * 0.112), weight: .semibold, design: .default))
+                .lineSpacing(3)
+                .foregroundStyle(Color(red: 0.06, green: 0.08, blue: 0.08))
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("管理档期、客户与跟进")
-                .font(.system(size: 15, weight: .regular, design: .default))
-                .tracking(0.08)
-                .foregroundStyle(.white.opacity(0.70))
+            Text("档期、客户、团队和回款，进入后自动同步到你的工作区。")
+                .font(.system(size: 16, weight: .regular, design: .default))
+                .lineSpacing(5)
+                .foregroundStyle(Color(red: 0.35, green: 0.41, blue: 0.38))
                 .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                AuthValueChip(title: "档期")
+                AuthValueChip(title: "客户")
+                AuthValueChip(title: "团队")
+                AuthValueChip(title: "回款")
+            }
+            .padding(.top, 4)
         }
         .frame(maxWidth: maxWidth, alignment: .leading)
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
     }
 
     private var agreementText: some View {
         HStack(spacing: 0) {
             Text("登录即表示同意 ")
-                .foregroundStyle(.white.opacity(0.68))
+                .foregroundStyle(Color(red: 0.48, green: 0.53, blue: 0.50))
             Button("服务条款") {
                 showingLegalDocument = .terms
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white.opacity(0.82))
+            .foregroundStyle(Color(red: 0.14, green: 0.38, blue: 0.26))
             Text(" 和 ")
-                .foregroundStyle(.white.opacity(0.68))
+                .foregroundStyle(Color(red: 0.48, green: 0.53, blue: 0.50))
             Button("隐私政策") {
                 showingLegalDocument = .privacy
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white.opacity(0.82))
+            .foregroundStyle(Color(red: 0.14, green: 0.38, blue: 0.26))
         }
         .font(.system(size: 13, weight: .medium, design: .default))
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct YingQiBrandMark: View {
+    let size: CGFloat
+    var elevated: Bool
+
+    var body: some View {
+        Image("BrandLogo")
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
+        .shadow(color: .black.opacity(elevated ? 0.12 : 0.06), radius: elevated ? 16 : 7, y: elevated ? 9 : 4)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct AuthPremiumBackdrop: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.96, green: 0.98, blue: 0.96),
+                    Color(red: 0.91, green: 0.94, blue: 0.91),
+                    Color(red: 0.84, green: 0.89, blue: 0.86)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            LinearGradient(
+                stops: [
+                    .init(color: .white.opacity(0.86), location: 0.0),
+                    .init(color: .white.opacity(0.38), location: 0.34),
+                    .init(color: Color(red: 0.67, green: 0.74, blue: 0.68).opacity(0.18), location: 0.70),
+                    .init(color: Color(red: 0.10, green: 0.14, blue: 0.13).opacity(0.08), location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            VStack(spacing: 0) {
+                Color.white.opacity(0.20)
+                    .frame(height: 1)
+                Spacer()
+                Color(red: 0.08, green: 0.11, blue: 0.10)
+                    .opacity(0.05)
+                    .frame(height: 1)
+            }
+            .padding(.horizontal, 24)
+
+            GeometryReader { proxy in
+                let width = proxy.size.width
+                let height = proxy.size.height
+
+                Path { path in
+                    path.move(to: CGPoint(x: 0, y: height * 0.19))
+                    path.addLine(to: CGPoint(x: width, y: height * 0.09))
+                    path.addLine(to: CGPoint(x: width, y: height * 0.36))
+                    path.addLine(to: CGPoint(x: 0, y: height * 0.50))
+                    path.closeSubpath()
+                }
+                .fill(.white.opacity(0.18))
+
+                Path { path in
+                    path.move(to: CGPoint(x: 0, y: height * 0.70))
+                    path.addLine(to: CGPoint(x: width, y: height * 0.58))
+                    path.addLine(to: CGPoint(x: width, y: height))
+                    path.addLine(to: CGPoint(x: 0, y: height))
+                    path.closeSubpath()
+                }
+                .fill(Color(red: 0.12, green: 0.20, blue: 0.17).opacity(0.06))
+            }
+        }
+    }
+}
+
+private struct AuthValueChip: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 13, weight: .semibold, design: .default))
+            .foregroundStyle(Color(red: 0.18, green: 0.27, blue: 0.22))
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .background(.white.opacity(0.54), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(Color.white.opacity(0.72), lineWidth: 1)
+            }
+    }
+}
+
+private struct WeChatAuthButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                WeChatGlyph()
+
+                Text("微信登录")
+                    .font(.system(size: 17, weight: .semibold, design: .default))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.08, green: 0.68, blue: 0.27),
+                        Color(red: 0.04, green: 0.48, blue: 0.28)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(.white.opacity(0.24), lineWidth: 1)
+            }
+            .shadow(color: Color(red: 0.03, green: 0.30, blue: 0.16).opacity(0.22), radius: 18, y: 10)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("微信登录")
+    }
+}
+
+private struct WeChatGlyph: View {
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.white.opacity(0.16))
+                .frame(width: 28, height: 28)
+
+            ZStack {
+                Circle()
+                    .fill(.white)
+                    .frame(width: 16, height: 16)
+                    .offset(x: -4, y: -2)
+
+                Circle()
+                    .fill(.white.opacity(0.92))
+                    .frame(width: 13, height: 13)
+                    .offset(x: 5, y: 4)
+
+                Circle()
+                    .fill(Color(red: 0.08, green: 0.72, blue: 0.24))
+                    .frame(width: 2.3, height: 2.3)
+                    .offset(x: -7.5, y: -3.5)
+
+                Circle()
+                    .fill(Color(red: 0.08, green: 0.72, blue: 0.24))
+                    .frame(width: 2.3, height: 2.3)
+                    .offset(x: -1.5, y: -3.5)
+
+                Circle()
+                    .fill(Color(red: 0.08, green: 0.72, blue: 0.24))
+                    .frame(width: 1.9, height: 1.9)
+                    .offset(x: 3.3, y: 3.2)
+
+                Circle()
+                    .fill(Color(red: 0.08, green: 0.72, blue: 0.24))
+                    .frame(width: 1.9, height: 1.9)
+                    .offset(x: 8, y: 3.2)
+            }
+        }
+        .frame(width: 30, height: 30)
+        .accessibilityHidden(true)
     }
 }
 
@@ -313,9 +553,9 @@ private struct AppleIDAuthButton: View {
                 AppHaptics.error()
             }
         }
-        .signInWithAppleButtonStyle(colorScheme == .dark ? .black : .white)
+        .signInWithAppleButtonStyle(.black)
         .frame(height: 56)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black.opacity(0.14), radius: 14, y: 8)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.18 : 0.12), radius: 14, y: 8)
     }
 }

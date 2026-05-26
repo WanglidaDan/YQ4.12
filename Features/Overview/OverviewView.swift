@@ -159,10 +159,6 @@ struct OverviewView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(AppFormatters.day(.now))
-                        .font(AppTypography.meta.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.88))
-
                     Text(featuredBooking == nil ? "近期暂无拍摄" : "下一场拍摄")
                         .font(AppTypography.sectionTitle)
                         .foregroundStyle(.white)
@@ -189,7 +185,7 @@ struct OverviewView: View {
 
                         VStack(alignment: .leading, spacing: 10) {
                             heroInfoRow(title: "客户", value: store.clientName(for: booking))
-                            heroInfoRow(title: "时间", value: "\(AppFormatters.shortDate(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
+                            heroInfoRow(title: "时间", value: "\(AppFormatters.shortMonthDay(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
                             heroInfoRow(title: "地点", value: recentBookingLocationText(for: booking))
                             if isTeamModeEnabled, booking.crewAssignments.isEmpty == false {
                                 heroInfoRow(title: "分工", value: crewAssignmentSummary(for: booking))
@@ -478,13 +474,7 @@ struct OverviewView: View {
     }
 
     private func timelineRail(isFirst: Bool, isLast: Bool) -> some View {
-        VStack(spacing: 4) {
-            Rectangle()
-                .fill(AppTheme.line.opacity(0.76))
-                .frame(width: 1)
-                .frame(height: 8)
-                .opacity(isFirst ? 0 : 1)
-
+        VStack(spacing: 6) {
             Circle()
                 .fill(AppTheme.heroGradient)
                 .frame(width: 10, height: 10)
@@ -492,14 +482,14 @@ struct OverviewView: View {
                     Circle()
                         .stroke(Color.white.opacity(0.65), lineWidth: 1)
                 }
+                .padding(.top, 3)
 
             Rectangle()
                 .fill(AppTheme.line.opacity(0.76))
-                .frame(width: 1)
-                .frame(height: 8)
+                .frame(width: 1, height: 44)
                 .opacity(isLast ? 0 : 1)
         }
-        .frame(width: 14, height: 34)
+        .frame(width: 14, height: 63, alignment: .top)
     }
 
     private func recentBookingLocationText(for booking: BookingRecord) -> String {

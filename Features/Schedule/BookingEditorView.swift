@@ -30,6 +30,11 @@ private struct BookingEditFormView: View {
 
     @State private var title: String
     @State private var selectedClientID: UUID?
+    @State private var clientName: String = ""
+    @State private var clientPhoneNumber: String = ""
+    @State private var clientWechatID: String = ""
+    @State private var clientEmailAddress: String = ""
+    @State private var clientCity: String = ""
     @State private var category: ServiceCategory
     @State private var status: BookingStatus
     @State private var startAt: Date
@@ -46,6 +51,8 @@ private struct BookingEditFormView: View {
     @State private var crewAssignments: [BookingCrewAssignment]
     @State private var reminderOffsets: [BookingReminderOffset]
     @State private var showingConflictConfirmation = false
+    @State private var crewAssignmentDraft: BookingCrewAssignmentDraft?
+    @State private var didHydrateClientFields = false
 
     init(booking: BookingRecord) {
         self.originalBooking = booking
@@ -73,6 +80,7 @@ private struct BookingEditFormView: View {
             Form {
                 summarySection
                 essentialsSection
+                crewSection
                 scheduleSection
                 moneySection
                 detailSection
@@ -82,6 +90,10 @@ private struct BookingEditFormView: View {
             .navigationTitle("编辑档期")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
+            .onAppear(perform: hydrateClientFieldsIfNeeded)
+            .onChange(of: selectedClientID) { _, _ in
+                hydrateClientFields(force: true)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消", role: .cancel) {
@@ -101,6 +113,18 @@ private struct BookingEditFormView: View {
                 Button("返回调整", role: .cancel) {}
             } message: {
                 Text(conflictSummaryText)
+            }
+            .sheet(item: $crewAssignmentDraft) { draft in
+                BookingCrewAssignmentEditorView(
+                    assignment: Binding(
+                        get: { crewAssignmentDraft?.assignment ?? draft.assignment },
+                        set: { crewAssignmentDraft?.assignment = $0 }
+                    ),
+                    title: draft.title
+                ) { savedAssignment in
+                    saveCrewAssignment(savedAssignment, replacing: draft.replacingAssignmentID)
+                }
+                .environment(store)
             }
         }
     }
@@ -132,10 +156,20 @@ private struct BookingEditFormView: View {
 
             Picker("关联客户", selection: $selectedClientID) {
                 Text("暂不绑定").tag(Optional<UUID>.none)
-                ForEach(store.clients) { client in
+                ForEach(store.activeClients) { client in
                     Text(client.name).tag(Optional(client.id))
                 }
             }
+
+            TextField("客户姓名 / 公司", text: $clientName)
+            TextField("电话", text: $clientPhoneNumber)
+                .keyboardType(.phonePad)
+            TextField("微信", text: $clientWechatID)
+                .textInputAutocapitalization(.never)
+            TextField("邮箱", text: $clientEmailAddress)
+                .keyboardType(.emailAddress)
+                .textInputAutocapitalization(.never)
+            TextField("客户城市 / 区域", text: $clientCity)
 
             Picker("拍摄类型", selection: $category) {
                 ForEach(ServiceCategory.allCases) { item in
@@ -147,6 +181,47 @@ private struct BookingEditFormView: View {
                 ForEach(BookingStatus.allCases) { item in
                     Text(item.title).tag(item)
                 }
+            }
+        }
+    }
+
+    private var crewSection: some View {
+        Section("团队分工") {
+            Button {
+                crewAssignmentDraft = .new()
+            } label: {
+                Label("添加成员分工", systemImage: "person.badge.plus")
+            }
+
+            if crewAssignments.isEmpty {
+                Text("保存前后都可以补充主拍、摄像、统筹、剪辑等成员。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryInk)
+            } else {
+                ForEach(BookingCrewAssignment.normalized(crewAssignments)) { assignment in
+                    Button {
+                        crewAssignmentDraft = .edit(assignment)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: assignment.role.symbolName)
+                                .foregroundStyle(AppTheme.accent)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(assignment.headlineText)
+                                    .foregroundStyle(AppTheme.ink)
+                                Text(assignment.operationalSummaryText)
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.secondaryInk)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.mutedInk)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                .onDelete(perform: deleteCrewAssignments)
             }
         }
     }
@@ -228,6 +303,21 @@ private struct BookingEditFormView: View {
         min(max(depositPaid, 0), normalizedFee)
     }
 
+    private var trimmedClientName: String {
+        clientName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var hasClientDraft: Bool {
+        [
+            clientName,
+            clientPhoneNumber,
+            clientWechatID,
+            clientEmailAddress,
+            clientCity
+        ]
+        .contains { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }
+    }
+
     private var conflictBookings: [BookingRecord] {
         store.activeBookings.filter { booking in
             booking.id != originalBooking.id &&
@@ -254,6 +344,7 @@ private struct BookingEditFormView: View {
     }
 
     private func saveBooking() {
+        let resolvedClientID = saveClientDraftIfNeeded()
         let updated = BookingRecord(
             id: originalBooking.id,
             title: trimmedTitle,
@@ -275,7 +366,7 @@ private struct BookingEditFormView: View {
             crewAssignments: crewAssignments,
             reminderOffsets: reminderOffsets,
             createdAt: originalBooking.createdAt,
-            clientID: selectedClientID,
+            clientID: resolvedClientID,
             isArchived: originalBooking.isArchived,
             archivedAt: originalBooking.archivedAt
         )
@@ -300,5 +391,87 @@ private struct BookingEditFormView: View {
     private func shiftEndDate(from oldValue: Date, to newValue: Date) {
         let duration = endAt.timeIntervalSince(oldValue)
         endAt = max(newValue.addingTimeInterval(duration), newValue.addingTimeInterval(1_800))
+    }
+
+    private func hydrateClientFieldsIfNeeded() {
+        guard didHydrateClientFields == false else { return }
+        didHydrateClientFields = true
+        hydrateClientFields(force: true)
+    }
+
+    private func hydrateClientFields(force: Bool) {
+        guard force else { return }
+        if let selectedClientID,
+           let client = store.client(id: selectedClientID) {
+            clientName = client.name
+            clientPhoneNumber = client.phoneNumber
+            clientWechatID = client.wechatID
+            clientEmailAddress = client.emailAddress
+            clientCity = client.city
+        } else {
+            clientName = ""
+            clientPhoneNumber = ""
+            clientWechatID = ""
+            clientEmailAddress = ""
+            clientCity = ""
+        }
+    }
+
+    private func saveClientDraftIfNeeded() -> UUID? {
+        guard hasClientDraft else { return selectedClientID }
+        let clientID = selectedClientID ?? UUID()
+        let existing = selectedClientID.flatMap { store.client(id: $0) }
+        let normalizedName = trimmedClientName.isEmpty ? "未命名客户" : trimmedClientName
+        let normalizedCity = clientCity.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedPhone = AppFormatters.sanitizedPhoneNumber(clientPhoneNumber)
+        let normalizedWechat = clientWechatID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedEmail = clientEmailAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let existing,
+           existing.name == normalizedName,
+           existing.city == normalizedCity,
+           existing.phoneNumber == normalizedPhone,
+           existing.wechatID == normalizedWechat,
+           existing.emailAddress == normalizedEmail {
+            return selectedClientID
+        }
+
+        let client = ClientRecord(
+            id: clientID,
+            name: normalizedName,
+            city: normalizedCity,
+            phoneNumber: normalizedPhone,
+            wechatID: normalizedWechat,
+            emailAddress: normalizedEmail,
+            sourceChannel: existing?.sourceChannel ?? "",
+            notesText: existing?.notesText ?? "",
+            tags: existing?.tags ?? [],
+            stage: existing?.stage ?? .discovery,
+            stageMode: existing?.stageMode ?? .automatic,
+            tier: existing?.tier ?? .standard,
+            createdAt: existing?.createdAt ?? .now,
+            lastContactAt: existing?.lastContactAt,
+            nextContactAt: existing?.nextContactAt,
+            isArchived: existing?.isArchived ?? false,
+            archivedAt: existing?.archivedAt
+        )
+        store.upsert(client: client)
+        return clientID
+    }
+
+    private func saveCrewAssignment(_ assignment: BookingCrewAssignment, replacing assignmentID: UUID?) {
+        if let assignmentID,
+           let index = crewAssignments.firstIndex(where: { $0.id == assignmentID }) {
+            crewAssignments[index] = assignment
+        } else {
+            crewAssignments.append(assignment)
+        }
+        crewAssignments = BookingCrewAssignment.normalized(crewAssignments)
+    }
+
+    private func deleteCrewAssignments(at offsets: IndexSet) {
+        let normalizedAssignments = BookingCrewAssignment.normalized(crewAssignments)
+        let idsToRemove = offsets.map { normalizedAssignments[$0].id }
+        crewAssignments.removeAll { idsToRemove.contains($0.id) }
     }
 }

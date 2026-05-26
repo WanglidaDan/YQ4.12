@@ -121,21 +121,22 @@ struct ClientsView: View {
 
     var body: some View {
         NavigationStack {
-            AppPageScaffold(title: "客户", topPadding: 14, bottomPadding: 32) {
-                scopePicker
-                summaryStrip
+            AppPageScaffold(title: "客户", topPadding: 12, bottomPadding: 32) {
+                relationshipHeader
+                inlineSearchField
+                relationshipControls
 
                 if featuredClients.isEmpty == false {
-                    clientsBlock(title: "优先关注", subtitle: "高价值 / 待跟进 / 待回款") {
+                    clientsBlock(title: "今日优先", subtitle: "需要跟进、回款或高价值客户") {
                         ForEach(featuredClients) { client in
-                            clientRow(client)
+                            priorityClientRow(client)
                         }
                     }
                 }
 
                 clientsBlock(
-                    title: scope == .active ? "客户列表" : "归档客户",
-                    subtitle: filteredClients.isEmpty ? "当前没有符合条件的客户" : "共 \(filteredClients.count) 位"
+                    title: scope == .active ? "全部客户" : "归档客户",
+                    subtitle: filteredClients.isEmpty ? "当前没有符合条件的客户" : "\(filteredClients.count) 位 · \(filter.title) · \(sort.title)"
                 ) {
                     if filteredClients.isEmpty {
                         emptyStateRow(
@@ -238,6 +239,121 @@ struct ClientsView: View {
         .pickerStyle(.segmented)
     }
 
+    private var relationshipHeader: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(scope == .active ? "客户关系" : "历史客户")
+                        .font(AppTypography.sectionTitle)
+                        .foregroundStyle(AppTheme.ink)
+                    Text(headerSubtitle)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+
+                Button {
+                    AppHaptics.impactMedium()
+                    showingNewClient = true
+                } label: {
+                    Image(systemName: "person.badge.plus")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(AppTheme.panelStrong)
+                        .frame(width: 44, height: 44)
+                        .background(AppTheme.accent, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("新增客户")
+            }
+
+            HStack(spacing: 0) {
+                relationshipMetric(title: "客户", value: "\(sourceClients.count)")
+                metricDivider
+                relationshipMetric(title: "待经营", value: "\(followUpClientCount)", valueColor: followUpClientCount > 0 ? AppTheme.warning : AppTheme.ink)
+                metricDivider
+                relationshipMetric(title: "待回款", value: AppFormatters.currency(outstandingTotal), valueColor: outstandingTotal > 0 ? AppTheme.priorityHigh : AppTheme.ink)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(fillColor: AppTheme.panel)
+    }
+
+    private var inlineSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(AppTheme.mutedInk)
+                .frame(width: 20)
+
+            TextField("搜索客户、来源、城市、电话", text: $searchText)
+                .font(AppTypography.body)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+
+            if trimmedSearchText.isEmpty == false {
+                Button {
+                    searchText = ""
+                    AppHaptics.tapLight()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(AppTheme.mutedInk)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("清空搜索")
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 48)
+        .background(AppTheme.inputSurface, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
+        }
+    }
+
+    private var relationshipControls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            scopePicker
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(ClientFilter.allCases) { item in
+                        filterChip(title: item.title, isSelected: filter == item) {
+                            filter = item
+                            AppHaptics.selection()
+                        }
+                    }
+
+                    Menu {
+                        Picker("排序", selection: $sort) {
+                            ForEach(ClientSort.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
+                        }
+                    } label: {
+                        Label(sort.title, systemImage: "arrow.up.arrow.down")
+                            .font(AppTypography.meta.weight(.semibold))
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .padding(.horizontal, 12)
+                            .frame(height: 34)
+                            .background(AppTheme.panelSoft, in: Capsule())
+                    }
+                }
+                .padding(.horizontal, 1)
+            }
+
+            if trimmedSearchText.isEmpty == false {
+                Text("搜索结果：\(filteredClients.count) 位")
+                    .font(AppTypography.meta)
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
+        }
+    }
+
     private var summaryStrip: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
@@ -277,6 +393,57 @@ struct ClientsView: View {
                 .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var outstandingTotal: Double {
+        sourceClients.reduce(0) { $0 + outstandingValue(for: $1.id) }
+    }
+
+    private var headerSubtitle: String {
+        if scope == .archived {
+            return "归档客户保留订单、回款和沟通历史。"
+        }
+        if followUpClientCount > 0 {
+            return "先处理待跟进和待回款客户，再看完整名单。"
+        }
+        return "客户信息、合作价值和下一步动作集中查看。"
+    }
+
+    private var metricDivider: some View {
+        Rectangle()
+            .fill(AppTheme.line.opacity(0.56))
+            .frame(width: 1, height: 38)
+            .padding(.horizontal, 10)
+    }
+
+    private func relationshipMetric(title: String, value: String, valueColor: Color = AppTheme.ink) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(AppTypography.meta)
+                .foregroundStyle(AppTheme.mutedInk)
+            Text(value)
+                .font(AppTypography.bodyStrong)
+                .foregroundStyle(valueColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func filterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(AppTypography.meta.weight(.semibold))
+                .foregroundStyle(isSelected ? AppTheme.panelStrong : AppTheme.secondaryInk)
+                .padding(.horizontal, 12)
+                .frame(height: 34)
+                .background(isSelected ? AppTheme.accent : AppTheme.panelSoft, in: Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(isSelected ? AppTheme.accent.opacity(0.1) : AppTheme.line.opacity(0.68), lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
     }
 
     private var heroCard: some View {
@@ -488,68 +655,66 @@ struct ClientsView: View {
 
     private func clientRow(_ client: ClientRecord) -> some View {
         NavigationLink(value: ClientRoute(clientID: client.id)) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: AppRadius.row, style: .continuous)
-                            .fill(AppTheme.accentSurface)
-                            .frame(width: 54, height: 54)
-                        Text(client.initials)
-                            .font(AppTypography.bodyStrong)
-                            .foregroundStyle(AppTheme.accentDeep)
-                    }
+                    clientAvatar(client)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(client.name)
-                                    .font(AppTypography.bodyStrong)
-                                    .foregroundStyle(AppTheme.ink)
-                                tierLabel(for: client.tier)
-                            }
-
-                            Spacer(minLength: 12)
-
-                            Image(systemName: "arrow.up.right")
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(AppTheme.secondaryInk)
-                        }
-
-                        HStack(alignment: .center, spacing: 8) {
-                            LeadStageBadge(stage: client.stage)
-                            Text(clientMetaText(for: client))
-                                .font(AppTypography.meta.weight(.semibold))
-                                .foregroundStyle(AppTheme.mutedInk)
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(client.name)
+                                .font(AppTypography.bodyStrong)
+                                .foregroundStyle(AppTheme.ink)
                                 .lineLimit(1)
-                            Spacer(minLength: 12)
+
                             if scope == .active && clientNeedsAttention(client) {
                                 attentionBadge
                             }
                         }
+
+                        HStack(spacing: 8) {
+                            LeadStageBadge(stage: client.stage)
+                            tierLabel(for: client.tier)
+                        }
+
+                        Text(clientMetaText(for: client))
+                            .font(AppTypography.meta)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Text(nextContactText(for: client))
+                            .font(AppTypography.meta.weight(.semibold))
+                            .foregroundStyle(clientNeedsAttention(client) ? AppTheme.warning : AppTheme.secondaryInk)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppTheme.mutedInk)
                     }
                 }
 
                 if client.notesText.isEmpty == false {
                     Text(client.notesText)
-                        .font(AppTypography.body)
+                        .font(AppTypography.meta)
                         .foregroundStyle(AppTheme.secondaryInk)
                         .lineLimit(2)
+                        .padding(.leading, 56)
                 }
 
-                VStack(alignment: .leading, spacing: 10) {
-                    dualValueLine(
-                        leadingTitle: "累计",
-                        leadingValue: AppFormatters.currency(lifetimeValue(for: client.id)),
-                        trailingTitle: "待回款",
-                        trailingValue: AppFormatters.currency(outstandingValue(for: client.id))
+                HStack(spacing: 10) {
+                    clientRowMetric(title: "累计", value: AppFormatters.currency(lifetimeValue(for: client.id)))
+                    clientRowMetric(
+                        title: "待回款",
+                        value: AppFormatters.currency(outstandingValue(for: client.id)),
+                        valueColor: outstandingValue(for: client.id) > 0 ? AppTheme.priorityHigh : AppTheme.ink
                     )
-                    Divider().overlay(AppTheme.line.opacity(0.55))
-                    detailLine(title: "下次跟进", value: nextContactText(for: client))
+                    clientRowMetric(title: "下次", value: nextContactText(for: client))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
+            .padding(14)
             .appCardSurface(fillColor: AppTheme.panelStrong)
         }
         .buttonStyle(.plain)
@@ -581,6 +746,150 @@ struct ClientsView: View {
                 Label("删除", systemImage: "trash")
             }
         }
+    }
+
+    private func priorityClientRow(_ client: ClientRecord) -> some View {
+        NavigationLink(value: ClientRoute(clientID: client.id)) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(spacing: 6) {
+                    Circle()
+                        .fill(priorityColor(for: client))
+                        .frame(width: 10, height: 10)
+                    Rectangle()
+                        .fill(priorityColor(for: client).opacity(0.22))
+                        .frame(width: 2, height: 58)
+                        .clipShape(Capsule())
+                }
+                .padding(.top, 5)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(client.name)
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                            .lineLimit(1)
+
+                        LeadStageBadge(stage: client.stage)
+
+                        Spacer(minLength: 8)
+
+                        Text(nextContactText(for: client))
+                            .font(AppTypography.meta.weight(.semibold))
+                            .foregroundStyle(priorityColor(for: client))
+                            .lineLimit(1)
+                    }
+
+                    Text(priorityReason(for: client))
+                        .font(AppTypography.body)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(2)
+
+                    HStack(spacing: 8) {
+                        compactValue(title: "累计", value: AppFormatters.currency(lifetimeValue(for: client.id)))
+                        compactValue(
+                            title: "待回款",
+                            value: AppFormatters.currency(outstandingValue(for: client.id)),
+                            valueColor: outstandingValue(for: client.id) > 0 ? AppTheme.priorityHigh : AppTheme.ink
+                        )
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .appCardSurface(fillColor: AppTheme.panelStrong)
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("编辑", systemImage: "square.and.pencil") {
+                editingClient = client
+            }
+            .tint(AppTheme.accent)
+
+            Button(scope == .active ? "归档" : "恢复", systemImage: scope == .active ? "archivebox" : "arrow.uturn.backward.circle") {
+                if scope == .active { store.archiveClient(client.id) } else { store.restoreClient(client.id) }
+            }
+            .tint(scope == .active ? AppTheme.secondaryInk : AppTheme.success)
+
+            Button("删除", systemImage: "trash", role: .destructive) {
+                deletingClient = client
+            }
+        }
+        .contextMenu {
+            Button("编辑", systemImage: "square.and.pencil") {
+                editingClient = client
+            }
+            if scope == .active {
+                Button("归档", systemImage: "archivebox") { store.archiveClient(client.id) }
+            } else {
+                Button("恢复到主列表", systemImage: "arrow.uturn.backward.circle") { store.restoreClient(client.id) }
+            }
+            Button(role: .destructive) { deletingClient = client } label: {
+                Label("删除", systemImage: "trash")
+            }
+        }
+    }
+
+    private func clientAvatar(_ client: ClientRecord) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(AppTheme.accentSurface)
+                .frame(width: 44, height: 44)
+            Text(client.initials)
+                .font(AppTypography.bodyStrong)
+                .foregroundStyle(AppTheme.accentDeep)
+        }
+    }
+
+    private func clientRowMetric(title: String, value: String, valueColor: Color = AppTheme.ink) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(AppTypography.meta)
+                .foregroundStyle(AppTheme.mutedInk)
+            Text(value)
+                .font(AppTypography.meta.weight(.semibold))
+                .foregroundStyle(valueColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(AppTheme.panelSoft, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+    }
+
+    private func compactValue(title: String, value: String, valueColor: Color = AppTheme.ink) -> some View {
+        HStack(spacing: 5) {
+            Text(title)
+                .foregroundStyle(AppTheme.mutedInk)
+            Text(value)
+                .foregroundStyle(valueColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .font(AppTypography.meta.weight(.semibold))
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(AppTheme.panelSoft, in: Capsule())
+    }
+
+    private func priorityColor(for client: ClientRecord) -> Color {
+        if outstandingValue(for: client.id) > 0 { return AppTheme.priorityHigh }
+        if clientNeedsAttention(client) { return AppTheme.warning }
+        return AppTheme.accent
+    }
+
+    private func priorityReason(for client: ClientRecord) -> String {
+        let outstanding = outstandingValue(for: client.id)
+        if outstanding > 0 {
+            return "还有 \(AppFormatters.currency(outstanding)) 待回款，建议优先确认。"
+        }
+        if let dueAt = nextTouchpoint(for: client.id)?.dueAt ?? client.nextContactAt {
+            return "下一次跟进：\(AppFormatters.relativeDueText(dueAt, calendar: calendar))。"
+        }
+        if client.tier == .signature {
+            return "高价值客户，建议保持主动经营。"
+        }
+        return "需要补充下一步动作。"
     }
 
     private var attentionBadge: some View {

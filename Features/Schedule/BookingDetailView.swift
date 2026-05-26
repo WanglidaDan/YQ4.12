@@ -59,6 +59,12 @@ struct BookingDetailView: View {
     @State private var showingTouchpointSheet = false
     @State private var businessCenterRoute: BusinessCenterRoute?
     @State private var businessToolsExpanded = false
+    @State private var crewAssignmentDraft: BookingCrewAssignmentDraft?
+    @State private var notesExpanded = false
+    @State private var touchpointsExpanded = false
+    @State private var dispatchExpanded = false
+    @State private var businessExpanded = false
+    @State private var operationsExpanded = false
 
     private let calendar = Calendar.current
 
@@ -130,16 +136,9 @@ struct BookingDetailView: View {
                     LazyVStack(alignment: .leading, spacing: 18) {
                         heroSummaryCard(booking)
                         primaryActionBar(booking)
-                        executionOverviewSection(booking)
-                        clientSection(booking)
-                        personalFocusSection(booking)
-                        paymentSection(booking)
-                        deliveryNotesSection(booking)
-                        touchpointsSection(booking)
-                        crewBoardSection(booking)
-                        dailyDispatchSection(booking)
-                        businessCenterSection(booking)
-                        operationSection(booking)
+                        bookingOverviewSection(booking)
+                        executionPlanSection(booking)
+                        secondaryDetailsSection(booking)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
@@ -203,6 +202,18 @@ struct BookingDetailView: View {
                 bookingID: route.bookingID,
                 clientID: route.clientID
             )
+            .environment(store)
+        }
+        .sheet(item: $crewAssignmentDraft) { draft in
+            BookingCrewAssignmentEditorView(
+                assignment: Binding(
+                    get: { crewAssignmentDraft?.assignment ?? draft.assignment },
+                    set: { crewAssignmentDraft?.assignment = $0 }
+                ),
+                title: draft.title
+            ) { savedAssignment in
+                saveCrewAssignment(savedAssignment, replacing: draft.replacingAssignmentID)
+            }
             .environment(store)
         }
         .navigationDestination(for: BookingClientRoute.self) { route in
@@ -366,6 +377,14 @@ struct BookingDetailView: View {
 
     private func primaryActionBar(_ booking: BookingRecord) -> some View {
         VStack(spacing: 12) {
+            Button {
+                editingBooking = booking
+            } label: {
+                Label("编辑订单信息", systemImage: "square.and.pencil")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(AppPrimaryButtonStyle())
+
             HStack(spacing: 12) {
                 Menu {
                     ForEach(NavigationTransport.allCases) { transport in
@@ -392,14 +411,394 @@ struct BookingDetailView: View {
                 .buttonStyle(AppSecondaryButtonStyle())
             }
 
-            Button {
-                prepareShare(for: booking)
-            } label: {
-                Label("分享订单确认单", systemImage: "square.and.arrow.up")
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 12) {
+                Button {
+                    crewAssignmentDraft = .new()
+                } label: {
+                    Label("添加分工", systemImage: "person.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(AppSecondaryButtonStyle())
+
+                Button {
+                    prepareShare(for: booking)
+                } label: {
+                    Label("分享", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(AppSecondaryButtonStyle())
             }
-            .buttonStyle(AppSecondaryButtonStyle())
         }
+    }
+
+    private func bookingOverviewSection(_ booking: BookingRecord) -> some View {
+        let receivedAmount = store.receivedAmount(for: booking)
+        let outstandingAmount = store.outstandingAmount(for: booking)
+
+        return GlassCard(title: "订单概览", subtitle: "客户、时间、地点和费用先看这里。") {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    BookingStatusBadge(status: booking.status)
+                    PaymentStatusBadge(status: store.paymentStatus(for: booking))
+                    Spacer(minLength: 8)
+                    Button {
+                        editingBooking = booking
+                    } label: {
+                        Label("修改", systemImage: "square.and.pencil")
+                            .font(AppTypography.meta.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(AppTheme.accent)
+                }
+
+                if let bookingClient {
+                    NavigationLink(value: BookingClientRoute(clientID: bookingClient.id)) {
+                        overviewInfoRow(
+                            systemImage: "person.crop.circle.fill",
+                            title: "客户",
+                            value: bookingClient.name,
+                            subtitle: [bookingClient.city, bookingClient.preferredContactText]
+                                .filter { $0.isEmpty == false }
+                                .joined(separator: " · "),
+                            trailingSystemImage: "arrow.up.right"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    overviewInfoRow(
+                        systemImage: "person.crop.circle.badge.xmark",
+                        title: "客户",
+                        value: "未填写客户",
+                        subtitle: "点上方“编辑订单信息”可以直接录入客户资料。"
+                    )
+                }
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    overviewTile(
+                        title: "时间",
+                        value: AppFormatters.shortDate(booking.startAt),
+                        subtitle: "\(AppFormatters.weekday(booking.startAt)) · \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))"
+                    )
+                    overviewTile(
+                        title: "地点",
+                        value: booking.venue.isEmpty ? "待补充" : booking.venue,
+                        subtitle: booking.fullAddressText.isEmpty ? "未填写地址" : booking.fullAddressText
+                    )
+                }
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    AppMetricTile(title: "总价", value: AppFormatters.currency(booking.fee), fillColor: AppTheme.panelStrong)
+                    AppMetricTile(title: "已收", value: AppFormatters.currency(receivedAmount), fillColor: AppTheme.panelStrong)
+                    AppMetricTile(
+                        title: "待收",
+                        value: AppFormatters.currency(outstandingAmount),
+                        fillColor: outstandingAmount > 0 ? AppTheme.accentSoft.opacity(0.75) : AppTheme.panelStrong,
+                        valueColor: outstandingAmount > 0 ? AppTheme.accentWarmDeep : AppTheme.ink
+                    )
+                }
+            }
+        }
+    }
+
+    private func executionPlanSection(_ booking: BookingRecord) -> some View {
+        let assignments = BookingCrewAssignment.normalized(booking.crewAssignments)
+
+        return GlassCard(
+            title: "执行安排",
+            subtitle: assignments.isEmpty ? "还没有成员分工。" : "\(assignments.count) 个成员分工"
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
+                Button {
+                    crewAssignmentDraft = .new()
+                } label: {
+                    Label("添加团队分工", systemImage: "person.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(AppSecondaryButtonStyle())
+
+                if assignments.isEmpty {
+                    AppInlineNote(systemImage: "person.3.sequence.fill", text: "可以随时补主拍、摄像、统筹、剪辑等成员。")
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(assignments) { assignment in
+                            assignmentCard(assignment, highlight: assignmentIsPersonal(assignment))
+                        }
+                    }
+                }
+
+                if sameDayBookings.isEmpty == false {
+                    compactDisclosure(
+                        title: "当天排班",
+                        subtitle: dispatchSubtitle,
+                        systemImage: "calendar.badge.clock",
+                        isExpanded: $dispatchExpanded
+                    ) {
+                        let mine = currentCrewMemberName == nil ? [] : mySameDayBookings
+                        let mineIDs = Set(mine.map(\.id))
+                        let teamOthers = sameDayBookings.filter { mineIDs.contains($0.id) == false }
+
+                        VStack(alignment: .leading, spacing: 14) {
+                            if overlappingMyBookings.isEmpty == false {
+                                AppInlineNote(
+                                    systemImage: "exclamationmark.triangle.fill",
+                                    text: overlappingMyBookings.map { "\($0.0.title) ↔ \($0.1.title)" }.joined(separator: "、"),
+                                    tint: AppTheme.warning
+                                )
+                            }
+
+                            if currentCrewMemberName != nil {
+                                if mine.isEmpty == false {
+                                    dispatchGroup(title: "我的安排", subtitle: "", bookings: mine, currentBookingID: booking.id)
+                                }
+                                if teamOthers.isEmpty == false {
+                                    dispatchGroup(title: "团队其他安排", subtitle: "", bookings: teamOthers, currentBookingID: booking.id)
+                                }
+                            } else {
+                                dispatchGroup(title: "团队安排", subtitle: "未选择当前成员", bookings: sameDayBookings, currentBookingID: booking.id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func secondaryDetailsSection(_ booking: BookingRecord) -> some View {
+        GlassCard(title: "更多详情", subtitle: "需要时再展开，避免默认页面过载。") {
+            VStack(alignment: .leading, spacing: 12) {
+                compactDisclosure(
+                    title: "交付与备注",
+                    subtitle: notesSummary(for: booking),
+                    systemImage: "text.bubble.fill",
+                    isExpanded: $notesExpanded
+                ) {
+                    if booking.deliverableText.isEmpty && booking.notesText.isEmpty && booking.locationNote.isEmpty {
+                        AppInlineNote(systemImage: "text.bubble", text: "暂未补充备注。")
+                    } else {
+                        VStack(alignment: .leading, spacing: 14) {
+                            if booking.deliverableText.isEmpty == false {
+                                detailBlock(title: "交付内容", value: booking.deliverableText)
+                            }
+                            if booking.notesText.isEmpty == false {
+                                detailBlock(title: "执行备注", value: booking.notesText)
+                            }
+                            if booking.locationNote.isEmpty == false {
+                                detailBlock(title: "到场提示", value: booking.locationNote)
+                            }
+                        }
+                    }
+                }
+
+                compactDisclosure(
+                    title: "关联跟进",
+                    subtitle: relatedTouchpoints.isEmpty ? "暂无跟进" : "\(relatedTouchpoints.count) 条",
+                    systemImage: "checklist.checked",
+                    isExpanded: $touchpointsExpanded
+                ) {
+                    if relatedTouchpoints.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            AppInlineNote(systemImage: "checklist", text: "还没有关联跟进。")
+                            Button {
+                                showingTouchpointSheet = true
+                            } label: {
+                                Label("新建跟进", systemImage: "plus.circle.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(AppSecondaryButtonStyle())
+                        }
+                    } else {
+                        VStack(spacing: 12) {
+                            ForEach(relatedTouchpoints) { item in
+                                touchpointCompactCard(item)
+                            }
+                        }
+                    }
+                }
+
+                compactDisclosure(
+                    title: "业务协同",
+                    subtitle: "合同、资料、协作",
+                    systemImage: "doc.text.magnifyingglass",
+                    isExpanded: $businessExpanded
+                ) {
+                    let summary = store.businessSummary(for: booking.id, clientID: booking.clientID)
+                    VStack(alignment: .leading, spacing: 12) {
+                        AppInlineNote(systemImage: "doc.text.magnifyingglass", text: "文档 \(summary.documents) 份 · 资料 \(summary.attachments) 份")
+                        HStack(spacing: 10) {
+                            bookingBusinessButton(mode: .workflow, subtitle: "报价到开票", booking: booking)
+                            bookingBusinessButton(mode: .assets, subtitle: "资料附件", booking: booking)
+                        }
+                        bookingBusinessButton(mode: .collaboration, subtitle: "团队权限与留痕", booking: booking)
+                    }
+                }
+
+                compactDisclosure(
+                    title: "订单操作",
+                    subtitle: "复制、归档、删除",
+                    systemImage: "ellipsis.circle.fill",
+                    isExpanded: $operationsExpanded
+                ) {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        actionTile(title: "复制档期", systemImage: "plus.square.on.square", tint: AppTheme.info) {
+                            duplicatingBooking = duplicatedBooking(from: booking)
+                        }
+                        actionTile(title: booking.status == .delivered ? "已完成" : "标记完成", systemImage: "checkmark.circle.fill", tint: AppTheme.success) {
+                            guard booking.status != .delivered else { return }
+                            var updated = booking
+                            updated.status = .delivered
+                            store.upsert(booking: updated)
+                        }
+                        actionTile(title: "归档", systemImage: "archivebox", tint: AppTheme.secondaryInk) {
+                            showingArchiveConfirmation = true
+                        }
+                        actionTile(title: "删除", systemImage: "trash", tint: AppTheme.danger) {
+                            showingDeleteConfirmation = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func overviewInfoRow(
+        systemImage: String,
+        title: String,
+        value: String,
+        subtitle: String,
+        trailingSystemImage: String? = nil
+    ) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(AppTheme.accent)
+                .frame(width: 34, height: 34)
+                .background(AppTheme.panelSoft, in: Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(AppTypography.meta)
+                    .foregroundStyle(AppTheme.mutedInk)
+                Text(value)
+                    .font(AppTypography.bodyStrong)
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                if subtitle.isEmpty == false {
+                    Text(subtitle)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if let trailingSystemImage {
+                Image(systemName: trailingSystemImage)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
+        }
+    }
+
+    private func compactDisclosure<Content: View>(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        isExpanded: Binding<Bool>,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        DisclosureGroup(isExpanded: isExpanded) {
+            VStack(alignment: .leading, spacing: 12) {
+                content()
+            }
+            .padding(.top, 12)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30, height: 30)
+                    .background(AppTheme.panelSoft, in: Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(AppTypography.bodyStrong)
+                        .foregroundStyle(AppTheme.ink)
+                    Text(subtitle)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
+        }
+    }
+
+    private func notesSummary(for booking: BookingRecord) -> String {
+        var parts: [String] = []
+        if booking.deliverableText.isEmpty == false {
+            parts.append("交付已填")
+        }
+        if booking.notesText.isEmpty == false {
+            parts.append("备注已填")
+        }
+        if booking.locationNote.isEmpty == false {
+            parts.append("到场提示")
+        }
+        return parts.isEmpty ? "暂无补充" : parts.joined(separator: " · ")
+    }
+
+    private func assignmentIsPersonal(_ assignment: BookingCrewAssignment) -> Bool {
+        guard let memberName = currentCrewMemberName else { return false }
+        return assignment.matches(memberName: memberName)
+    }
+
+    private func touchpointCompactCard(_ item: TouchpointRecord) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(item.title)
+                        .font(AppTypography.bodyStrong)
+                        .foregroundStyle(AppTheme.ink)
+                    Text(AppFormatters.dayAndTime(item.dueAt))
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.mutedInk)
+                    if item.detailsText.isEmpty == false {
+                        Text(item.detailsText)
+                            .font(AppTypography.meta)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .lineLimit(2)
+                    }
+                }
+                Spacer()
+                PriorityBadge(priority: item.priority)
+            }
+
+            HStack(spacing: 10) {
+                Label(item.channel.title, systemImage: item.channel.symbolName)
+                    .font(AppTypography.meta)
+                    .foregroundStyle(AppTheme.mutedInk)
+                Spacer()
+                Text(item.isComplete ? "已完成" : AppFormatters.relativeDueText(item.dueAt, calendar: calendar))
+                    .font(AppTypography.meta)
+                    .foregroundStyle(item.isComplete ? AppTheme.success : AppTheme.warning)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(AppTheme.panelSoft, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func executionOverviewSection(_ booking: BookingRecord) -> some View {
@@ -504,12 +903,22 @@ struct BookingDetailView: View {
             title: "团队其他安排",
             subtitle: members.isEmpty ? nil : "看清每个人去哪场、做什么。"
         ) {
-            if members.isEmpty {
-                AppInlineNote(systemImage: "person.3.sequence.fill", text: "除当前成员外，暂时没有其他分工。")
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(members) { assignment in
-                        assignmentCard(assignment, highlight: false)
+            VStack(alignment: .leading, spacing: 12) {
+                Button {
+                    crewAssignmentDraft = .new()
+                } label: {
+                    Label("添加团队分工", systemImage: "person.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(AppSecondaryButtonStyle())
+
+                if members.isEmpty {
+                    AppInlineNote(systemImage: "person.3.sequence.fill", text: "除当前成员外，暂时没有其他分工。")
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(members) { assignment in
+                            assignmentCard(assignment, highlight: false)
+                        }
                     }
                 }
             }
@@ -888,6 +1297,13 @@ struct BookingDetailView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke((highlight ? AppTheme.accent.opacity(0.22) : AppTheme.line.opacity(0.72)), lineWidth: 1)
         }
+        .contextMenu {
+            Button {
+                crewAssignmentDraft = .edit(assignment)
+            } label: {
+                Label("编辑分工", systemImage: "square.and.pencil")
+            }
+        }
     }
 
     private func dailyDispatchCard(_ item: BookingRecord, isCurrent: Bool) -> some View {
@@ -1104,6 +1520,19 @@ struct BookingDetailView: View {
             createdAt: .now,
             clientID: booking.clientID
         )
+    }
+
+    private func saveCrewAssignment(_ assignment: BookingCrewAssignment, replacing assignmentID: UUID?) {
+        guard var booking else { return }
+        if let assignmentID,
+           let index = booking.crewAssignments.firstIndex(where: { $0.id == assignmentID }) {
+            booking.crewAssignments[index] = assignment
+        } else {
+            booking.crewAssignments.append(assignment)
+        }
+        booking.crewAssignments = BookingCrewAssignment.normalized(booking.crewAssignments)
+        store.upsert(booking: booking)
+        AppHaptics.success()
     }
 
     private func contactClient() {

@@ -2,6 +2,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UIKit
 
+private enum SettingsRoute: Hashable {
+    case workspace
+    case businessPreferences
+    case account
+    case dataSupport
+}
+
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StudioStore.self) private var store
@@ -18,6 +25,9 @@ struct SettingsView: View {
     @State private var confirmingClearData = false
     @State private var confirmingSignOut = false
     @State private var confirmingDeleteAccount = false
+    @State private var showingNewCrewMember = false
+    @State private var editingCrewMember: CrewMemberRecord?
+    @State private var confirmingArchiveCrewMember: CrewMemberRecord?
 
     init(store: StudioStore? = nil, showsCloseButton: Bool = true) {
         self.showsCloseButton = showsCloseButton
@@ -27,62 +37,16 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    AppSettingRow(
-                        title: draftStudioProfile.displayName.isEmpty ? "影期工作区" : draftStudioProfile.displayName,
-                        value: accountSubtitle
-                    )
-                    AppSettingRow(title: "团队成员", value: "\(store.activeCrewMembers.count)")
-                    AppSettingRow(title: "同步状态", value: draftSettings.iCloudSyncEnabled ? "已开启" : "未开启")
-                }
-
-                Section("设置") {
-                    NavigationLink {
-                        detailPage(title: "工作区") {
-                            workspaceHubSection
-                        }
-                    } label: {
-                        AppSettingRow(title: "工作区", value: "身份、资料、团队")
-                    }
-
-                    NavigationLink {
-                        detailPage(title: "偏好设置") {
-                            preferencesSection
-                        }
-                    } label: {
-                        AppSettingRow(title: "偏好设置", value: "主题、默认值、提醒")
-                    }
-
-                    NavigationLink {
-                        detailPage(title: "账号与同步") {
-                            accountSection
-                        }
-                    } label: {
-                        AppSettingRow(title: "账号与同步", value: store.isAuthenticated ? "Apple ID 与 iCloud" : "本地工作区")
-                    }
-
-                    NavigationLink {
-                        detailPage(title: "工具与支持") {
-                            toolsSection
-                        }
-                    } label: {
-                        AppSettingRow(title: "工具与支持", value: "业务、数据、支持")
-                    }
-                }
+            AppPageScaffold(title: showsCloseButton ? "设置" : "我的", topPadding: 14, bottomPadding: 32) {
+                settingsHeaderCard
+                settingsStatusGrid
+                settingsEntrySection
 
                 if let persistenceIssueDescription {
-                    Section("同步状态") {
-                        Text(persistenceIssueDescription)
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
-                    }
+                    AppInlineNote(systemImage: "exclamationmark.triangle.fill", text: persistenceIssueDescription, tint: .orange)
+                        .padding(.horizontal, 4)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.background.ignoresSafeArea())
-            .navigationTitle(showsCloseButton ? "设置" : "我的")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 if showsCloseButton {
                     ToolbarItem(placement: .topBarLeading) {
@@ -99,6 +63,14 @@ struct SettingsView: View {
             .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if $0 == false { shareURL = nil } })) {
                 if let shareURL { ShareSheetView(activityItems: [shareURL]) }
             }
+            .sheet(isPresented: $showingNewCrewMember) {
+                TeamMemberEditorView()
+                    .environment(store)
+            }
+            .sheet(item: $editingCrewMember) { member in
+                TeamMemberEditorView(member: member)
+                    .environment(store)
+            }
             .fileImporter(isPresented: $showingRestoreImporter, allowedContentTypes: [.json, .folder], allowsMultipleSelection: false) { result in
                 handleRestore(result)
             }
@@ -111,7 +83,7 @@ struct SettingsView: View {
             } message: {
                 Text(clearWorkspaceMessage)
             }
-            .confirmationDialog("确认退出 Apple 登录？", isPresented: $confirmingSignOut) {
+            .confirmationDialog("确认退出登录？", isPresented: $confirmingSignOut) {
                 Button("退出登录", role: .destructive) {
                     store.clearAuthProfile()
                     hasEnteredGuestMode = false
@@ -120,7 +92,7 @@ struct SettingsView: View {
                 }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("退出后会回到登录页；当前设备上的本地工作区会保留，但 iCloud 同步会关闭。之后若使用不同 Apple ID 登录，应用会自动切换到隔离的新工作区，避免误把旧数据同步到新的账户。")
+                Text("退出后会回到登录页；当前设备上的本地工作区会保留，但 iCloud 同步会关闭。之后若使用不同账号登录，应用会自动切换到隔离的新工作区，避免误把旧数据同步到新的账户。")
             }
             .confirmationDialog("确认删除账号与当前工作区？", isPresented: $confirmingDeleteAccount) {
                 Button("删除", role: .destructive) {
@@ -131,7 +103,30 @@ struct SettingsView: View {
                 }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("这会清空当前设备上的工作区数据，并尝试清空你已开启 iCloud 同步的轻量工作区快照。适用于没有独立服务端账号、仅使用 Apple 登录识别身份的当前版本。")
+                Text("这会清空当前设备上的工作区数据，并尝试清空你已开启 iCloud 同步的轻量工作区快照。适用于没有独立服务端账号、仅使用当前登录身份识别工作区的版本。")
+            }
+            .confirmationDialog(
+                "确认停用团队成员？",
+                isPresented: Binding(
+                    get: { confirmingArchiveCrewMember != nil },
+                    set: { if $0 == false { confirmingArchiveCrewMember = nil } }
+                )
+            ) {
+                Button("停用成员", role: .destructive) {
+                    if let confirmingArchiveCrewMember {
+                        store.archiveCrewMember(confirmingArchiveCrewMember.id)
+                        if draftSettings.currentCrewMemberID == confirmingArchiveCrewMember.id {
+                            draftSettings.currentCrewMemberID = nil
+                        }
+                        AppHaptics.success()
+                    }
+                    confirmingArchiveCrewMember = nil
+                }
+                Button("取消", role: .cancel) {
+                    confirmingArchiveCrewMember = nil
+                }
+            } message: {
+                Text("停用后不会再出现在新订单分工选择里，历史订单中的姓名仍会保留。")
             }
             .alert("操作失败", isPresented: Binding(get: { fileImportError != nil || exportError != nil }, set: { if $0 == false { fileImportError = nil; exportError = nil } })) {
                 Button("知道了", role: .cancel) {}
@@ -142,7 +137,516 @@ struct SettingsView: View {
                 draftSettings = store.settings
                 draftStudioProfile = store.resolvedStudioProfile
             }
+            .navigationDestination(for: SettingsRoute.self) { route in
+                switch route {
+                case .workspace:
+                    workspaceLandingPage
+                case .businessPreferences:
+                    businessPreferencesLandingPage
+                case .account:
+                    accountLandingPage
+                case .dataSupport:
+                    dataSupportLandingPage
+                }
+            }
         }
+    }
+
+    private var settingsHeaderCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(AppTheme.accent.opacity(0.12))
+                        .frame(width: 58, height: 58)
+                    Image(systemName: "person.crop.square.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(workspaceDisplayName)
+                        .font(AppTypography.sectionTitle)
+                        .foregroundStyle(AppTheme.ink)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(accountSubtitle)
+                        .font(AppTypography.body)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 10) {
+                statusPill(
+                    title: draftSettings.studioModeEnabled ? "团队模式" : "个人模式",
+                    systemImage: draftSettings.studioModeEnabled ? "person.3.fill" : "person.fill",
+                    tint: AppTheme.accent
+                )
+                statusPill(
+                    title: draftSettings.iCloudSyncEnabled ? "iCloud 开启" : "本机保存",
+                    systemImage: draftSettings.iCloudSyncEnabled ? "icloud.fill" : "iphone",
+                    tint: draftSettings.iCloudSyncEnabled ? AppTheme.info : AppTheme.secondaryInk
+                )
+            }
+
+            Button {
+                saveAll()
+            } label: {
+                Label("保存全部修改", systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(AppPrimaryButtonStyle())
+        }
+        .padding(AppSpacing.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(style: .emphasized)
+    }
+
+    private var settingsStatusGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            AppMetricTile(title: "客户", value: "\(store.activeClients.count)", subtitle: "启用资料")
+            AppMetricTile(title: "团队", value: "\(store.activeCrewMembers.count)", subtitle: draftSettings.studioModeEnabled ? "可分工成员" : "团队模式未开")
+            AppMetricTile(title: "档期", value: "\(store.activeBookings.count)", subtitle: "未归档订单")
+            AppMetricTile(title: "提醒", value: draftSettings.notificationsEnabled ? "\(draftSettings.defaultReminderHour):00" : "关闭", subtitle: "默认时间")
+        }
+    }
+
+    private var settingsEntrySection: some View {
+        GlassCard(title: "设置中心", subtitle: "账号、业务、数据和团队统一管理。") {
+            VStack(spacing: 10) {
+                settingsRouteRow(
+                    title: "工作区与团队",
+                    subtitle: "工作室资料、个人身份、成员管理",
+                    systemImage: "building.2.fill",
+                    tint: AppTheme.accent,
+                    route: .workspace
+                )
+
+                settingsRouteRow(
+                    title: "业务偏好",
+                    subtitle: "主题、订单默认值、提醒规则",
+                    systemImage: "slider.horizontal.3",
+                    tint: AppTheme.accentWarmDeep,
+                    route: .businessPreferences
+                )
+
+                settingsRouteRow(
+                    title: "账号与同步",
+                    subtitle: store.isAuthenticated ? "登录账号与 iCloud" : "本地工作区",
+                    systemImage: "person.crop.circle.badge.checkmark",
+                    tint: AppTheme.info,
+                    route: .account
+                )
+
+                settingsRouteRow(
+                    title: "数据与支持",
+                    subtitle: "备份恢复、协议、联系支持",
+                    systemImage: "externaldrive.fill",
+                    tint: AppTheme.success,
+                    route: .dataSupport
+                )
+            }
+        }
+    }
+
+    private var workspaceLandingPage: some View {
+        AppPageScaffold(title: "工作区与团队", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 28) {
+            settingsCard(title: "当前工作区", subtitle: workspaceDisplayName) {
+                infoRow(title: "账号", value: accountSubtitle)
+                infoRow(title: "团队成员", value: "\(store.activeCrewMembers.count) 位启用")
+                infoRow(title: "当前成员", value: currentMemberSummary)
+            }
+
+            GlassCard(title: "资料与成员", subtitle: "这里的内容会影响订单、文档、团队分工。") {
+                VStack(spacing: 10) {
+                    settingsNavigationRow(
+                        title: "工作室资料",
+                        subtitle: studioProfileSummary,
+                        systemImage: "square.and.pencil",
+                        tint: AppTheme.accent
+                    ) {
+                        detailPage(title: "工作室资料") {
+                            studioProfileSection
+                        }
+                    }
+
+                    settingsNavigationRow(
+                        title: "个人与工作模式",
+                        subtitle: draftSettings.studioModeEnabled ? "团队分工已启用" : "当前为个人工作流",
+                        systemImage: "person.text.rectangle.fill",
+                        tint: AppTheme.info
+                    ) {
+                        detailPage(title: "工作模式") {
+                            workspaceSection
+                        }
+                    }
+
+                    settingsNavigationRow(
+                        title: "团队成员",
+                        subtitle: "\(store.activeCrewMembers.count) 位启用，\(archivedCrewMembers.count) 位停用",
+                        systemImage: "person.3.fill",
+                        tint: AppTheme.accentWarmDeep
+                    ) {
+                        crewMembersManagementPage
+                    }
+                }
+            }
+        }
+    }
+
+    private var businessPreferencesLandingPage: some View {
+        AppPageScaffold(title: "业务偏好", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 28) {
+            settingsCard(title: "当前默认值", subtitle: "新建档期和提醒会读取这些设置。") {
+                infoRow(title: "主题", value: draftSettings.themeStyle.title)
+                infoRow(title: "币种", value: draftSettings.currencyCode)
+                infoRow(title: "定金比例", value: AppFormatters.percent(draftSettings.defaultDepositRatio))
+                infoRow(title: "提醒", value: draftSettings.notificationsEnabled ? "每天 \(draftSettings.defaultReminderHour):00" : "已关闭")
+            }
+
+            GlassCard(title: "业务设置", subtitle: "调整新建订单和提醒的默认行为。") {
+                VStack(spacing: 10) {
+                    settingsNavigationRow(
+                        title: "外观与主题",
+                        subtitle: draftSettings.themeStyle.title,
+                        systemImage: "paintpalette.fill",
+                        tint: AppTheme.accent
+                    ) {
+                        detailPage(title: "外观与主题") {
+                            appearanceSection
+                        }
+                    }
+
+                    settingsNavigationRow(
+                        title: "订单默认值",
+                        subtitle: defaultBusinessSummary,
+                        systemImage: "doc.text.fill",
+                        tint: AppTheme.info
+                    ) {
+                        detailPage(title: "订单默认值") {
+                            businessDefaultsSection
+                        }
+                    }
+
+                    settingsNavigationRow(
+                        title: "提醒规则",
+                        subtitle: draftSettings.notificationsEnabled ? "回款与跟进提醒可用" : "提醒已关闭",
+                        systemImage: "bell.badge.fill",
+                        tint: AppTheme.accentWarmDeep
+                    ) {
+                        detailPage(title: "提醒规则") {
+                            notificationSection
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var accountLandingPage: some View {
+        detailPage(title: "账号与同步") {
+            accountSection
+        }
+    }
+
+    private var dataSupportLandingPage: some View {
+        AppPageScaffold(title: "数据与支持", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 28) {
+            GlassCard(title: "数据工具", subtitle: "备份、恢复和清空当前工作区。") {
+                VStack(spacing: 10) {
+                    settingsNavigationRow(
+                        title: "备份与恢复",
+                        subtitle: "JSON、CSV、完整备份",
+                        systemImage: "externaldrive.badge.timemachine",
+                        tint: AppTheme.accent
+                    ) {
+                        detailPage(title: "备份与恢复") {
+                            dataSection
+                        }
+                    }
+
+                    settingsNavigationRow(
+                        title: "关于与支持",
+                        subtitle: appVersionText,
+                        systemImage: "questionmark.circle.fill",
+                        tint: AppTheme.info
+                    ) {
+                        detailPage(title: "关于与支持") {
+                            supportSection
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var crewMembersManagementPage: some View {
+        AppPageScaffold(title: "团队成员", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 28) {
+            settingsCard(title: "成员管理", subtitle: "这些成员会出现在订单分工、档期团队视图和当前成员选择里。") {
+                Button {
+                    showingNewCrewMember = true
+                    AppHaptics.tapLight()
+                } label: {
+                    Label("新增团队成员", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(AppPrimaryButtonStyle())
+
+                if store.activeCrewMembers.isEmpty {
+                    AppInlineNote(systemImage: "person.crop.circle.badge.plus", text: "还没有启用成员，新增后可直接用于订单分工。", tint: AppTheme.accent)
+                } else {
+                    subsectionTitle("启用成员")
+                    ForEach(store.activeCrewMembers) { member in
+                        crewMemberManagementRow(member, isArchived: false)
+                    }
+                }
+
+                if archivedCrewMembers.isEmpty == false {
+                    minorSeparator
+                    subsectionTitle("停用成员")
+                    ForEach(archivedCrewMembers) { member in
+                        crewMemberManagementRow(member, isArchived: true)
+                    }
+                }
+            }
+        }
+    }
+
+    private func crewMemberManagementRow(_ member: CrewMemberRecord, isArchived: Bool) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill((isArchived ? AppTheme.secondaryInk : AppTheme.accent).opacity(0.12))
+                    .frame(width: 42, height: 42)
+                Text(memberInitial(member))
+                    .font(AppTypography.bodyStrong)
+                    .foregroundStyle(isArchived ? AppTheme.secondaryInk : AppTheme.accent)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(member.displayName)
+                    .font(AppTypography.bodyStrong)
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                Text(memberSubtitle(member, isArchived: isArchived))
+                    .font(AppTypography.meta)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+
+            Menu {
+                if isArchived {
+                    Button("恢复成员", systemImage: "arrow.uturn.backward.circle") {
+                        store.restoreCrewMember(member.id)
+                        AppHaptics.success()
+                    }
+                } else {
+                    Button("编辑", systemImage: "pencil") {
+                        editingCrewMember = member
+                    }
+                    Button("停用", systemImage: "person.crop.circle.badge.minus", role: .destructive) {
+                        confirmingArchiveCrewMember = member
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(AppTheme.secondaryInk)
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.52), lineWidth: 1)
+        }
+    }
+
+    private func statusPill(title: String, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+            Text(title)
+                .font(AppTypography.meta.weight(.semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(tint.opacity(0.1), in: Capsule())
+    }
+
+    private func settingsNavigationRow<Destination: View>(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        tint: Color,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(tint.opacity(0.12))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: systemImage)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(tint)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(AppTypography.bodyStrong)
+                        .foregroundStyle(AppTheme.ink)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(minHeight: 64)
+            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                    .stroke(AppTheme.line.opacity(0.54), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func settingsRouteRow(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        tint: Color,
+        route: SettingsRoute
+    ) -> some View {
+        NavigationLink(value: route) {
+            settingsRowLabel(
+                title: title,
+                subtitle: subtitle,
+                systemImage: systemImage,
+                tint: tint
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func settingsRowLabel(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        tint: Color
+    ) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(tint.opacity(0.12))
+                    .frame(width: 42, height: 42)
+                Image(systemName: systemImage)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(AppTypography.bodyStrong)
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(AppTypography.meta)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(minHeight: 64)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.54), lineWidth: 1)
+        }
+    }
+
+    private var workspaceDisplayName: String {
+        let name = draftStudioProfile.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "影期工作区" : name
+    }
+
+    private var studioProfileSummary: String {
+        let city = draftStudioProfile.city.trimmingCharacters(in: .whitespacesAndNewlines)
+        let phone = draftStudioProfile.contactPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        if city.isEmpty == false && phone.isEmpty == false {
+            return "\(city) · \(phone)"
+        }
+        if city.isEmpty == false { return city }
+        if phone.isEmpty == false { return phone }
+        return "补全名称、电话、城市和地址"
+    }
+
+    private var currentMemberSummary: String {
+        if let memberID = draftSettings.currentCrewMemberID,
+           let member = store.crewMember(id: memberID),
+           member.isArchived == false {
+            return member.displayName
+        }
+        let name = draftSettings.currentMemberName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty == false { return name }
+        return "未选择"
+    }
+
+    private var defaultBusinessSummary: String {
+        let location = draftSettings.defaultLocation.trimmingCharacters(in: .whitespacesAndNewlines)
+        let deposit = AppFormatters.percent(draftSettings.defaultDepositRatio)
+        return location.isEmpty ? "\(draftSettings.currencyCode) · 定金 \(deposit)" : "\(location) · 定金 \(deposit)"
+    }
+
+    private var archivedCrewMembers: [CrewMemberRecord] {
+        store.crewMembers
+            .filter(\.isArchived)
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+    }
+
+    private func memberInitial(_ member: CrewMemberRecord) -> String {
+        let trimmed = member.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.first.map { String($0) } ?? "成"
+    }
+
+    private func memberSubtitle(_ member: CrewMemberRecord, isArchived: Bool) -> String {
+        var parts: [String] = []
+        if member.roleTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            parts.append(member.roleTitle)
+        }
+        if member.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            parts.append(member.phone)
+        } else if member.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            parts.append(member.email)
+        }
+        if isArchived {
+            parts.append("已停用")
+        }
+        return parts.isEmpty ? "未填写角色和联系方式" : parts.joined(separator: " · ")
     }
 
     private var workspaceHubSection: some View {
@@ -392,16 +896,16 @@ struct SettingsView: View {
     }
 
     private var accountSection: some View {
-        settingsCard(title: "账号与同步", subtitle: "Apple ID 登录和 iCloud 同步设置。") {
+        settingsCard(title: "账号与同步", subtitle: "登录账号和 iCloud 同步设置。") {
             if let authProfile = store.authProfile {
-                infoRow(title: "当前 Apple ID", value: authProfile.fullName ?? authProfile.email ?? "已登录")
+                infoRow(title: "当前登录账号", value: authProfile.fullName ?? authProfile.email ?? "已登录")
                 settingsToggleRow(title: "启用 iCloud 同步", subtitle: cloudSyncDescription, isOn: $draftSettings.iCloudSyncEnabled)
 
                 if let persistenceIssue = persistenceIssueDescription {
                     AppInlineNote(systemImage: "exclamationmark.triangle.fill", text: persistenceIssue, tint: .orange)
                 }
 
-                Button("退出 Apple 登录", role: .destructive) {
+                Button("退出登录", role: .destructive) {
                     confirmingSignOut = true
                 }
                 .buttonStyle(AppSecondaryButtonStyle())
@@ -412,7 +916,7 @@ struct SettingsView: View {
                 .buttonStyle(AppSecondaryButtonStyle())
             } else {
                 infoRow(title: "当前模式", value: "本地工作区")
-                AppInlineNote(systemImage: "icloud.slash", text: "未登录时数据只保存在当前设备。需要跨设备同步时，可先返回登录页，再使用 Apple ID 进入。")
+                AppInlineNote(systemImage: "icloud.slash", text: "未登录时数据只保存在当前设备。需要跨设备同步时，可先返回登录页，再使用账号登录进入。")
 
                 Button("前往登录页") {
                     hasEnteredGuestMode = false
@@ -464,7 +968,7 @@ struct SettingsView: View {
 
     private var accountSubtitle: String {
         if let authProfile = store.authProfile {
-            return authProfile.fullName ?? authProfile.email ?? "Apple ID 已登录"
+            return authProfile.fullName ?? authProfile.email ?? "已登录"
         }
         return "本地工作区"
     }

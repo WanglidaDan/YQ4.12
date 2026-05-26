@@ -4,6 +4,10 @@ options:
 settings:
   base:
     SWIFT_VERSION: 5.9
+packages:
+  WechatOpenSDK:
+    url: https://github.com/yanyin1986/WechatOpenSDK.git
+    from: 2.0.7
 targets:
   YingQi:
     type: application
@@ -25,23 +29,27 @@ targets:
     dependencies:
       - target: YingQiWidgetExtension
         embed: true
+      - package: WechatOpenSDK
+      - sdk: WebKit.framework
     settings:
       base:
         PRODUCT_NAME: YingQi
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: Config/YingQi.entitlements
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: 影期
-        INFOPLIST_KEY_NSSupportsLiveActivities: YES
-        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
-        INFOPLIST_KEY_UIRequiresFullScreen: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone:
-          - UIInterfaceOrientationPortrait
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad:
-          - UIInterfaceOrientationPortrait
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Config/YingQi-Info.plist
+    preBuildScripts:
+      - name: Fix WeChat SDK MinimumOSVersion
+        script: |
+          set -e
+          MIN_OS="${IPHONEOS_DEPLOYMENT_TARGET:-17.0}"
+          find "$HOME/Library/Developer/Xcode/DerivedData" \
+            -path "*/SourcePackages/checkouts/WechatOpenSDK/Sources/WechatOpenSDK.xcframework/*/WechatOpenSDK.framework/Info.plist" \
+            -print 2>/dev/null | while IFS= read -r plist; do
+              chmod u+w "$plist" 2>/dev/null || true
+              /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion ${MIN_OS}" "$plist" 2>/dev/null || \
+              /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string ${MIN_OS}" "$plist"
+            done
     scheme:
       testTargets:
         - YingQiTests
