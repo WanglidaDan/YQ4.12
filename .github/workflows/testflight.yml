@@ -121,8 +121,9 @@ jobs:
             -A \
             -t cert \
             -f pkcs12 \
-            -k "$BUILD_KEYCHAIN"
-          security list-keychains -d user -s "$BUILD_KEYCHAIN" $(security list-keychains -d user | sed 's/[ "]//g')
+            -k "$BUILD_KEYCHAIN" \
+            >/dev/null
+          security list-keychains -d user -s "$BUILD_KEYCHAIN"
           security default-keychain -s "$BUILD_KEYCHAIN"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$BUILD_KEYCHAIN"
 
