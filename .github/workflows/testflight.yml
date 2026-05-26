@@ -20,6 +20,9 @@ jobs:
 
     env:
       ASC_KEY_PATH: ${{ github.workspace }}/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+      BUILD_KEYCHAIN: ${{ github.workspace }}/build/signing.keychain-db
+      BUILD_PROFILES_DIR: ${{ github.workspace }}/build/profiles
+      EXPORT_OPTIONS_PLIST: ${{ github.workspace }}/build/TestFlightExportOptions.plist
 
     steps:
       - name: Checkout
@@ -75,6 +78,88 @@ jobs:
           PY
           chmod 600 "$ASC_KEY_PATH"
 
+      - name: Install Apple signing certificate and profiles
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          YINGQI_APPSTORE_PROFILE_BASE64: ${{ secrets.YINGQI_APPSTORE_PROFILE_BASE64 }}
+          YINGQI_WIDGET_APPSTORE_PROFILE_BASE64: ${{ secrets.YINGQI_WIDGET_APPSTORE_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for name in \
+            IOS_DISTRIBUTION_CERTIFICATE_BASE64 \
+            IOS_DISTRIBUTION_CERTIFICATE_PASSWORD \
+            YINGQI_APPSTORE_PROFILE_BASE64 \
+            YINGQI_WIDGET_APPSTORE_PROFILE_BASE64 \
+            KEYCHAIN_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required GitHub secret: ${name}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+          mkdir -p "$BUILD_PROFILES_DIR" "$HOME/Library/MobileDevice/Provisioning Profiles"
+          CERTIFICATE_PATH="$RUNNER_TEMP/ios_distribution.p12"
+          APP_PROFILE_PATH="$BUILD_PROFILES_DIR/yingqi_appstore.mobileprovision"
+          WIDGET_PROFILE_PATH="$BUILD_PROFILES_DIR/yingqi_widget_appstore.mobileprovision"
+
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          printf '%s' "$YINGQI_APPSTORE_PROFILE_BASE64" | base64 --decode > "$APP_PROFILE_PATH"
+          printf '%s' "$YINGQI_WIDGET_APPSTORE_PROFILE_BASE64" | base64 --decode > "$WIDGET_PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$BUILD_KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$BUILD_KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$BUILD_KEYCHAIN"
+          security import "$CERTIFICATE_PATH" \
+            -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$BUILD_KEYCHAIN"
+          security list-keychains -d user -s "$BUILD_KEYCHAIN" $(security list-keychains -d user | sed 's/[ "]//g')
+          security default-keychain -s "$BUILD_KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$BUILD_KEYCHAIN"
+
+          parse_profile_value() {
+            local profile_path="$1"
+            local key="$2"
+            security cms -D -i "$profile_path" | /usr/libexec/PlistBuddy -c "Print :${key}" /dev/stdin
+          }
+
+          install_profile() {
+            local profile_path="$1"
+            local uuid
+            uuid="$(parse_profile_value "$profile_path" UUID)"
+            cp "$profile_path" "$HOME/Library/MobileDevice/Provisioning Profiles/${uuid}.mobileprovision"
+          }
+
+          install_profile "$APP_PROFILE_PATH"
+          install_profile "$WIDGET_PROFILE_PATH"
+
+          {
+            echo "YINGQI_PROFILE_NAME=$(parse_profile_value "$APP_PROFILE_PATH" Name)"
+            echo "YINGQI_WIDGET_PROFILE_NAME=$(parse_profile_value "$WIDGET_PROFILE_PATH" Name)"
+          } >> "$GITHUB_ENV"
+
+      - name: Create manual export options
+        run: |
+          set -euo pipefail
+          cp Config/TestFlightExportOptions.plist "$EXPORT_OPTIONS_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :signingStyle manual" "$EXPORT_OPTIONS_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :teamID 9ZV32GL37D" "$EXPORT_OPTIONS_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :provisioningProfiles" "$EXPORT_OPTIONS_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" "$EXPORT_OPTIONS_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.wanglida.YingQi string ${YINGQI_PROFILE_NAME}" "$EXPORT_OPTIONS_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.wanglida.YingQi.widget string ${YINGQI_WIDGET_PROFILE_NAME}" "$EXPORT_OPTIONS_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :signingCertificate Apple Distribution" "$EXPORT_OPTIONS_PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Add :signingCertificate string Apple Distribution" "$EXPORT_OPTIONS_PLIST"
+
       - name: Resolve Swift packages
         run: |
           xcodebuild -resolvePackageDependencies \
@@ -82,9 +167,6 @@ jobs:
             -scheme YingQi
 
       - name: Archive
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
           xcodebuild archive \
             -project YingQi.xcodeproj \
@@ -92,24 +174,15 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/YingQi.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$APP_STORE_CONNECT_API_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_API_ISSUER_ID"
+            DEVELOPMENT_TEAM=9ZV32GL37D \
+            CODE_SIGN_IDENTITY="Apple Distribution"
 
       - name: Export IPA
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
           xcodebuild -exportArchive \
             -archivePath "$PWD/build/YingQi.xcarchive" \
             -exportPath "$PWD/build/export" \
-            -exportOptionsPlist Config/TestFlightExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$APP_STORE_CONNECT_API_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_API_ISSUER_ID"
+            -exportOptionsPlist "$EXPORT_OPTIONS_PLIST"
 
       - name: Upload to TestFlight
         env:
@@ -129,3 +202,8 @@ jobs:
           name: YingQi-TestFlight-IPA
           path: build/export/*.ipa
           if-no-files-found: ignore
+
+      - name: Clean up signing keychain
+        if: always()
+        run: |
+          security delete-keychain "$BUILD_KEYCHAIN" 2>/dev/null || true
