@@ -121,11 +121,14 @@ jobs:
             -A \
             -t cert \
             -f pkcs12 \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security \
             -k "$BUILD_KEYCHAIN" \
             >/dev/null
           security list-keychains -d user -s "$BUILD_KEYCHAIN"
           security default-keychain -s "$BUILD_KEYCHAIN"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$BUILD_KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$BUILD_KEYCHAIN" || \
+            echo "::warning::Unable to update key partition list; continuing because codesign was explicitly trusted during import."
 
           parse_profile_value() {
             local profile_path="$1"
