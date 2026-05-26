@@ -84,12 +84,13 @@ targets:
       - path: Support/BookingReminderActivityAttributes.swift
       - path: Support/AppThemePalette.swift
       - path: Support/AppThemeStyle.swift
+    configFiles:
+      Debug: Config/AppDebug.xcconfig
+      Release: Config/AppRelease.xcconfig
     settings:
       base:
         PRODUCT_NAME: YingQiWidgetExtension
         PRODUCT_BUNDLE_IDENTIFIER: com.wanglida.YingQi.widget
-        MARKETING_VERSION: 1.0.1
-        CURRENT_PROJECT_VERSION: 2026052606
         DEVELOPMENT_TEAM: 9ZV32GL37D
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: NO
