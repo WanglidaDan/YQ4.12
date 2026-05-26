@@ -201,8 +201,7 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/YingQi.xcarchive" \
-            DEVELOPMENT_TEAM=9ZV32GL37D \
-            CODE_SIGN_IDENTITY="Apple Distribution"
+            DEVELOPMENT_TEAM=9ZV32GL37D
 
       - name: Export IPA
         run: |
