@@ -499,6 +499,7 @@
 				};
 			};
 			buildConfigurationList = 34288F23DF143C022813BDF2 /* Build configuration list for PBXProject "YingQi" */;
+			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -511,7 +512,6 @@
 				CE70719FD78744A31D2458D5 /* XCRemoteSwiftPackageReference "WechatOpenSDK" */,
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 7D04D25C5FE6BED83C6646A7 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -765,6 +765,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2026052605;
 				DEVELOPMENT_TEAM = 9ZV32GL37D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Widgets/Info.plist;
@@ -774,6 +775,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wanglida.YingQi.widget;
 				PRODUCT_NAME = YingQiWidgetExtension;
 				SDKROOT = iphoneos;
@@ -881,6 +883,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2026052605;
 				DEVELOPMENT_TEAM = 9ZV32GL37D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Widgets/Info.plist;
@@ -890,6 +893,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wanglida.YingQi.widget;
 				PRODUCT_NAME = YingQiWidgetExtension;
 				SDKROOT = iphoneos;
