@@ -1,6 +1,5 @@
 import AuthenticationServices
 import SwiftUI
-import UIKit
 
 @main
 struct YingQiApp: App {
@@ -464,85 +463,40 @@ private struct LegalSheetView: View {
 }
 
 private struct AppleIDAuthButton: View {
-    @StateObject private var coordinator = AppleSignInCoordinator()
+    @Environment(\.colorScheme) private var colorScheme
 
     let onSuccess: (AuthProfile) -> Void
     let onFailure: (String) -> Void
 
     var body: some View {
-        Button {
-            AppHaptics.tapLight()
-            coordinator.signIn(onSuccess: onSuccess, onFailure: onFailure)
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "apple.logo")
-                    .font(.system(size: 21, weight: .semibold))
-                Text("Apple 登录")
-                    .font(.system(size: 17, weight: .semibold, design: .default))
+        SignInWithAppleButton(.signIn) { request in
+            request.requestedScopes = [.fullName, .email]
+        } onCompletion: { result in
+            switch result {
+            case let .success(authorization):
+                guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                    onFailure("没有获取到可用的 Apple 登录凭证。")
+                    AppHaptics.error()
+                    return
+                }
+
+                let fullName = PersonNameComponentsFormatter().string(from: credential.fullName ?? PersonNameComponents())
+                let normalizedName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let profile = AuthProfile(
+                    appleUserID: credential.user,
+                    email: credential.email,
+                    fullName: normalizedName.isEmpty ? nil : normalizedName
+                )
+                AppHaptics.success()
+                onSuccess(profile)
+            case let .failure(error):
+                onFailure(error.localizedDescription)
+                AppHaptics.error()
             }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(Color.black, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 19, style: .continuous)
-                    .stroke(.white.opacity(0.12), lineWidth: 1)
-            }
-            .shadow(color: .black.opacity(0.26), radius: 16, y: 9)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Apple 登录")
-    }
-}
-
-private final class AppleSignInCoordinator: NSObject, ObservableObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
-    private var onSuccess: ((AuthProfile) -> Void)?
-    private var onFailure: ((String) -> Void)?
-
-    func signIn(
-        onSuccess: @escaping (AuthProfile) -> Void,
-        onFailure: @escaping (String) -> Void
-    ) {
-        self.onSuccess = onSuccess
-        self.onFailure = onFailure
-
-        let provider = ASAuthorizationAppleIDProvider()
-        let request = provider.createRequest()
-        request.requestedScopes = [.fullName, .email]
-
-        let controller = ASAuthorizationController(authorizationRequests: [request])
-        controller.delegate = self
-        controller.presentationContextProvider = self
-        controller.performRequests()
-    }
-
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-            onFailure?("没有获取到可用的 Apple 登录凭证。")
-            AppHaptics.error()
-            return
-        }
-
-        let fullName = PersonNameComponentsFormatter().string(from: credential.fullName ?? PersonNameComponents())
-        let normalizedName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let profile = AuthProfile(
-            appleUserID: credential.user,
-            email: credential.email,
-            fullName: normalizedName.isEmpty ? nil : normalizedName
-        )
-        AppHaptics.success()
-        onSuccess?(profile)
-    }
-
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        onFailure?(error.localizedDescription)
-        AppHaptics.error()
-    }
-
-    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+        .signInWithAppleButtonStyle(.black)
+        .frame(height: 56)
+        .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.14), radius: 16, y: 9)
     }
 }
