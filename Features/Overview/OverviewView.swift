@@ -171,106 +171,67 @@ struct OverviewView: View {
 
     private var monthlySummarySection: some View {
         GlassCard(title: "本月经营摘要", subtitle: AppFormatters.monthYear(.now)) {
-            VStack(alignment: .leading, spacing: 14) {
-                monthlyHeadlineCard
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("本月成交额")
+                        .font(AppTypography.meta.weight(.semibold))
+                        .foregroundStyle(AppTheme.secondaryInk)
 
-                HStack(spacing: 0) {
-                    compactMonthlyMetric(title: "订单", value: "\(snapshot.monthlyBookedCount)", suffix: "单")
-                    monthlyMetricDivider
-                    compactMonthlyMetric(title: "已收", value: AppFormatters.currency(snapshot.monthlyReceived), suffix: nil)
-                    monthlyMetricDivider
-                    compactMonthlyMetric(title: "待收", value: AppFormatters.currency(snapshot.monthlyOutstanding), suffix: nil)
+                    Spacer(minLength: 8)
+
+                    Text(summaryProgressText)
+                        .font(AppTypography.badge)
+                        .foregroundStyle(AppTheme.accent)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 13)
-                .background(AppTheme.panelSoft, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(AppFormatters.currency(snapshot.monthlyRevenue))
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.68)
+
+                    Text(summaryDescriptionText)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                monthlyProgressLine(progress: summaryProgressRatio)
+
+                Divider()
+                    .overlay(AppTheme.line.opacity(0.66))
+
+                HStack(alignment: .top, spacing: 14) {
+                    flatMonthlyMetric(title: "订单", value: "\(snapshot.monthlyBookedCount)", suffix: "单")
+                    flatMetricDivider
+                    flatMonthlyMetric(title: "已收", value: AppFormatters.currency(snapshot.monthlyReceived), suffix: nil)
+                    flatMetricDivider
+                    flatMonthlyMetric(title: "待收", value: AppFormatters.currency(snapshot.monthlyOutstanding), suffix: nil)
+                }
+
+                Divider()
+                    .overlay(AppTheme.line.opacity(0.46))
 
                 Button {
                     onOpenSchedule()
                 } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(AppTheme.accent)
+                    HStack(spacing: 8) {
                         Text("查看经营详情")
                             .font(AppTypography.meta.weight(.semibold))
                             .foregroundStyle(AppTheme.ink)
+
                         Spacer(minLength: 0)
+
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(AppTheme.mutedInk)
                     }
-                    .padding(.horizontal, 14)
-                    .frame(height: 44)
-                    .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                            .stroke(AppTheme.line.opacity(0.52), lineWidth: 1)
-                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
         }
-    }
-
-    private var monthlyHeadlineCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("本月成交额")
-                    .font(AppTypography.meta.weight(.semibold))
-                    .foregroundStyle(AppTheme.secondaryInk)
-                Spacer(minLength: 8)
-                Text(summaryProgressText)
-                    .font(AppTypography.badge)
-                    .foregroundStyle(AppTheme.accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(AppTheme.accentSurface, in: Capsule())
-            }
-
-            Text(AppFormatters.currency(snapshot.monthlyRevenue))
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-
-            monthlyProgressBar(progress: summaryProgressRatio)
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.5), lineWidth: 1)
-        }
-    }
-
-    private var monthlyMetricDivider: some View {
-        Rectangle()
-            .fill(AppTheme.line.opacity(0.58))
-            .frame(width: 1, height: 34)
-            .padding(.horizontal, 10)
-    }
-
-    private func compactMonthlyMetric(title: String, value: String, suffix: String?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(AppTypography.meta)
-                .foregroundStyle(AppTheme.mutedInk)
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(value)
-                    .font(AppTypography.bodyStrong)
-                    .foregroundStyle(AppTheme.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                if let suffix {
-                    Text(suffix)
-                        .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.secondaryInk)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var summaryProgressRatio: CGFloat {
@@ -284,27 +245,53 @@ struct OverviewView: View {
         return "已收 \(percentage)%"
     }
 
-    private func monthlyProgressBar(progress: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(AppTheme.line.opacity(0.4))
-                    Capsule()
-                        .fill(AppTheme.heroGradient)
-                        .frame(width: max(6, proxy.size.width * min(max(progress, 0), 1)))
+    private var summaryDescriptionText: String {
+        if snapshot.monthlyRevenue <= 0 {
+            return "本月暂未形成成交，新增档期后这里会自动汇总。"
+        }
+        return "已收 \(AppFormatters.currency(snapshot.monthlyReceived)) · 待收 \(AppFormatters.currency(snapshot.monthlyOutstanding))"
+    }
+
+    private var flatMetricDivider: some View {
+        Rectangle()
+            .fill(AppTheme.line.opacity(0.52))
+            .frame(width: 1, height: 36)
+    }
+
+    private func flatMonthlyMetric(title: String, value: String, suffix: String?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(AppTypography.meta)
+                .foregroundStyle(AppTheme.mutedInk)
+
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(AppTypography.bodyStrong)
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+
+                if let suffix {
+                    Text(suffix)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
                 }
             }
-            .frame(height: 8)
-
-            HStack {
-                Text("已收 \(AppFormatters.currency(snapshot.monthlyReceived))")
-                Spacer(minLength: 8)
-                Text("待收 \(AppFormatters.currency(snapshot.monthlyOutstanding))")
-            }
-            .font(AppTypography.meta)
-            .foregroundStyle(AppTheme.secondaryInk)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func monthlyProgressLine(progress: CGFloat) -> some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(AppTheme.line.opacity(0.38))
+                Capsule()
+                    .fill(AppTheme.heroGradient)
+                    .frame(width: max(6, proxy.size.width * min(max(progress, 0), 1)))
+            }
+        }
+        .frame(height: 7)
     }
 
     private func recentBookingTimelineRow(booking: BookingRecord, isFirst: Bool, isLast: Bool) -> some View {
