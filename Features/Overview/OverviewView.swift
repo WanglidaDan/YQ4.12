@@ -172,16 +172,19 @@ struct OverviewView: View {
     private var monthlySummarySection: some View {
         GlassCard(title: "本月经营摘要", subtitle: AppFormatters.monthYear(.now)) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("本月成交额")
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text("成交金额")
                         .font(AppTypography.meta.weight(.semibold))
                         .foregroundStyle(AppTheme.secondaryInk)
 
                     Spacer(minLength: 8)
 
-                    Text(summaryProgressText)
+                    Text("\(snapshot.monthlyBookedCount) 单")
                         .font(AppTypography.badge)
                         .foregroundStyle(AppTheme.accent)
+                        .padding(.horizontal, 10)
+                        .frame(height: 26)
+                        .background(AppTheme.accentSurface, in: Capsule())
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -191,33 +194,26 @@ struct OverviewView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.68)
 
-                    Text(summaryDescriptionText)
+                    Text(monthlySummaryHintText)
                         .font(AppTypography.meta)
                         .foregroundStyle(AppTheme.secondaryInk)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                monthlyProgressLine(progress: summaryProgressRatio)
-
                 Divider()
-                    .overlay(AppTheme.line.opacity(0.66))
+                    .overlay(AppTheme.line.opacity(0.58))
 
                 HStack(alignment: .top, spacing: 14) {
-                    flatMonthlyMetric(title: "订单", value: "\(snapshot.monthlyBookedCount)", suffix: "单")
-                    flatMetricDivider
                     flatMonthlyMetric(title: "已收", value: AppFormatters.currency(snapshot.monthlyReceived), suffix: nil)
                     flatMetricDivider
                     flatMonthlyMetric(title: "待收", value: AppFormatters.currency(snapshot.monthlyOutstanding), suffix: nil)
                 }
 
-                Divider()
-                    .overlay(AppTheme.line.opacity(0.46))
-
                 Button {
                     onOpenSchedule()
                 } label: {
                     HStack(spacing: 8) {
-                        Text("查看经营详情")
+                        Text("查看档期")
                             .font(AppTypography.meta.weight(.semibold))
                             .foregroundStyle(AppTheme.ink)
 
@@ -243,6 +239,16 @@ struct OverviewView: View {
         guard snapshot.monthlyRevenue > 0 else { return "暂无成交额" }
         let percentage = Int((summaryProgressRatio * 100).rounded())
         return "已收 \(percentage)%"
+    }
+
+    private var monthlySummaryHintText: String {
+        if snapshot.monthlyRevenue <= 0 {
+            return "新建档期后，这里会自动汇总本月经营情况。"
+        }
+        if snapshot.monthlyOutstanding > 0 {
+            return "本月经营已形成记录，下一步重点关注回款和交付。"
+        }
+        return "本月经营已形成记录，回款状态较完整。"
     }
 
     private var summaryDescriptionText: String {
