@@ -1,5 +1,6 @@
 import AuthenticationServices
 import SwiftUI
+import UIKit
 
 @main
 struct YingQiApp: App {
@@ -125,35 +126,41 @@ private struct AuthGateView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let horizontalPadding = max(24, min(36, proxy.size.width * 0.085))
+            let horizontalPadding = max(20, min(30, proxy.size.width * 0.065))
             let bottomPadding = max(18, proxy.safeAreaInsets.bottom + 14)
-            let maxContentWidth = min(410, proxy.size.width - (horizontalPadding * 2))
+            let maxContentWidth = min(414, proxy.size.width - (horizontalPadding * 2))
 
             ZStack {
-                AuthPremiumBackdrop()
+                AuthLuxuryBackdrop()
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    Spacer(minLength: 64)
+                    Spacer(minLength: 84)
 
-                    VStack(spacing: 18) {
-                        YingQiBrandMark(size: 86, elevated: true)
+                    VStack(spacing: 20) {
+                        YingQiBrandMark(size: 96, elevated: true)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .stroke(.white.opacity(0.10), lineWidth: 1)
+                            }
 
-                        VStack(spacing: 8) {
+                        VStack(spacing: 7) {
                             Text("影期")
-                                .font(.system(size: 34, weight: .semibold, design: .default))
-                                .foregroundStyle(Color(red: 0.08, green: 0.11, blue: 0.10))
+                                .font(.system(size: 38, weight: .semibold, design: .default))
+                                .tracking(2)
+                                .foregroundStyle(.white.opacity(0.96))
 
                             Text("YingQi Studio")
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .foregroundStyle(Color(red: 0.46, green: 0.51, blue: 0.48))
+                                .tracking(1.2)
+                                .foregroundStyle(.white.opacity(0.48))
                         }
                     }
                     .frame(maxWidth: .infinity)
 
-                    Spacer(minLength: 58)
+                    Spacer(minLength: 78)
 
-                    VStack(spacing: 12) {
+                    VStack(spacing: 14) {
                         WeChatAuthButton {
                             AppHaptics.tapLight()
                             onWeChatSignIn { result in
@@ -181,15 +188,29 @@ private struct AuthGateView: View {
                         } label: {
                             Text("稍后再说")
                                 .font(.system(size: 15, weight: .medium, design: .default))
-                                .foregroundStyle(Color(red: 0.39, green: 0.44, blue: 0.41))
+                                .foregroundStyle(.white.opacity(0.50))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 40)
                         }
                         .buttonStyle(.plain)
                     }
+                    .padding(18)
                     .frame(maxWidth: maxContentWidth)
+                    .background {
+                        RoundedRectangle(cornerRadius: 30, style: .continuous)
+                            .fill(.ultraThinMaterial.opacity(0.62))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                                    .fill(Color.white.opacity(0.055))
+                            }
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 30, style: .continuous)
+                            .stroke(.white.opacity(0.11), lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(0.26), radius: 28, y: 18)
 
-                    Spacer(minLength: 28)
+                    Spacer(minLength: 22)
 
                     agreementText
                         .frame(maxWidth: maxContentWidth)
@@ -199,6 +220,7 @@ private struct AuthGateView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .preferredColorScheme(.dark)
         .alert("登录失败", isPresented: Binding(
             get: { authErrorMessage != nil },
             set: { if $0 == false { authErrorMessage = nil } }
@@ -225,19 +247,19 @@ private struct AuthGateView: View {
     private var agreementText: some View {
         HStack(spacing: 0) {
             Text("继续即同意 ")
-                .foregroundStyle(Color(red: 0.55, green: 0.58, blue: 0.55))
+                .foregroundStyle(.white.opacity(0.34))
             Button("服务条款") {
                 showingLegalDocument = .terms
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color(red: 0.18, green: 0.36, blue: 0.28))
+            .foregroundStyle(.white.opacity(0.62))
             Text(" 和 ")
-                .foregroundStyle(Color(red: 0.55, green: 0.58, blue: 0.55))
+                .foregroundStyle(.white.opacity(0.34))
             Button("隐私政策") {
                 showingLegalDocument = .privacy
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color(red: 0.18, green: 0.36, blue: 0.28))
+            .foregroundStyle(.white.opacity(0.62))
         }
         .font(.system(size: 12, weight: .medium, design: .default))
         .multilineTextAlignment(.center)
@@ -254,47 +276,57 @@ private struct YingQiBrandMark: View {
             .resizable()
             .interpolation(.high)
             .scaledToFit()
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
-        .shadow(color: .black.opacity(elevated ? 0.12 : 0.06), radius: elevated ? 16 : 7, y: elevated ? 9 : 4)
-        .accessibilityHidden(true)
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
+            .shadow(color: .black.opacity(elevated ? 0.24 : 0.08), radius: elevated ? 22 : 7, y: elevated ? 14 : 4)
+            .accessibilityHidden(true)
     }
 }
 
-private struct AuthPremiumBackdrop: View {
+private struct AuthLuxuryBackdrop: View {
     var body: some View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.97, green: 0.98, blue: 0.96),
-                    Color(red: 0.92, green: 0.94, blue: 0.90),
-                    Color(red: 0.84, green: 0.88, blue: 0.84)
+                    Color(red: 0.018, green: 0.055, blue: 0.045),
+                    Color(red: 0.035, green: 0.120, blue: 0.095),
+                    Color(red: 0.008, green: 0.020, blue: 0.018)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
+            RadialGradient(
+                colors: [
+                    Color(red: 0.43, green: 0.57, blue: 0.42).opacity(0.34),
+                    .clear
+                ],
+                center: .topTrailing,
+                startRadius: 20,
+                endRadius: 360
+            )
+            .offset(x: 80, y: -120)
+
+            RadialGradient(
+                colors: [
+                    Color(red: 0.68, green: 0.54, blue: 0.36).opacity(0.18),
+                    .clear
+                ],
+                center: .bottomLeading,
+                startRadius: 10,
+                endRadius: 360
+            )
+            .offset(x: -80, y: 160)
+
             LinearGradient(
                 stops: [
-                    .init(color: .white.opacity(0.90), location: 0.0),
-                    .init(color: .white.opacity(0.42), location: 0.42),
-                    .init(color: Color(red: 0.22, green: 0.30, blue: 0.26).opacity(0.07), location: 1.0)
+                    .init(color: .white.opacity(0.08), location: 0.0),
+                    .init(color: .clear, location: 0.35),
+                    .init(color: .black.opacity(0.22), location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-
-            Circle()
-                .fill(Color(red: 0.17, green: 0.32, blue: 0.25).opacity(0.07))
-                .frame(width: 260, height: 260)
-                .blur(radius: 38)
-                .offset(x: 130, y: -210)
-
-            Circle()
-                .fill(Color(red: 0.52, green: 0.45, blue: 0.34).opacity(0.08))
-                .frame(width: 260, height: 260)
-                .blur(radius: 44)
-                .offset(x: -120, y: 260)
         }
     }
 }
@@ -316,19 +348,19 @@ private struct WeChatAuthButton: View {
             .background(
                 LinearGradient(
                     colors: [
-                        Color(red: 0.08, green: 0.68, blue: 0.27),
-                        Color(red: 0.04, green: 0.48, blue: 0.28)
+                        Color(red: 0.08, green: 0.70, blue: 0.28),
+                        Color(red: 0.03, green: 0.45, blue: 0.25)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 19, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(.white.opacity(0.24), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 19, style: .continuous)
+                    .stroke(.white.opacity(0.18), lineWidth: 1)
             }
-            .shadow(color: Color(red: 0.03, green: 0.30, blue: 0.16).opacity(0.22), radius: 18, y: 10)
+            .shadow(color: Color(red: 0.00, green: 0.24, blue: 0.12).opacity(0.34), radius: 18, y: 10)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("微信登录")
@@ -448,40 +480,85 @@ private struct LegalSheetView: View {
 }
 
 private struct AppleIDAuthButton: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @StateObject private var coordinator = AppleSignInCoordinator()
 
     let onSuccess: (AuthProfile) -> Void
     let onFailure: (String) -> Void
 
     var body: some View {
-        SignInWithAppleButton(.signIn) { request in
-            request.requestedScopes = [.fullName, .email]
-        } onCompletion: { result in
-            switch result {
-            case let .success(authorization):
-                guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-                    onFailure("没有获取到可用的 Apple 登录凭证。")
-                    AppHaptics.error()
-                    return
-                }
-
-                let fullName = PersonNameComponentsFormatter().string(from: credential.fullName ?? PersonNameComponents())
-                let normalizedName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let profile = AuthProfile(
-                    appleUserID: credential.user,
-                    email: credential.email,
-                    fullName: normalizedName.isEmpty ? nil : normalizedName
-                )
-                AppHaptics.success()
-                onSuccess(profile)
-            case let .failure(error):
-                onFailure(error.localizedDescription)
-                AppHaptics.error()
+        Button {
+            AppHaptics.tapLight()
+            coordinator.signIn(onSuccess: onSuccess, onFailure: onFailure)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "apple.logo")
+                    .font(.system(size: 21, weight: .semibold))
+                Text("Apple 登录")
+                    .font(.system(size: 17, weight: .semibold, design: .default))
             }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(Color.black, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 19, style: .continuous)
+                    .stroke(.white.opacity(0.12), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.26), radius: 16, y: 9)
         }
-        .signInWithAppleButtonStyle(.black)
-        .frame(height: 56)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.18 : 0.12), radius: 14, y: 8)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Apple 登录")
+    }
+}
+
+private final class AppleSignInCoordinator: NSObject, ObservableObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var onSuccess: ((AuthProfile) -> Void)?
+    private var onFailure: ((String) -> Void)?
+
+    func signIn(
+        onSuccess: @escaping (AuthProfile) -> Void,
+        onFailure: @escaping (String) -> Void
+    ) {
+        self.onSuccess = onSuccess
+        self.onFailure = onFailure
+
+        let provider = ASAuthorizationAppleIDProvider()
+        let request = provider.createRequest()
+        request.requestedScopes = [.fullName, .email]
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        controller.performRequests()
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            onFailure?("没有获取到可用的 Apple 登录凭证。")
+            AppHaptics.error()
+            return
+        }
+
+        let fullName = PersonNameComponentsFormatter().string(from: credential.fullName ?? PersonNameComponents())
+        let normalizedName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let profile = AuthProfile(
+            appleUserID: credential.user,
+            email: credential.email,
+            fullName: normalizedName.isEmpty ? nil : normalizedName
+        )
+        AppHaptics.success()
+        onSuccess?(profile)
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        onFailure?(error.localizedDescription)
+        AppHaptics.error()
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
     }
 }
