@@ -126,8 +126,9 @@ private struct AuthGateView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let horizontalPadding = max(20, min(30, proxy.size.width * 0.065))
-            let bottomPadding = max(18, proxy.safeAreaInsets.bottom + 14)
+            let horizontalPadding = max(22, min(32, proxy.size.width * 0.07))
+            let bottomPadding = max(22, proxy.safeAreaInsets.bottom + 18)
+            let topPadding = max(84, proxy.safeAreaInsets.top + 62)
             let maxContentWidth = min(414, proxy.size.width - (horizontalPadding * 2))
 
             ZStack {
@@ -135,10 +136,8 @@ private struct AuthGateView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    Spacer(minLength: 84)
-
                     VStack(spacing: 20) {
-                        YingQiBrandMark(size: 96, elevated: true)
+                        YingQiBrandMark(size: 98, elevated: true)
                             .overlay {
                                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                                     .stroke(.white.opacity(0.10), lineWidth: 1)
@@ -157,8 +156,9 @@ private struct AuthGateView: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
+                    .padding(.top, topPadding)
 
-                    Spacer(minLength: 78)
+                    Spacer(minLength: 40)
 
                     VStack(spacing: 14) {
                         WeChatAuthButton {
@@ -193,28 +193,12 @@ private struct AuthGateView: View {
                                 .frame(height: 40)
                         }
                         .buttonStyle(.plain)
+
+                        agreementText
+                            .padding(.top, 6)
                     }
-                    .padding(18)
                     .frame(maxWidth: maxContentWidth)
-                    .background {
-                        RoundedRectangle(cornerRadius: 30, style: .continuous)
-                            .fill(.ultraThinMaterial.opacity(0.62))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                                    .fill(Color.white.opacity(0.055))
-                            }
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 30, style: .continuous)
-                            .stroke(.white.opacity(0.11), lineWidth: 1)
-                    }
-                    .shadow(color: .black.opacity(0.26), radius: 28, y: 18)
-
-                    Spacer(minLength: 22)
-
-                    agreementText
-                        .frame(maxWidth: maxContentWidth)
-                        .padding(.bottom, bottomPadding)
+                    .padding(.bottom, bottomPadding)
                 }
                 .padding(.horizontal, horizontalPadding)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
