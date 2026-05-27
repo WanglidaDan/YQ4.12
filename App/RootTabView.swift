@@ -84,7 +84,7 @@ struct RootTabView: View {
                     }
                     .tag(RootTab.clients)
 
-                SettingsView(showsCloseButton: false)
+                StandardProfileView()
                     .tabItem {
                         Label("我的", systemImage: "person.crop.circle")
                     }
