@@ -97,40 +97,33 @@ struct ClientsView: View {
         sourceClients.filter(clientNeedsAttention).count
     }
 
+    private var signatureClientCount: Int {
+        sourceClients.filter { $0.tier == .signature }.count
+    }
+
     private var outstandingTotal: Double {
         sourceClients.reduce(0) { $0 + outstandingValue(for: $1.id) }
+    }
+
+    private var totalLifetimeValue: Double {
+        visibleBookings.reduce(0) { $0 + $1.fee }
     }
 
     private var filterSummary: String {
         [scope.title, filter.title, sort.title].joined(separator: " · ")
     }
 
+    private var pageBackground: some View {
+        AppTheme.background
+    }
+
     var body: some View {
         NavigationStack {
-            AppPageScaffold(title: "关系", topPadding: 6, bottomPadding: 32) {
-                compactControls
-                relationshipList
-            }
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        AppHaptics.tapLight()
-                        showingFilterSheet = true
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("筛选")
+            ZStack {
+                pageBackground
+                    .ignoresSafeArea()
 
-                    Button {
-                        AppHaptics.tapLight()
-                        showingNewClient = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("新增客户")
-                }
+                relationshipDashboard
             }
             .navigationDestination(for: ClientRoute.self) { route in
                 ClientDetailView(clientID: route.clientID)
@@ -148,6 +141,29 @@ struct ClientsView: View {
             }
             .sheet(isPresented: $showingFilterSheet) {
                 filterSheet
+            }
+            .navigationTitle("关系")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        AppHaptics.tapLight()
+                        showingSearchSheet = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("打开搜索")
+
+                    Button {
+                        AppHaptics.tapLight()
+                        showingFilterSheet = true
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("打开筛选")
+                }
             }
             .onChange(of: scope) { _, _ in
                 AppHaptics.selection()
@@ -182,25 +198,79 @@ struct ClientsView: View {
         }
     }
 
-    private var compactControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                inlineSearchField
+    private var relationshipDashboard: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 18) {
+                dashboardHeader
+                relationshipOverviewCard
+                relationshipControls
+                relationshipList
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 132)
+        }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 104)
+        }
+    }
+
+    private var dashboardHeader: some View {
+        Color.clear
+            .frame(height: 0)
+    }
+
+    private var relationshipOverviewCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center) {
+                Text("关系概览")
+                    .font(AppTypography.sectionTitle)
+                    .foregroundStyle(AppTheme.ink)
+
+                Spacer()
 
                 Button {
                     AppHaptics.impactMedium()
                     showingNewClient = true
                 } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(AppTheme.panelStrong)
-                        .frame(width: 44, height: 44)
-                        .background(AppTheme.accent, in: Circle())
+                    Text("新增客户")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppTheme.secondaryInk)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("新增客户")
             }
 
+            HStack(alignment: .top, spacing: 12) {
+                overviewMetricBlock(value: "\(sourceClients.count)", title: "客户")
+                overviewMetricBlock(value: "\(followUpClientCount)", title: "待经营", valueColor: followUpClientCount > 0 ? AppTheme.warning : AppTheme.ink)
+                overviewMetricBlock(value: AppFormatters.currency(outstandingTotal), title: "待回款", valueColor: outstandingTotal > 0 ? AppTheme.priorityHigh : AppTheme.ink)
+                overviewMetricBlock(value: "\(signatureClientCount)", title: "高价值")
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panelStrong, strokeOpacity: 0.74)
+    }
+
+    private func overviewMetricBlock(value: String, title: String, valueColor: Color = AppTheme.ink) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(value)
+                .font(AppTypography.dataCompact)
+                .foregroundStyle(valueColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Text(title)
+                .font(AppTypography.meta)
+                .foregroundStyle(AppTheme.secondaryInk)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var relationshipControls: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Picker("范围", selection: $scope) {
                 ForEach(ClientScope.allCases) { item in
                     Text(item.title).tag(item)
@@ -244,40 +314,6 @@ struct ClientsView: View {
                     .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.secondaryInk)
             }
-        }
-    }
-
-    private var inlineSearchField: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppTheme.mutedInk)
-                .frame(width: 20)
-
-            TextField("搜索客户、城市、来源", text: $searchText)
-                .font(AppTypography.body)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.search)
-
-            if trimmedSearchText.isEmpty == false {
-                Button {
-                    searchText = ""
-                    AppHaptics.tapLight()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(AppTheme.mutedInk)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("清空搜索")
-            }
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 46)
-        .background(AppTheme.inputSurface, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.58), lineWidth: 1)
         }
     }
 
@@ -343,6 +379,7 @@ struct ClientsView: View {
                 filter = .all
                 sort = .followUp
                 scope = .active
+                searchText = ""
             }
         ) {
             Section("列表范围") {
@@ -381,7 +418,7 @@ struct ClientsView: View {
 
     private var emptySubtitle: String {
         if trimmedSearchText.isEmpty == false { return "换个关键词试试。" }
-        return scope == .active ? "点击右上角新增客户。" : "归档客户会显示在这里。"
+        return scope == .active ? "点击关系概览里的新增客户。" : "归档客户会显示在这里。"
     }
 
     private func simpleClientRow(_ client: ClientRecord) -> some View {
