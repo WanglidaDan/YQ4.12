@@ -45,7 +45,6 @@ struct BookingDetailView: View {
     let bookingID: UUID
 
     @State private var editingBooking: BookingRecord?
-    @State private var duplicatingBooking: BookingRecord?
     @State private var selectedTransport: NavigationTransport = .driving
     @State private var showingArchiveConfirmation = false
     @State private var showingDeleteConfirmation = false
@@ -76,9 +75,6 @@ struct BookingDetailView: View {
                         heroSummary(booking)
                         orderInfoCard(booking)
                         financeCard(booking)
-                        if booking.crewAssignments.isEmpty == false {
-                            crewCard(booking)
-                        }
                         if hasNotes(booking) {
                             notesCard(booking)
                         }
@@ -90,7 +86,7 @@ struct BookingDetailView: View {
                 }
                 .background(StudioBackdrop(mode: .ambient).ignoresSafeArea())
                 .toolbar {
-                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         Button("编辑", systemImage: "square.and.pencil") {
                             editingBooking = booking
                         }
@@ -107,9 +103,6 @@ struct BookingDetailView: View {
         .navigationTitle("订单")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editingBooking) { booking in
-            BookingEditorView(booking: booking)
-        }
-        .sheet(item: $duplicatingBooking) { booking in
             BookingEditorView(booking: booking)
         }
         .navigationDestination(for: BookingClientRoute.self) { route in
@@ -208,7 +201,10 @@ struct BookingDetailView: View {
                         plainInfoRow(
                             title: "客户",
                             value: bookingClient.name,
-                            subtitle: [bookingClient.city, bookingClient.preferredContactText].filter { $0.isEmpty == false }.joined(separator: " · "),
+                            subtitle: [bookingClient.city, bookingClient.preferredContactText]
+                                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                                .filter { $0.isEmpty == false }
+                                .joined(separator: " · "),
                             trailing: "查看"
                         )
                     }
@@ -218,8 +214,8 @@ struct BookingDetailView: View {
 
                 plainInfoRow(
                     title: "时间",
-                    value: AppFormatters.shortDate(booking.startAt),
-                    subtitle: "\(AppFormatters.weekday(booking.startAt)) · \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))"
+                    value: "\(AppFormatters.shortMonthDay(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))",
+                    subtitle: ""
                 )
                 thinDivider()
 
@@ -233,7 +229,7 @@ struct BookingDetailView: View {
                 plainInfoRow(
                     title: "类型",
                     value: booking.category.title,
-                    subtitle: booking.status.title
+                    subtitle: ""
                 )
             }
         }
@@ -253,32 +249,12 @@ struct BookingDetailView: View {
         }
     }
 
-    private func crewCard(_ booking: BookingRecord) -> some View {
-        let assignments = BookingCrewAssignment.normalized(booking.crewAssignments)
-        return detailCard(title: "团队分工") {
-            VStack(spacing: 0) {
-                ForEach(Array(assignments.enumerated()), id: \.element.id) { index, assignment in
-                    VStack(spacing: 0) {
-                        plainInfoRow(
-                            title: assignment.role.title,
-                            value: assignment.displayName,
-                            subtitle: assignment.operationalSummaryText
-                        )
-                        if index < assignments.count - 1 {
-                            thinDivider()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private func notesCard(_ booking: BookingRecord) -> some View {
         let rows: [(title: String, value: String)] = [
             ("交付", booking.deliverableText),
             ("执行", booking.notesText),
             ("到场", booking.locationNote)
-        ].filter { $0.value.isEmpty == false }
+        ].filter { $0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }
 
         return detailCard(title: "备注") {
             VStack(spacing: 0) {
@@ -296,7 +272,7 @@ struct BookingDetailView: View {
 
     private func operationsCard(_ booking: BookingRecord) -> some View {
         detailCard(title: "操作") {
-            VStack(spacing: 0) {
+            VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     Button {
                         editingBooking = booking
@@ -334,35 +310,21 @@ struct BookingDetailView: View {
                     .disabled(phoneURL == nil)
 
                     Button {
-                        duplicatingBooking = duplicatedBooking(from: booking)
-                    } label: {
-                        Label("复制", systemImage: "plus.square.on.square")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(AppSecondaryButtonStyle())
-                }
-                .padding(.top, 12)
-
-                thinDivider()
-                    .padding(.vertical, 14)
-
-                HStack(spacing: 12) {
-                    Button {
                         showingArchiveConfirmation = true
                     } label: {
                         Label("归档", systemImage: "archivebox")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(AppSecondaryButtonStyle())
-
-                    Button(role: .destructive) {
-                        showingDeleteConfirmation = true
-                    } label: {
-                        Label("删除", systemImage: "trash")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(AppSecondaryButtonStyle())
                 }
+
+                Button(role: .destructive) {
+                    showingDeleteConfirmation = true
+                } label: {
+                    Label("删除订单", systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(AppSecondaryButtonStyle())
             }
         }
     }
@@ -441,18 +403,9 @@ struct BookingDetailView: View {
     }
 
     private func hasNotes(_ booking: BookingRecord) -> Bool {
-        booking.deliverableText.isEmpty == false ||
-        booking.notesText.isEmpty == false ||
-        booking.locationNote.isEmpty == false
-    }
-
-    private func duplicatedBooking(from booking: BookingRecord) -> BookingRecord {
-        var duplicate = booking
-        duplicate.id = UUID()
-        duplicate.createdAt = .now
-        duplicate.updatedAt = .now
-        duplicate.title = booking.title + " 副本"
-        return duplicate
+        booking.deliverableText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ||
+        booking.notesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ||
+        booking.locationNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
     }
 
     private func contactClient() {
