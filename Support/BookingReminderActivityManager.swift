@@ -5,20 +5,21 @@ struct BookingReminderActivityManager {
     static let shared = BookingReminderActivityManager()
 
     /// 灵动岛 / 锁屏实时活动只在真正临近拍摄时出现。
-    /// 避免用户打开 App 后退出就立刻常驻显示。
+    /// 关键原则：普通打开 App、加载数据、刷新缓存时，只允许更新/结束已有实时活动，不主动新建。
     private let liveActivityLeadTime: TimeInterval = 24 * 60 * 60
 
     func sync(
         bookings: [BookingRecord],
         clients: [ClientRecord],
         themeStyle: AppThemeStyle,
-        now: Date = .now
+        now: Date = .now,
+        allowStartingNewActivities: Bool = false
     ) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         let clientLookup = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, $0) })
         let eligibleBookings = bookings.filter { booking in
-            isEligibleForLiveActivity(booking, now: now)
+            isEligibleForLiveActivity(booking, clients: clientLookup, now: now)
         }
 
         Task {
@@ -43,7 +44,7 @@ struct BookingReminderActivityManager {
                             staleDate: booking.endAt
                         )
                     )
-                } else {
+                } else if allowStartingNewActivities {
                     let attributes = BookingReminderActivityAttributes(bookingID: booking.id.uuidString)
                     _ = try? Activity.request(
                         attributes: attributes,
@@ -58,11 +59,35 @@ struct BookingReminderActivityManager {
         }
     }
 
-    private func isEligibleForLiveActivity(_ booking: BookingRecord, now: Date) -> Bool {
+    /// 只有用户明确保存/更新档期后，才允许主动拉起新的实时活动。
+    /// App 启动、切回前台、数据归一化等被动刷新，不调用这个入口。
+    func startIfEligible(
+        booking: BookingRecord,
+        clients: [ClientRecord],
+        themeStyle: AppThemeStyle,
+        now: Date = .now
+    ) {
+        sync(
+            bookings: [booking],
+            clients: clients,
+            themeStyle: themeStyle,
+            now: now,
+            allowStartingNewActivities: true
+        )
+    }
+
+    private func isEligibleForLiveActivity(_ booking: BookingRecord, clients: [UUID: ClientRecord], now: Date) -> Bool {
         guard booking.isArchived == false,
               booking.status != .cancelled,
               booking.status != .delivered,
               booking.reminderOffsets.isEmpty == false
+        else { return false }
+
+        // 未绑定客户、客户被删除/归档、客户姓名为空，都不显示灵动岛/锁屏卡片。
+        guard let clientID = booking.clientID,
+              let client = clients[clientID],
+              client.isArchived == false,
+              client.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         else { return false }
 
         // 拍摄结束后立即收起。
@@ -75,7 +100,7 @@ struct BookingReminderActivityManager {
             return true
         }
 
-        // 只在拍摄前 24 小时内出现。更早的档期只存在于 App 内，不占用灵动岛。
+        // 只在拍摄前 24 小时内允许显示。更早的档期只存在于 App 内，不占用灵动岛。
         return secondsUntilStart <= liveActivityLeadTime
     }
 
