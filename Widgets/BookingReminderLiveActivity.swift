@@ -10,9 +10,9 @@ struct BookingReminderLiveActivity: Widget {
             lockScreenContent(for: context.state)
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            .background(cardBackground(for: context.state))
-            .activityBackgroundTint(backgroundTint(for: context.state))
-            .activitySystemActionForegroundColor(primaryTextColor(for: context.state))
+                .background(cardBackground(for: context.state))
+                .activityBackgroundTint(backgroundTint(for: context.state))
+                .activitySystemActionForegroundColor(primaryTextColor(for: context.state))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -42,6 +42,16 @@ struct BookingReminderLiveActivity: Widget {
             .joined(separator: " · ")
     }
 
+    private func shortLocationText(for state: BookingReminderActivityAttributes.ContentState) -> String {
+        let venue = state.venue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if venue.isEmpty == false { return venue }
+
+        let city = state.city.trimmingCharacters(in: .whitespacesAndNewlines)
+        if city.isEmpty == false { return city }
+
+        return "地点待补充"
+    }
+
     private func navigationQueryText(for state: BookingReminderActivityAttributes.ContentState) -> String {
         [state.city, state.venue, state.addressText]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -54,29 +64,32 @@ struct BookingReminderLiveActivity: Widget {
     }
 
     private func countdownText(for state: BookingReminderActivityAttributes.ContentState) -> String {
-        let hours = max(Int(state.startAt.timeIntervalSince(.now) / 3_600), 0)
-        switch hours {
-        case 0:
-            return "即将开拍"
-        case 1...9:
-            return "\(hours)小时后"
-        default:
-            return chineseMonthDayText(for: state.startAt)
+        let secondsUntilStart = state.startAt.timeIntervalSince(.now)
+        let secondsUntilEnd = state.endAt.timeIntervalSince(.now)
+
+        if secondsUntilStart <= 0 && secondsUntilEnd > 0 {
+            return "拍摄中"
         }
+
+        if secondsUntilStart <= 0 {
+            return "已结束"
+        }
+
+        let minutes = Int(ceil(secondsUntilStart / 60))
+        if minutes < 60 {
+            return "\(max(minutes, 1))分钟后"
+        }
+
+        let hours = Int(ceil(secondsUntilStart / 3_600))
+        if hours <= 24 {
+            return "\(hours)小时后"
+        }
+
+        return chineseMonthDayText(for: state.startAt)
     }
 
-    private func durationText(for state: BookingReminderActivityAttributes.ContentState) -> String {
-        let interval = max(state.endAt.timeIntervalSince(state.startAt), 0)
-        let minutes = Int(interval / 60)
-        if minutes <= 60 {
-            return "\(minutes) 分钟"
-        }
-        let hours = minutes / 60
-        let remainder = minutes % 60
-        if remainder == 0 {
-            return "\(hours) 小时"
-        }
-        return "\(hours) 小时 \(remainder) 分"
+    private func scheduleLine(for state: BookingReminderActivityAttributes.ContentState) -> String {
+        "\(weekdayText(for: state.startAt)) \(chineseMonthDayText(for: state.startAt)) \(timeText(for: state.startAt))"
     }
 
     private func clientText(for state: BookingReminderActivityAttributes.ContentState) -> String {
@@ -99,47 +112,79 @@ struct BookingReminderLiveActivity: Widget {
 
     @ViewBuilder
     private func lockScreenContent(for state: BookingReminderActivityAttributes.ContentState) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("拍摄提醒")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(secondaryTextColor(for: state))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                brandMark(size: 30, state: state)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("影期拍摄提醒")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(secondaryTextColor(for: state))
+                    Text(countdownText(for: state))
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(primaryTextColor(for: state))
+                        .monospacedDigit()
+                }
 
                 Spacer(minLength: 6)
 
-                Text("\(weekdayText(for: state.startAt)) · \(chineseMonthDayText(for: state.startAt))")
-                    .font(.caption.weight(.semibold))
+                Text(compactTimeText(for: state))
+                    .font(.title3.monospacedDigit().weight(.bold))
                     .foregroundStyle(primaryTextColor(for: state))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
             }
 
-            Text(state.title)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(primaryTextColor(for: state))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(state.title)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(primaryTextColor(for: state))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
 
-            VStack(alignment: .leading, spacing: 5) {
-                detailLine(title: "客户", value: clientText(for: state), state: state)
-                detailLine(title: "地点", value: locationText(for: state), state: state, lineLimit: 2)
-                detailLine(title: "时间", value: "\(weekdayText(for: state.startAt)) \(compactTimeText(for: state))", state: state)
+                HStack(spacing: 8) {
+                    Label(clientText(for: state), systemImage: "person.fill")
+                        .lineLimit(1)
+                    Text("·")
+                        .foregroundStyle(secondaryTextColor(for: state).opacity(0.6))
+                    Label(shortLocationText(for: state), systemImage: "location.fill")
+                        .lineLimit(1)
+                }
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(secondaryTextColor(for: state))
             }
 
-            HStack(spacing: 10) {
-                actionLink(
-                    title: "导航",
-                    systemImage: "location.fill",
-                    url: navigationURL(for: state),
-                    state: state
-                )
+            Divider()
+                .overlay(primaryTextColor(for: state).opacity(0.12))
 
-                actionLink(
-                    title: "联系客户",
-                    systemImage: "phone.fill",
-                    url: contactURL(for: state),
-                    state: state
-                )
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("拍摄时间")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(secondaryTextColor(for: state))
+                    Text(scheduleLine(for: state))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(primaryTextColor(for: state))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 8) {
+                    actionLink(
+                        title: "导航",
+                        systemImage: "location.fill",
+                        url: navigationURL(for: state),
+                        state: state
+                    )
+
+                    actionLink(
+                        title: "联系",
+                        systemImage: "phone.fill",
+                        url: contactURL(for: state),
+                        state: state
+                    )
+                }
+                .frame(maxWidth: 176)
             }
         }
     }
@@ -153,7 +198,7 @@ struct BookingReminderLiveActivity: Widget {
                 Text(state.title)
                     .font(.footnote.weight(.semibold))
                     .lineLimit(1)
-                Text(clientText(for: state))
+                Text(shortLocationText(for: state))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(secondaryTextColor(for: state))
                     .lineLimit(1)
@@ -167,7 +212,7 @@ struct BookingReminderLiveActivity: Widget {
             Text(compactTimeText(for: state))
                 .font(.subheadline.monospacedDigit().weight(.bold))
             Text(countdownText(for: state))
-                .font(.caption2.weight(.medium))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(secondaryTextColor(for: state))
         }
         .multilineTextAlignment(.trailing)
@@ -176,16 +221,22 @@ struct BookingReminderLiveActivity: Widget {
     @ViewBuilder
     private func islandBottom(for state: BookingReminderActivityAttributes.ContentState) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Label(locationText(for: state), systemImage: "location.fill")
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Label(scheduleLine(for: state), systemImage: "clock.fill")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(secondaryTextColor(for: state))
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                Text(weekdayText(for: state.startAt))
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(secondaryTextColor(for: state))
+                Text(clientText(for: state))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(primaryTextColor(for: state))
+                    .lineLimit(1)
             }
+
+            Label(locationText(for: state).isEmpty ? "地点待补充" : locationText(for: state), systemImage: "location.fill")
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(secondaryTextColor(for: state))
+                .lineLimit(1)
 
             HStack(spacing: 10) {
                 actionLink(
@@ -210,7 +261,7 @@ struct BookingReminderLiveActivity: Widget {
     private func compactLeading(for state: BookingReminderActivityAttributes.ContentState) -> some View {
         HStack(spacing: 4) {
             brandMark(size: 14, state: state)
-            Text("影期")
+            Text("拍摄")
                 .font(.caption2.weight(.semibold))
                 .lineLimit(1)
         }
@@ -219,7 +270,7 @@ struct BookingReminderLiveActivity: Widget {
     @ViewBuilder
     private func compactTrailing(for state: BookingReminderActivityAttributes.ContentState) -> some View {
         Text(countdownText(for: state))
-            .font(.caption2.weight(.semibold))
+            .font(.caption2.monospacedDigit().weight(.semibold))
             .lineLimit(1)
     }
 
@@ -227,9 +278,12 @@ struct BookingReminderLiveActivity: Widget {
     private func minimalIndicator(for state: BookingReminderActivityAttributes.ContentState) -> some View {
         ZStack {
             Circle()
-                .fill(accentColor(for: state).opacity(0.22))
-            brandMark(size: 14, state: state)
+                .fill(accentColor(for: state).opacity(0.28))
+            Image(systemName: "camera.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(primaryTextColor(for: state))
         }
+        .frame(width: 18, height: 18)
     }
 
     @ViewBuilder
@@ -267,87 +321,38 @@ struct BookingReminderLiveActivity: Widget {
             Image(systemName: systemImage)
             Text(title)
         }
-        .font(.footnote.weight(.semibold))
+        .font(.caption.weight(.semibold))
         .foregroundStyle(disabled ? primaryTextColor(for: state).opacity(0.38) : primaryTextColor(for: state))
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(primaryTextColor(for: state).opacity(disabled ? 0.05 : 0.10), in: Capsule())
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(primaryTextColor(for: state).opacity(disabled ? 0.05 : 0.12), in: Capsule())
         .overlay {
             Capsule()
-                .stroke(primaryTextColor(for: state).opacity(disabled ? 0.06 : 0.10), lineWidth: 1)
-        }
-    }
-
-    @ViewBuilder
-    private func detailLine(
-        title: String,
-        value: String,
-        state: BookingReminderActivityAttributes.ContentState,
-        lineLimit: Int = 1
-    ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(secondaryTextColor(for: state))
-                .frame(width: 34, alignment: .leading)
-
-            Text(value.isEmpty ? "暂无" : value)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(primaryTextColor(for: state))
-                .lineLimit(lineLimit)
-                .minimumScaleFactor(0.8)
-        }
-    }
-
-    @ViewBuilder
-    private func detailCard(
-        title: String,
-        value: String,
-        lineLimit: Int = 1,
-        state: BookingReminderActivityAttributes.ContentState
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(secondaryTextColor(for: state))
-
-            Text(value.isEmpty ? "暂无" : value)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(primaryTextColor(for: state))
-                .lineLimit(lineLimit)
-                .minimumScaleFactor(0.8)
-                .fixedSize(horizontal: false, vertical: lineLimit > 1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(primaryTextColor(for: state).opacity(0.06), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(primaryTextColor(for: state).opacity(0.10), lineWidth: 1)
+                .stroke(primaryTextColor(for: state).opacity(disabled ? 0.06 : 0.12), lineWidth: 1)
         }
     }
 
     private func cardBackground(for state: BookingReminderActivityAttributes.ContentState) -> some View {
-        RoundedRectangle(cornerRadius: 28)
+        RoundedRectangle(cornerRadius: 26, style: .continuous)
             .fill(backgroundGradient(for: state))
             .overlay {
-                RoundedRectangle(cornerRadius: 28)
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
                     .stroke(primaryTextColor(for: state).opacity(0.14), lineWidth: 1)
             }
             .overlay(alignment: .topTrailing) {
                 Circle()
-                    .fill(accentColor(for: state).opacity(0.16))
-                    .frame(width: 108, height: 108)
-                    .blur(radius: 22)
-                    .offset(x: 20, y: -12)
+                    .fill(accentColor(for: state).opacity(0.14))
+                    .frame(width: 112, height: 112)
+                    .blur(radius: 24)
+                    .offset(x: 18, y: -18)
             }
             .overlay(alignment: .bottomLeading) {
                 Circle()
-                    .fill(primaryTextColor(for: state).opacity(0.05))
-                    .frame(width: 132, height: 132)
-                    .blur(radius: 28)
-                    .offset(x: -20, y: 28)
+                    .fill(primaryTextColor(for: state).opacity(0.045))
+                    .frame(width: 136, height: 136)
+                    .blur(radius: 30)
+                    .offset(x: -24, y: 32)
             }
     }
 
@@ -355,9 +360,9 @@ struct BookingReminderLiveActivity: Widget {
         let palette = state.themeStyle.palette
         return LinearGradient(
             colors: [
-                Color(uiColor: palette.deepLight),
-                Color(uiColor: palette.primaryLight.mixed(with: palette.deepLight, ratio: 0.18)),
-                Color(uiColor: palette.primaryLight.mixed(with: palette.softLight, ratio: 0.12))
+                Color(uiColor: palette.deepLight.mixed(with: UIColor.black, ratio: 0.12)),
+                Color(uiColor: palette.primaryLight.mixed(with: palette.deepLight, ratio: 0.36)),
+                Color(uiColor: palette.primaryLight.mixed(with: palette.softLight, ratio: 0.18))
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -365,44 +370,29 @@ struct BookingReminderLiveActivity: Widget {
     }
 
     private func backgroundTint(for state: BookingReminderActivityAttributes.ContentState) -> Color {
-        Color(uiColor: state.themeStyle.palette.deepLight)
+        Color(uiColor: state.themeStyle.palette.deepLight.mixed(with: UIColor.black, ratio: 0.10))
     }
 
     private func accentColor(for state: BookingReminderActivityAttributes.ContentState) -> Color {
-        Color(uiColor: state.themeStyle.palette.primaryLight)
-    }
-
-    private func panelBackgroundColor(for state: BookingReminderActivityAttributes.ContentState) -> Color {
-        let palette = state.themeStyle.palette
-        return Color(uiColor: palette.surfaceLight.mixed(with: palette.primaryLight, ratio: 0.12)).opacity(0.92)
+        Color(uiColor: state.themeStyle.palette.softLight.mixed(with: state.themeStyle.palette.primaryLight, ratio: 0.44))
     }
 
     private func primaryTextColor(for state: BookingReminderActivityAttributes.ContentState) -> Color {
-        let palette = state.themeStyle.palette
-        return Color(uiColor: palette.surfaceLight.mixed(with: UIColor.white, ratio: 0.18))
+        Color(uiColor: state.themeStyle.palette.surfaceLight.mixed(with: UIColor.white, ratio: 0.22))
     }
 
     private func secondaryTextColor(for state: BookingReminderActivityAttributes.ContentState) -> Color {
-        primaryTextColor(for: state).opacity(0.76)
+        primaryTextColor(for: state).opacity(0.74)
     }
 
     @ViewBuilder
     private func brandMark(size: CGFloat, state: BookingReminderActivityAttributes.ContentState) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.34, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            accentColor(for: state),
-                            Color(uiColor: state.themeStyle.palette.deepLight)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(primaryTextColor(for: state).opacity(0.12))
 
-            Text("影")
-                .font(.system(size: size * 0.58, weight: .bold, design: .rounded))
+            Image(systemName: "camera.fill")
+                .font(.system(size: size * 0.48, weight: .bold))
                 .foregroundStyle(primaryTextColor(for: state))
         }
         .frame(width: size, height: size)
