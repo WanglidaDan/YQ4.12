@@ -85,9 +85,10 @@ struct BookingReminderActivityManager {
         themeStyle: AppThemeStyle
     ) -> BookingReminderActivityAttributes.ContentState {
         let client = booking.clientID.flatMap { clients[$0] }
+        let clientName = client?.name.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return BookingReminderActivityAttributes.ContentState(
             title: booking.title,
-            clientName: client?.name ?? "未绑定客户",
+            clientName: clientName,
             clientPhoneNumber: AppFormatters.sanitizedPhoneNumber(client?.phoneNumber ?? ""),
             venue: booking.venue,
             city: booking.city,
