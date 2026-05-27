@@ -125,33 +125,35 @@ private struct AuthGateView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let horizontalPadding = max(24, min(34, proxy.size.width * 0.075))
-            let topPadding = max(30, proxy.safeAreaInsets.top + 24)
-            let bottomPadding = max(8, proxy.safeAreaInsets.bottom + 8)
-            let maxContentWidth = min(430, proxy.size.width - (horizontalPadding * 2))
-            let titleWidth = min(388, proxy.size.width - (horizontalPadding * 2))
+            let horizontalPadding = max(24, min(36, proxy.size.width * 0.085))
+            let bottomPadding = max(18, proxy.safeAreaInsets.bottom + 14)
+            let maxContentWidth = min(410, proxy.size.width - (horizontalPadding * 2))
 
             ZStack {
                 AuthPremiumBackdrop()
                     .ignoresSafeArea()
 
-                VStack(alignment: .leading, spacing: 0) {
-                    brandHeader
-                        .padding(.top, topPadding)
+                VStack(spacing: 0) {
+                    Spacer(minLength: 64)
 
-                    Spacer(minLength: 34)
+                    VStack(spacing: 18) {
+                        YingQiBrandMark(size: 86, elevated: true)
 
-                    coverHeadline(maxWidth: titleWidth)
+                        VStack(spacing: 8) {
+                            Text("影期")
+                                .font(.system(size: 34, weight: .semibold, design: .default))
+                                .foregroundStyle(Color(red: 0.08, green: 0.11, blue: 0.10))
 
-                    Spacer(minLength: 42)
+                            Text("YingQi Studio")
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundStyle(Color(red: 0.46, green: 0.51, blue: 0.48))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Spacer(minLength: 58)
 
                     VStack(spacing: 12) {
-                        Text("继续使用影期")
-                            .font(.system(size: 15, weight: .semibold, design: .default))
-                            .foregroundStyle(Color(red: 0.15, green: 0.19, blue: 0.18))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.bottom, 2)
-
                         WeChatAuthButton {
                             AppHaptics.tapLight()
                             onWeChatSignIn { result in
@@ -177,22 +179,24 @@ private struct AuthGateView: View {
                             AppHaptics.tapLight()
                             onContinueWithoutLogin()
                         } label: {
-                            Text("暂不登录")
-                                .font(.system(size: 16, weight: .medium, design: .default))
-                                .foregroundStyle(Color(red: 0.29, green: 0.34, blue: 0.32))
+                            Text("稍后再说")
+                                .font(.system(size: 15, weight: .medium, design: .default))
+                                .foregroundStyle(Color(red: 0.39, green: 0.44, blue: 0.41))
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 42)
+                                .frame(height: 40)
                         }
                         .buttonStyle(.plain)
-
-                        agreementText
-                            .padding(.top, 2)
                     }
                     .frame(maxWidth: maxContentWidth)
-                    .padding(.bottom, bottomPadding)
+
+                    Spacer(minLength: 28)
+
+                    agreementText
+                        .frame(maxWidth: maxContentWidth)
+                        .padding(.bottom, bottomPadding)
                 }
                 .padding(.horizontal, horizontalPadding)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .alert("登录失败", isPresented: Binding(
@@ -218,63 +222,24 @@ private struct AuthGateView: View {
         }
     }
 
-    private var brandHeader: some View {
-        HStack(spacing: 12) {
-            YingQiBrandMark(size: 52, elevated: false)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("影期")
-                    .font(.system(size: 25, weight: .semibold, design: .default))
-                    .foregroundStyle(Color(red: 0.08, green: 0.11, blue: 0.11))
-                Text("YingQi Studio")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color(red: 0.42, green: 0.48, blue: 0.45))
-            }
-        }
-    }
-
-    private func coverHeadline(maxWidth: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("把拍摄工作排得清楚")
-                .font(.system(size: min(42, maxWidth * 0.112), weight: .semibold, design: .default))
-                .lineSpacing(3)
-                .foregroundStyle(Color(red: 0.06, green: 0.08, blue: 0.08))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("档期、客户、团队和回款，进入后自动同步到你的工作区。")
-                .font(.system(size: 16, weight: .regular, design: .default))
-                .lineSpacing(5)
-                .foregroundStyle(Color(red: 0.35, green: 0.41, blue: 0.38))
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 8) {
-                AuthValueChip(title: "档期")
-                AuthValueChip(title: "客户")
-                AuthValueChip(title: "团队")
-                AuthValueChip(title: "回款")
-            }
-            .padding(.top, 4)
-        }
-        .frame(maxWidth: maxWidth, alignment: .leading)
-    }
-
     private var agreementText: some View {
         HStack(spacing: 0) {
-            Text("登录即表示同意 ")
-                .foregroundStyle(Color(red: 0.48, green: 0.53, blue: 0.50))
+            Text("继续即同意 ")
+                .foregroundStyle(Color(red: 0.55, green: 0.58, blue: 0.55))
             Button("服务条款") {
                 showingLegalDocument = .terms
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color(red: 0.14, green: 0.38, blue: 0.26))
+            .foregroundStyle(Color(red: 0.18, green: 0.36, blue: 0.28))
             Text(" 和 ")
-                .foregroundStyle(Color(red: 0.48, green: 0.53, blue: 0.50))
+                .foregroundStyle(Color(red: 0.55, green: 0.58, blue: 0.55))
             Button("隐私政策") {
                 showingLegalDocument = .privacy
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color(red: 0.14, green: 0.38, blue: 0.26))
+            .foregroundStyle(Color(red: 0.18, green: 0.36, blue: 0.28))
         }
-        .font(.system(size: 13, weight: .medium, design: .default))
+        .font(.system(size: 12, weight: .medium, design: .default))
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
     }
@@ -301,9 +266,9 @@ private struct AuthPremiumBackdrop: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.96, green: 0.98, blue: 0.96),
-                    Color(red: 0.91, green: 0.94, blue: 0.91),
-                    Color(red: 0.84, green: 0.89, blue: 0.86)
+                    Color(red: 0.97, green: 0.98, blue: 0.96),
+                    Color(red: 0.92, green: 0.94, blue: 0.90),
+                    Color(red: 0.84, green: 0.88, blue: 0.84)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -311,65 +276,26 @@ private struct AuthPremiumBackdrop: View {
 
             LinearGradient(
                 stops: [
-                    .init(color: .white.opacity(0.86), location: 0.0),
-                    .init(color: .white.opacity(0.38), location: 0.34),
-                    .init(color: Color(red: 0.67, green: 0.74, blue: 0.68).opacity(0.18), location: 0.70),
-                    .init(color: Color(red: 0.10, green: 0.14, blue: 0.13).opacity(0.08), location: 1.0)
+                    .init(color: .white.opacity(0.90), location: 0.0),
+                    .init(color: .white.opacity(0.42), location: 0.42),
+                    .init(color: Color(red: 0.22, green: 0.30, blue: 0.26).opacity(0.07), location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
 
-            VStack(spacing: 0) {
-                Color.white.opacity(0.20)
-                    .frame(height: 1)
-                Spacer()
-                Color(red: 0.08, green: 0.11, blue: 0.10)
-                    .opacity(0.05)
-                    .frame(height: 1)
-            }
-            .padding(.horizontal, 24)
+            Circle()
+                .fill(Color(red: 0.17, green: 0.32, blue: 0.25).opacity(0.07))
+                .frame(width: 260, height: 260)
+                .blur(radius: 38)
+                .offset(x: 130, y: -210)
 
-            GeometryReader { proxy in
-                let width = proxy.size.width
-                let height = proxy.size.height
-
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: height * 0.19))
-                    path.addLine(to: CGPoint(x: width, y: height * 0.09))
-                    path.addLine(to: CGPoint(x: width, y: height * 0.36))
-                    path.addLine(to: CGPoint(x: 0, y: height * 0.50))
-                    path.closeSubpath()
-                }
-                .fill(.white.opacity(0.18))
-
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: height * 0.70))
-                    path.addLine(to: CGPoint(x: width, y: height * 0.58))
-                    path.addLine(to: CGPoint(x: width, y: height))
-                    path.addLine(to: CGPoint(x: 0, y: height))
-                    path.closeSubpath()
-                }
-                .fill(Color(red: 0.12, green: 0.20, blue: 0.17).opacity(0.06))
-            }
+            Circle()
+                .fill(Color(red: 0.52, green: 0.45, blue: 0.34).opacity(0.08))
+                .frame(width: 260, height: 260)
+                .blur(radius: 44)
+                .offset(x: -120, y: 260)
         }
-    }
-}
-
-private struct AuthValueChip: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.system(size: 13, weight: .semibold, design: .default))
-            .foregroundStyle(Color(red: 0.18, green: 0.27, blue: 0.22))
-            .padding(.horizontal, 12)
-            .frame(height: 32)
-            .background(.white.opacity(0.54), in: Capsule())
-            .overlay {
-                Capsule()
-                    .stroke(Color.white.opacity(0.72), lineWidth: 1)
-            }
     }
 }
 
