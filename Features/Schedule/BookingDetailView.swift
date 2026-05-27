@@ -47,7 +47,6 @@ struct BookingDetailView: View {
     @State private var editingBooking: BookingRecord?
     @State private var duplicatingBooking: BookingRecord?
     @State private var selectedTransport: NavigationTransport = .driving
-    @State private var showingPaymentSheet = false
     @State private var showingArchiveConfirmation = false
     @State private var showingDeleteConfirmation = false
     @State private var navigationErrorMessage: String?
@@ -112,15 +111,6 @@ struct BookingDetailView: View {
         }
         .sheet(item: $duplicatingBooking) { booking in
             BookingEditorView(booking: booking)
-        }
-        .sheet(isPresented: $showingPaymentSheet) {
-            if let booking {
-                BookingPaymentSheet(
-                    booking: booking,
-                    outstandingAmount: store.outstandingAmount(for: booking)
-                )
-                .environment(store)
-            }
         }
         .navigationDestination(for: BookingClientRoute.self) { route in
             ClientDetailView(clientID: route.clientID)
@@ -254,32 +244,12 @@ struct BookingDetailView: View {
         let outstandingAmount = store.outstandingAmount(for: booking)
 
         return detailCard(title: "费用") {
-            VStack(spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    flatAmount(title: "总价", value: AppFormatters.currency(booking.fee))
-                    flatAmount(title: "已收", value: AppFormatters.currency(receivedAmount))
-                    flatAmount(title: "待收", value: AppFormatters.currency(outstandingAmount), highlight: outstandingAmount > 0)
-                }
-                .padding(.vertical, 4)
-
-                thinDivider()
-                    .padding(.top, 12)
-
-                Button {
-                    showingPaymentSheet = true
-                } label: {
-                    HStack {
-                        Text("记录 / 编辑回款")
-                            .font(AppTypography.bodyStrong)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .bold))
-                    }
-                    .foregroundStyle(AppTheme.ink)
-                    .frame(height: 44)
-                }
-                .buttonStyle(.plain)
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                flatAmount(title: "总价", value: AppFormatters.currency(booking.fee))
+                flatAmount(title: "已收", value: AppFormatters.currency(receivedAmount))
+                flatAmount(title: "待收", value: AppFormatters.currency(outstandingAmount), highlight: outstandingAmount > 0)
             }
+            .padding(.vertical, 4)
         }
     }
 
@@ -304,24 +274,21 @@ struct BookingDetailView: View {
     }
 
     private func notesCard(_ booking: BookingRecord) -> some View {
-        detailCard(title: "备注") {
+        let rows: [(title: String, value: String)] = [
+            ("交付", booking.deliverableText),
+            ("执行", booking.notesText),
+            ("到场", booking.locationNote)
+        ].filter { $0.value.isEmpty == false }
+
+        return detailCard(title: "备注") {
             VStack(spacing: 0) {
-                var didAddRow = false
-
-                if booking.deliverableText.isEmpty == false {
-                    plainInfoRow(title: "交付", value: booking.deliverableText, subtitle: "")
-                    didAddRow = true
-                }
-
-                if booking.notesText.isEmpty == false {
-                    if didAddRow { thinDivider() }
-                    plainInfoRow(title: "执行", value: booking.notesText, subtitle: "")
-                    didAddRow = true
-                }
-
-                if booking.locationNote.isEmpty == false {
-                    if didAddRow { thinDivider() }
-                    plainInfoRow(title: "到场", value: booking.locationNote, subtitle: "")
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    VStack(spacing: 0) {
+                        plainInfoRow(title: row.title, value: row.value, subtitle: "")
+                        if index < rows.count - 1 {
+                            thinDivider()
+                        }
+                    }
                 }
             }
         }
