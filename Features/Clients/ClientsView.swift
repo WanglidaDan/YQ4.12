@@ -1,35 +1,38 @@
 import SwiftUI
+import UIKit
 
 private enum ClientFilter: String, CaseIterable, Identifiable {
     case all
+    case attention
     case signature
-    case followUp
     case retained
+    case receivable
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .all: "全部"
+        case .attention: "待经营"
         case .signature: "高价值"
-        case .followUp: "待经营"
         case .retained: "长期"
+        case .receivable: "待回款"
         }
     }
 }
 
 private enum ClientSort: String, CaseIterable, Identifiable {
+    case followUp
     case latest
     case value
-    case followUp
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .latest: "最近新增"
-        case .value: "累计价值"
         case .followUp: "跟进优先"
+        case .latest: "最近新增"
+        case .value: "价值优先"
         }
     }
 }
@@ -42,7 +45,7 @@ private enum ClientScope: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .active: "主列表"
+        case .active: "进行中"
         case .archived: "归档"
         }
     }
@@ -63,7 +66,6 @@ struct ClientsView: View {
     @State private var editingClient: ClientRecord?
     @State private var deletingClient: ClientRecord?
     @State private var deletionResultMessage: String?
-    @State private var showingFilterSheet = false
     @State private var showingSearchSheet = false
 
     private let calendar = Calendar.current
@@ -73,57 +75,61 @@ struct ClientsView: View {
     }
 
     private var sourceClients: [ClientRecord] {
-        switch scope {
-        case .active: store.activeClients
-        case .archived: store.archivedClients
-        }
+        scope == .active ? store.activeClients : store.archivedClients
     }
 
     private var visibleBookings: [BookingRecord] {
-        switch scope {
-        case .active: store.activeBookings
-        case .archived: store.archivedBookings
-        }
+        scope == .active ? store.activeBookings : store.archivedBookings
     }
 
     private var filteredClients: [ClientRecord] {
         sourceClients
-            .filter { matches(filter: filter, client: $0) }
-            .filter { matches(searchText: trimmedSearchText, client: $0) }
+            .filter(matchesFilter)
+            .filter(matchesSearch)
             .sorted(by: compareClients)
     }
 
-    private var followUpClientCount: Int {
+    private var attentionCount: Int {
         sourceClients.filter(clientNeedsAttention).count
     }
 
-    private var signatureClientCount: Int {
+    private var signatureCount: Int {
         sourceClients.filter { $0.tier == .signature }.count
     }
 
-    private var outstandingTotal: Double {
-        sourceClients.reduce(0) { $0 + outstandingValue(for: $1.id) }
+    private var receivableCount: Int {
+        sourceClients.filter { outstandingValue(for: $0.id) > 0 }.count
     }
 
-    private var totalLifetimeValue: Double {
-        visibleBookings.reduce(0) { $0 + $1.fee }
+    private var retainedCount: Int {
+        sourceClients.filter { $0.stage == .retained }.count
     }
 
-    private var filterSummary: String {
-        [scope.title, filter.title, sort.title].joined(separator: " · ")
-    }
-
-    private var pageBackground: some View {
-        AppTheme.background
+    private var totalClientCount: Int {
+        sourceClients.count
     }
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .bottomTrailing) {
                 pageBackground
                     .ignoresSafeArea()
 
-                relationshipDashboard
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        headerBar
+                        overviewStrip
+                        quickFilterRow
+                        relationshipList
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 14)
+                    .padding(.bottom, 120)
+                }
+
+                addClientButton
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 24)
             }
             .navigationDestination(for: ClientRoute.self) { route in
                 ClientDetailView(clientID: route.clientID)
@@ -137,36 +143,14 @@ struct ClientsView: View {
                     .environment(store)
             }
             .sheet(isPresented: $showingSearchSheet) {
-                ClientSearchSheet(searchText: $searchText, clients: filteredClients, scope: scope)
-            }
-            .sheet(isPresented: $showingFilterSheet) {
-                filterSheet
-            }
-            .navigationTitle("关系")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        AppHaptics.tapLight()
-                        showingSearchSheet = true
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("打开搜索")
-
-                    Button {
-                        AppHaptics.tapLight()
-                        showingFilterSheet = true
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("打开筛选")
-                }
-            }
-            .onChange(of: scope) { _, _ in
-                AppHaptics.selection()
+                ClientSearchSheet(
+                    searchText: $searchText,
+                    clients: filteredClients,
+                    nextContactText: nextContactText,
+                    lifetimeValue: lifetimeValue,
+                    outstandingValue: outstandingValue
+                )
+                .presentationDetents([.medium, .large])
             }
             .confirmationDialog("确认删除这个客户？", isPresented: Binding(
                 get: { deletingClient != nil },
@@ -195,220 +179,184 @@ struct ClientsView: View {
             } message: {
                 Text(deletionResultMessage ?? "")
             }
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 
-    private var relationshipDashboard: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 18) {
-                dashboardHeader
-                relationshipOverviewCard
-                relationshipControls
-                relationshipList
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-            .padding(.bottom, 132)
-        }
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 104)
-        }
+    private var pageBackground: some View {
+        LinearGradient(
+            colors: [
+                Color(.systemGroupedBackground),
+                Color(.secondarySystemGroupedBackground)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
-    private var dashboardHeader: some View {
-        Color.clear
-            .frame(height: 0)
-    }
-
-    private var relationshipOverviewCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .center) {
-                Text("关系概览")
-                    .font(AppTypography.sectionTitle)
-                    .foregroundStyle(AppTheme.ink)
-
-                Spacer()
-
-                Button {
-                    AppHaptics.impactMedium()
-                    showingNewClient = true
-                } label: {
-                    Text("新增客户")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(AppTheme.secondaryInk)
-                }
-                .buttonStyle(.plain)
+    private var headerBar: some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("关系")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text(scope.title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
 
-            HStack(alignment: .top, spacing: 12) {
-                overviewMetricBlock(value: "\(sourceClients.count)", title: "客户")
-                overviewMetricBlock(value: "\(followUpClientCount)", title: "待经营", valueColor: followUpClientCount > 0 ? AppTheme.warning : AppTheme.ink)
-                overviewMetricBlock(value: AppFormatters.currency(outstandingTotal), title: "待回款", valueColor: outstandingTotal > 0 ? AppTheme.priorityHigh : AppTheme.ink)
-                overviewMetricBlock(value: "\(signatureClientCount)", title: "高价值")
+            Spacer()
+
+            Button {
+                showingSearchSheet = true
+                AppHaptics.tapLight()
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 42, height: 42)
+                    .background(.ultraThinMaterial, in: Circle())
             }
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 22)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panelStrong, strokeOpacity: 0.74)
-    }
+            .buttonStyle(.plain)
+            .accessibilityLabel("搜索客户")
 
-    private func overviewMetricBlock(value: String, title: String, valueColor: Color = AppTheme.ink) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(value)
-                .font(AppTypography.dataCompact)
-                .foregroundStyle(valueColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            Text(title)
-                .font(AppTypography.meta)
-                .foregroundStyle(AppTheme.secondaryInk)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var relationshipControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Picker("范围", selection: $scope) {
-                ForEach(ClientScope.allCases) { item in
-                    Text(item.title).tag(item)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(ClientFilter.allCases) { item in
-                        filterChip(title: item.title, isSelected: filter == item) {
-                            filter = item
-                            AppHaptics.selection()
-                        }
-                    }
-
-                    Menu {
-                        Picker("排序", selection: $sort) {
-                            ForEach(ClientSort.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                    } label: {
-                        Label(sort.title, systemImage: "arrow.up.arrow.down")
-                            .font(AppTypography.meta.weight(.semibold))
-                            .foregroundStyle(AppTheme.secondaryInk)
-                            .padding(.horizontal, 12)
-                            .frame(height: 34)
-                            .background(AppTheme.panelSoft, in: Capsule())
-                            .overlay {
-                                Capsule().stroke(AppTheme.line.opacity(0.56), lineWidth: 1)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 1)
-            }
-
-            if trimmedSearchText.isEmpty == false {
-                Text("搜索结果：\(filteredClients.count) 位")
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.secondaryInk)
-            }
-        }
-    }
-
-    private var relationshipList: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(scope == .active ? "客户列表" : "归档客户")
-                        .font(AppTypography.sectionTitle)
-                        .foregroundStyle(AppTheme.ink)
-
-                    Text(listSummaryText)
-                        .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.secondaryInk)
-                }
-
-                Spacer(minLength: 8)
-
-                if followUpClientCount > 0 && scope == .active {
-                    Text("\(followUpClientCount) 待经营")
-                        .font(AppTypography.badge)
-                        .foregroundStyle(AppTheme.warning)
-                        .padding(.horizontal, 10)
-                        .frame(height: 28)
-                        .background(AppTheme.accentWarmSoft, in: Capsule())
-                }
-            }
-
-            if filteredClients.isEmpty {
-                AppEmptyState(title: emptyTitle, subtitle: emptySubtitle, systemImage: "person.2")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 22)
-            } else {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(filteredClients.enumerated()), id: \.element.id) { index, client in
-                        simpleClientRow(client)
-
-                        if index < filteredClients.count - 1 {
-                            Divider()
-                                .overlay(AppTheme.line.opacity(0.56))
-                                .padding(.leading, 56)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel, strokeOpacity: 0.74)
-    }
-
-    private var listSummaryText: String {
-        if filteredClients.isEmpty { return "当前没有符合条件的客户" }
-        let amountText = outstandingTotal > 0 ? " · 待回款 \(AppFormatters.currency(outstandingTotal))" : ""
-        return "\(filteredClients.count) 位 · \(filter.title) · \(sort.title)\(amountText)"
-    }
-
-    private var filterSheet: some View {
-        UnifiedFilterSheet(
-            title: "客户筛选",
-            summary: filterSummary,
-            onReset: {
-                filter = .all
-                sort = .followUp
-                scope = .active
-                searchText = ""
-            }
-        ) {
-            Section("列表范围") {
+            Menu {
                 Picker("范围", selection: $scope) {
                     ForEach(ClientScope.allCases) { item in
                         Text(item.title).tag(item)
                     }
                 }
-                .pickerStyle(.segmented)
-            }
 
-            Section("客户筛选") {
-                Picker("类型", selection: $filter) {
-                    ForEach(ClientFilter.allCases) { item in
-                        Text(item.title).tag(item)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
-
-            Section("排序方式") {
                 Picker("排序", selection: $sort) {
                     ForEach(ClientSort.allCases) { item in
                         Text(item.title).tag(item)
                     }
                 }
-                .pickerStyle(.segmented)
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 42, height: 42)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("筛选客户")
+        }
+    }
+
+    private var overviewStrip: some View {
+        HStack(spacing: 0) {
+            compactMetric("客户", value: totalClientCount)
+            Divider().frame(height: 30)
+            compactMetric("待经营", value: attentionCount)
+            Divider().frame(height: 30)
+            compactMetric("待回款", value: receivableCount)
+            Divider().frame(height: 30)
+            compactMetric("长期", value: retainedCount)
+        }
+        .padding(.vertical, 16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        }
+    }
+
+    private func compactMetric(_ title: String, value: Int) -> some View {
+        VStack(spacing: 5) {
+            Text("\(value)")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var quickFilterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(ClientFilter.allCases) { item in
+                    Button {
+                        withAnimation(.snappy(duration: 0.18)) {
+                            filter = item
+                        }
+                        AppHaptics.selection()
+                    } label: {
+                        Text(item.title)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(filter == item ? Color(.systemBackground) : .primary)
+                            .padding(.horizontal, 15)
+                            .padding(.vertical, 9)
+                            .background(filter == item ? Color.primary : Color(.secondarySystemGroupedBackground), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private var relationshipList: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(scope == .active ? "客户列表" : "归档客户")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text(listSummaryText)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if filter != .all || trimmedSearchText.isEmpty == false {
+                    Button("重置") {
+                        filter = .all
+                        searchText = ""
+                        AppHaptics.selection()
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if filteredClients.isEmpty {
+                emptyState
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(filteredClients) { client in
+                        clientRow(client)
+                    }
+                }
             }
         }
+        .padding(18)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        }
+    }
+
+    private var listSummaryText: String {
+        if filteredClients.isEmpty { return "当前没有符合条件的客户" }
+        return "\(filteredClients.count) 位 · \(filter.title) · \(sort.title)"
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "person.2")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(emptyTitle)
+                .font(.system(size: 16, weight: .semibold))
+            Text(emptySubtitle)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
     }
 
     private var emptyTitle: String {
@@ -418,10 +366,10 @@ struct ClientsView: View {
 
     private var emptySubtitle: String {
         if trimmedSearchText.isEmpty == false { return "换个关键词试试。" }
-        return scope == .active ? "点击关系概览里的新增客户。" : "归档客户会显示在这里。"
+        return scope == .active ? "点击右下角新建客户，先记录一个真实关系。" : "归档客户会显示在这里。"
     }
 
-    private func simpleClientRow(_ client: ClientRecord) -> some View {
+    private func clientRow(_ client: ClientRecord) -> some View {
         NavigationLink(value: ClientRoute(clientID: client.id)) {
             HStack(alignment: .top, spacing: 12) {
                 clientAvatar(client)
@@ -429,93 +377,66 @@ struct ClientsView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(client.name)
-                            .font(AppTypography.bodyStrong)
-                            .foregroundStyle(AppTheme.ink)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.primary)
                             .lineLimit(1)
 
                         if scope == .active && clientNeedsAttention(client) {
                             Text("待经营")
-                                .font(AppTypography.badge)
-                                .foregroundStyle(AppTheme.warning)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.orange)
                                 .padding(.horizontal, 8)
-                                .frame(height: 24)
-                                .background(AppTheme.accentWarmSoft, in: Capsule())
+                                .padding(.vertical, 4)
+                                .background(Color.orange.opacity(0.12), in: Capsule())
                         }
 
-                        Spacer(minLength: 6)
+                        Spacer(minLength: 8)
                     }
 
                     HStack(spacing: 8) {
                         Text(client.stage.title)
-                            .font(AppTypography.meta.weight(.semibold))
-                            .foregroundStyle(AppTheme.secondaryInk)
-
-                        Text("·")
-                            .font(AppTypography.meta)
-                            .foregroundStyle(AppTheme.mutedInk)
-
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.secondary)
                         Text(client.tier.title)
-                            .font(AppTypography.meta)
-                            .foregroundStyle(AppTheme.mutedInk)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
                     }
 
                     Text(clientMetaText(for: client))
-                        .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.secondaryInk)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
 
-                    if client.notesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-                        Text(client.notesText)
-                            .font(AppTypography.meta)
-                            .foregroundStyle(AppTheme.mutedInk)
-                            .lineLimit(1)
-                    }
+                    Text(nextContactText(for: client))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(clientNeedsAttention(client) ? .orange : .secondary)
+                        .lineLimit(1)
                 }
 
                 VStack(alignment: .trailing, spacing: 7) {
                     Text(AppFormatters.currency(lifetimeValue(for: client.id)))
-                        .font(AppTypography.meta.weight(.semibold))
-                        .foregroundStyle(AppTheme.ink)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     let outstanding = outstandingValue(for: client.id)
                     if outstanding > 0 {
                         Text("待收 \(AppFormatters.currency(outstanding))")
-                            .font(AppTypography.meta.weight(.semibold))
-                            .foregroundStyle(AppTheme.priorityHigh)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.orange)
                             .lineLimit(1)
                     }
 
-                    Text(nextContactText(for: client))
-                        .font(AppTypography.meta)
-                        .foregroundStyle(clientNeedsAttention(client) ? AppTheme.warning : AppTheme.secondaryInk)
-                        .lineLimit(1)
-
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(AppTheme.mutedInk)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(minWidth: 86, alignment: .trailing)
+                .frame(minWidth: 78, alignment: .trailing)
             }
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button("编辑", systemImage: "square.and.pencil") {
-                editingClient = client
-            }
-            .tint(AppTheme.accent)
-
-            Button(scope == .active ? "归档" : "恢复", systemImage: scope == .active ? "archivebox" : "arrow.uturn.backward.circle") {
-                if scope == .active { store.archiveClient(client.id) } else { store.restoreClient(client.id) }
-            }
-            .tint(scope == .active ? AppTheme.secondaryInk : AppTheme.success)
-
-            Button("删除", systemImage: "trash", role: .destructive) {
-                deletingClient = client
-            }
-        }
         .contextMenu {
             Button("编辑", systemImage: "square.and.pencil") {
                 editingClient = client
@@ -533,27 +454,27 @@ struct ClientsView: View {
 
     private func clientAvatar(_ client: ClientRecord) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(AppTheme.accentSurface)
-                .frame(width: 44, height: 44)
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .fill(Color.accentColor.opacity(0.12))
+                .frame(width: 46, height: 46)
             Text(client.initials)
-                .font(AppTypography.bodyStrong)
-                .foregroundStyle(AppTheme.accentDeep)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.accentColor)
         }
     }
 
-    private func filterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(AppTypography.meta.weight(.semibold))
-                .foregroundStyle(isSelected ? AppTheme.panelStrong : AppTheme.secondaryInk)
-                .padding(.horizontal, 12)
-                .frame(height: 34)
-                .background(isSelected ? AppTheme.accent : AppTheme.panelSoft, in: Capsule())
-                .overlay {
-                    Capsule()
-                        .stroke(isSelected ? AppTheme.accent.opacity(0.1) : AppTheme.line.opacity(0.58), lineWidth: 1)
-                }
+    private var addClientButton: some View {
+        Button {
+            showingNewClient = true
+            AppHaptics.impactMedium()
+        } label: {
+            Label("新建客户", systemImage: "plus")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Color(.systemBackground))
+                .padding(.horizontal, 18)
+                .frame(height: 50)
+                .background(Color.primary, in: Capsule())
+                .shadow(color: Color.black.opacity(0.16), radius: 18, x: 0, y: 10)
         }
         .buttonStyle(.plain)
     }
@@ -571,22 +492,24 @@ struct ClientsView: View {
         return "\(locationText) · \(contactText)"
     }
 
-    private func matches(filter: ClientFilter, client: ClientRecord) -> Bool {
+    private func matchesFilter(_ client: ClientRecord) -> Bool {
         switch filter {
         case .all:
             return true
+        case .attention:
+            return clientNeedsAttention(client)
         case .signature:
             return client.tier == .signature
-        case .followUp:
-            return clientNeedsAttention(client)
         case .retained:
             return client.stage == .retained
+        case .receivable:
+            return outstandingValue(for: client.id) > 0
         }
     }
 
-    private func matches(searchText: String, client: ClientRecord) -> Bool {
-        guard searchText.isEmpty == false else { return true }
-        let haystack = [
+    private func matchesSearch(_ client: ClientRecord) -> Bool {
+        guard trimmedSearchText.isEmpty == false else { return true }
+        return AppFormatters.matchesSearch(trimmedSearchText, terms: [
             client.name,
             client.city,
             client.phoneNumber,
@@ -595,14 +518,7 @@ struct ClientsView: View {
             client.sourceChannel,
             client.notesText,
             client.tags.joined(separator: " ")
-        ]
-        .joined(separator: " ")
-        .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
-
-        let needle = searchText
-            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
-
-        return haystack.contains(needle)
+        ])
     }
 
     private func compareClients(_ lhs: ClientRecord, _ rhs: ClientRecord) -> Bool {
@@ -665,91 +581,48 @@ struct ClientsView: View {
 }
 
 private struct ClientSearchSheet: View {
-    @Environment(\.dismiss) private var dismiss
     @Binding var searchText: String
     let clients: [ClientRecord]
-    let scope: ClientScope
-
-    private var trimmedQuery: String {
-        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var isEmptyQuery: Bool {
-        trimmedQuery.isEmpty
-    }
+    let nextContactText: (ClientRecord) -> String
+    let lifetimeValue: (UUID) -> Double
+    let outstandingValue: (UUID) -> Double
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    if isEmptyQuery {
-                        AppEmptyState(title: "搜索客户", subtitle: "输入客户名、城市、来源或联系方式。", systemImage: "magnifyingglass")
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 24)
-                    } else if clients.isEmpty {
-                        AppEmptyState(title: "没有找到相关客户", subtitle: "换个关键词试试。", systemImage: "person.crop.circle.badge.questionmark")
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 24)
-                    } else {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text("\(clients.count) 个结果")
-                                .font(AppTypography.sectionTitle)
-                                .foregroundStyle(AppTheme.ink)
-                                .padding(.bottom, 8)
+            VStack(spacing: 14) {
+                TextField("搜索客户、城市、来源、手机号", text: $searchText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .padding(.horizontal, 14)
+                    .frame(height: 46)
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .padding(.horizontal, 18)
 
-                            ForEach(Array(clients.enumerated()), id: \.element.id) { index, client in
-                                clientResultRow(for: client)
-                                if index < clients.count - 1 {
-                                    Divider().overlay(AppTheme.line.opacity(0.6))
-                                }
+                if clients.isEmpty {
+                    ContentUnavailableView("暂无结果", systemImage: "magnifyingglass", description: Text("换个关键词试试。"))
+                        .frame(maxHeight: .infinity)
+                } else {
+                    List(clients.prefix(30)) { client in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(client.name)
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("\(client.city.isEmpty ? client.sourceChannel : client.city) · \(nextContactText(client)) · \(AppFormatters.currency(lifetimeValue(client.id)))")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.secondary)
+                            let outstanding = outstandingValue(client.id)
+                            if outstanding > 0 {
+                                Text("待收 \(AppFormatters.currency(outstanding))")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.orange)
                             }
                         }
-                        .padding(18)
-                        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel, strokeOpacity: 0.72)
+                        .padding(.vertical, 4)
                     }
+                    .listStyle(.plain)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 28)
             }
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.background.ignoresSafeArea())
-            .navigationTitle(scope == .active ? "搜索主列表" : "搜索归档")
+            .navigationTitle("搜索客户")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: "搜索客户、城市、来源、手机号")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("关闭") { dismiss() }
-                }
-            }
         }
-    }
-
-    @ViewBuilder
-    private func clientResultRow(for client: ClientRecord) -> some View {
-        let locationParts = [client.city, client.sourceChannel].filter { $0.isEmpty == false }
-        let locationText = locationParts.isEmpty ? "未补充城市与来源" : locationParts.joined(separator: " · ")
-        let contactText = client.preferredContactText
-
-        NavigationLink {
-            ClientDetailView(clientID: client.id)
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(client.name)
-                    .font(AppTypography.bodyStrong)
-                    .foregroundStyle(AppTheme.ink)
-                Text(locationText)
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.secondaryInk)
-                    .lineLimit(1)
-                Text(contactText)
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.mutedInk)
-                    .lineLimit(1)
-            }
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(.plain)
     }
 }
