@@ -95,13 +95,6 @@ struct ScheduleView: View {
         }
     }
 
-    private var monthBookings: [BookingRecord] {
-        filteredBookings.filter {
-            calendar.isDate($0.startAt, equalTo: focusDate, toGranularity: .year) &&
-            calendar.isDate($0.startAt, equalTo: focusDate, toGranularity: .month)
-        }
-    }
-
     private var bookingsForFocusDate: [BookingRecord] {
         filteredBookings
             .filter { calendar.isDate($0.startAt, inSameDayAs: focusDate) }
@@ -135,6 +128,11 @@ struct ScheduleView: View {
 
     private var bookingsByDay: [Date: [BookingRecord]] {
         Dictionary(grouping: filteredBookings) { calendar.startOfDay(for: $0.startAt) }
+    }
+
+    private var sourceConflictDates: Set<Date> {
+        let grouped = Dictionary(grouping: sourceBookings) { calendar.startOfDay(for: $0.startAt) }
+        return Set(grouped.compactMap { day, bookings in bookings.count > 1 ? day : nil })
     }
 
     private var conflictDates: Set<Date> {
@@ -661,7 +659,7 @@ struct ScheduleView: View {
             return booking.status == .editing
         case .conflict:
             let day = calendar.startOfDay(for: booking.startAt)
-            return conflictDates.contains(day)
+            return sourceConflictDates.contains(day)
         }
     }
 
