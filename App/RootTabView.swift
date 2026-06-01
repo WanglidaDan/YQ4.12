@@ -100,6 +100,10 @@ struct RootTabView: View {
                             showingQuickActions = false
                         }
                     }
+                    .accessibilityElement()
+                    .accessibilityLabel("关闭快捷新建菜单")
+                    .accessibilityHint("轻点收起快捷新建菜单")
+                    .accessibilityAddTraits(.isButton)
                     .transition(.opacity)
             }
 
@@ -113,7 +117,7 @@ struct RootTabView: View {
         .tint(AppTheme.accentWarmDeep)
         .environment(store)
         .onChange(of: selectedTab) { _, newValue in
-            guard newValue != .overview else { return }
+            guard newValue != .schedule else { return }
             quickActionPresentationTask?.cancel()
             quickActionPresentationTask = nil
             showingQuickActions = false
@@ -270,9 +274,12 @@ struct RootTabView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isPresentingQuickActionSheet)
+                .accessibilityLabel(item.title)
+                .accessibilityHint("打开\(item.title)表单")
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .accessibilityElement(children: .contain)
     }
 
     private func toggleQuickActions() {
