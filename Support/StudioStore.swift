@@ -160,7 +160,7 @@ final class StudioStore {
         if settings.notificationsEnabled == false {
             AppNotificationManager.shared.removeAllManagedReminders(bookings: bookings, touchpoints: touchpoints)
         } else {
-            refreshNotificationScheduling()
+            refreshNotificationScheduling(allowAuthorizationPrompt: false)
         }
     }
 
@@ -1095,7 +1095,7 @@ final class StudioStore {
         return .discovery
     }
 
-    private func refreshSummaryNotifications() {
+    private func refreshSummaryNotifications(allowAuthorizationPrompt: Bool = false) {
         guard settings.notificationsEnabled else {
             AppNotificationManager.shared.removeReminder(identifier: AppNotificationManager.followUpSummaryIdentifier)
             AppNotificationManager.shared.removeReminder(identifier: AppNotificationManager.outstandingSummaryIdentifier)
@@ -1106,7 +1106,11 @@ final class StudioStore {
             $0.isArchived == false && $0.isComplete == false
         }
         if settings.remindFollowUps, pendingFollowUps.isEmpty == false {
-            AppNotificationManager.shared.scheduleFollowUpSummaryReminder(settings: settings, pendingCount: pendingFollowUps.count)
+            AppNotificationManager.shared.scheduleFollowUpSummaryReminder(
+                settings: settings,
+                pendingCount: pendingFollowUps.count,
+                allowAuthorizationPrompt: allowAuthorizationPrompt
+            )
         } else {
             AppNotificationManager.shared.removeReminder(identifier: AppNotificationManager.followUpSummaryIdentifier)
         }
@@ -1119,7 +1123,8 @@ final class StudioStore {
             AppNotificationManager.shared.scheduleOutstandingSummaryReminder(
                 settings: settings,
                 bookingCount: outstandingBookings.count,
-                totalOutstanding: totalOutstanding
+                totalOutstanding: totalOutstanding,
+                allowAuthorizationPrompt: allowAuthorizationPrompt
             )
         } else {
             AppNotificationManager.shared.removeReminder(identifier: AppNotificationManager.outstandingSummaryIdentifier)
@@ -1162,7 +1167,7 @@ final class StudioStore {
         touchpoints.removeAll { $0.clientID == nil && $0.bookingID == nil }
     }
 
-    private func refreshNotificationScheduling() {
+    private func refreshNotificationScheduling(allowAuthorizationPrompt: Bool = true) {
         if settings.notificationsEnabled == false {
             AppNotificationManager.shared.removeAllManagedReminders(
                 bookings: bookings,
@@ -1172,30 +1177,38 @@ final class StudioStore {
         }
 
         for booking in bookings where booking.isArchived == false {
-            scheduleBookingReminderIfEnabled(for: booking)
+            scheduleBookingReminderIfEnabled(for: booking, allowAuthorizationPrompt: allowAuthorizationPrompt)
         }
         for touchpoint in touchpoints where touchpoint.isArchived == false {
-            scheduleTouchpointReminderIfEnabled(for: touchpoint)
+            scheduleTouchpointReminderIfEnabled(for: touchpoint, allowAuthorizationPrompt: allowAuthorizationPrompt)
         }
-        refreshSummaryNotifications()
+        refreshSummaryNotifications(allowAuthorizationPrompt: allowAuthorizationPrompt)
     }
 
-    private func scheduleBookingReminderIfEnabled(for booking: BookingRecord) {
+    private func scheduleBookingReminderIfEnabled(for booking: BookingRecord, allowAuthorizationPrompt: Bool = true) {
         guard settings.notificationsEnabled else { return }
         guard booking.isArchived == false else {
             AppNotificationManager.shared.removeBookingReminders(for: booking.id)
             return
         }
-        AppNotificationManager.shared.scheduleBookingReminder(for: booking, settings: settings)
+        AppNotificationManager.shared.scheduleBookingReminder(
+            for: booking,
+            settings: settings,
+            allowAuthorizationPrompt: allowAuthorizationPrompt
+        )
     }
 
-    private func scheduleTouchpointReminderIfEnabled(for touchpoint: TouchpointRecord) {
+    private func scheduleTouchpointReminderIfEnabled(for touchpoint: TouchpointRecord, allowAuthorizationPrompt: Bool = true) {
         guard settings.notificationsEnabled else { return }
         guard touchpoint.isSystemReminderEnabled else {
             AppNotificationManager.shared.removeReminder(identifier: AppNotificationManager.touchpointIdentifier(for: touchpoint.id))
             return
         }
-        AppNotificationManager.shared.scheduleTouchpointReminder(for: touchpoint, settings: settings)
+        AppNotificationManager.shared.scheduleTouchpointReminder(
+            for: touchpoint,
+            settings: settings,
+            allowAuthorizationPrompt: allowAuthorizationPrompt
+        )
     }
 
     func normalizeAndPersistIfNeeded(markModified: Bool = true) {
@@ -1264,6 +1277,14 @@ final class StudioStore {
             applyPersistenceOutcome(outcome)
         }
     }
+
+    #if DEBUG
+    func flushPersistenceForTesting() {
+        pendingPersistenceTask?.cancel()
+        let outcome = Self.persist(snapshot: currentSnapshot(), to: saveURL, pushToCloud: settings.iCloudSyncEnabled)
+        applyPersistenceOutcome(outcome)
+    }
+    #endif
 
     private struct PersistenceOutcome: Sendable {
         var localWriteIssueMessage: String?
@@ -2295,7 +2316,7 @@ struct AppNotificationManager {
         }
     }
 
-    func scheduleBookingReminder(for booking: BookingRecord, settings: AppSettings) {
+    func scheduleBookingReminder(for booking: BookingRecord, settings: AppSettings, allowAuthorizationPrompt: Bool = true) {
         guard settings.notificationsEnabled else { return }
         removeBookingReminders(for: booking.id)
         for offset in BookingReminderOffset.normalized(booking.reminderOffsets) {
@@ -2303,12 +2324,13 @@ struct AppNotificationManager {
                 identifier: Self.bookingIdentifier(for: booking.id, offset: offset),
                 title: reminderTitle(for: offset),
                 body: "\(booking.title) · \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt)) · \(booking.venue)",
-                fireDate: bookingReminderFireDate(for: booking, offset: offset, settings: settings)
+                fireDate: bookingReminderFireDate(for: booking, offset: offset, settings: settings),
+                allowAuthorizationPrompt: allowAuthorizationPrompt
             )
         }
     }
 
-    func scheduleTouchpointReminder(for touchpoint: TouchpointRecord, settings: AppSettings) {
+    func scheduleTouchpointReminder(for touchpoint: TouchpointRecord, settings: AppSettings, allowAuthorizationPrompt: Bool = true) {
         guard settings.notificationsEnabled else { return }
         guard touchpoint.isArchived == false, touchpoint.isComplete == false, touchpoint.isSystemReminderEnabled else {
             removeReminder(identifier: Self.touchpointIdentifier(for: touchpoint.id))
@@ -2319,27 +2341,30 @@ struct AppNotificationManager {
             identifier: Self.touchpointIdentifier(for: touchpoint.id),
             title: "客户跟进提醒",
             body: touchpoint.title,
-            fireDate: touchpointReminderFireDate(for: touchpoint, settings: settings)
+            fireDate: touchpointReminderFireDate(for: touchpoint, settings: settings),
+            allowAuthorizationPrompt: allowAuthorizationPrompt
         )
     }
 
-    func scheduleFollowUpSummaryReminder(settings: AppSettings, pendingCount: Int) {
+    func scheduleFollowUpSummaryReminder(settings: AppSettings, pendingCount: Int, allowAuthorizationPrompt: Bool = true) {
         guard settings.notificationsEnabled else { return }
         scheduleDailySummaryReminder(
             identifier: Self.followUpSummaryIdentifier,
             title: "今日跟进总提醒",
             body: "当前还有 \(pendingCount) 条待跟进事项，建议尽快处理。",
-            hour: settings.defaultReminderHour
+            hour: settings.defaultReminderHour,
+            allowAuthorizationPrompt: allowAuthorizationPrompt
         )
     }
 
-    func scheduleOutstandingSummaryReminder(settings: AppSettings, bookingCount: Int, totalOutstanding: Double) {
+    func scheduleOutstandingSummaryReminder(settings: AppSettings, bookingCount: Int, totalOutstanding: Double, allowAuthorizationPrompt: Bool = true) {
         guard settings.notificationsEnabled else { return }
         scheduleDailySummaryReminder(
             identifier: Self.outstandingSummaryIdentifier,
             title: "今日回款总提醒",
             body: "当前还有 \(bookingCount) 个项目待回款，共 \(AppFormatters.currency(totalOutstanding))。",
-            hour: settings.defaultReminderHour
+            hour: settings.defaultReminderHour,
+            allowAuthorizationPrompt: allowAuthorizationPrompt
         )
     }
 
@@ -2424,9 +2449,9 @@ struct AppNotificationManager {
         }
     }
 
-    private func scheduleDailySummaryReminder(identifier: String, title: String, body: String, hour: Int) {
+    private func scheduleDailySummaryReminder(identifier: String, title: String, body: String, hour: Int, allowAuthorizationPrompt: Bool) {
         Task {
-            let status = await requestAuthorizationIfNeeded()
+            let status = allowAuthorizationPrompt ? await requestAuthorizationIfNeeded() : await authorizationStatus()
             guard [.authorized, .provisional, .ephemeral].contains(status) else { return }
 
             let content = UNMutableNotificationContent()
@@ -2445,11 +2470,11 @@ struct AppNotificationManager {
         }
     }
 
-    private func schedule(identifier: String, title: String, body: String, fireDate: Date) {
+    private func schedule(identifier: String, title: String, body: String, fireDate: Date, allowAuthorizationPrompt: Bool) {
         guard canScheduleNotification(fireDate: fireDate) else { return }
 
         Task {
-            let status = await requestAuthorizationIfNeeded()
+            let status = allowAuthorizationPrompt ? await requestAuthorizationIfNeeded() : await authorizationStatus()
             guard [.authorized, .provisional, .ephemeral].contains(status) else { return }
 
             let content = UNMutableNotificationContent()

@@ -22,23 +22,8 @@ private struct CreateClientFlowView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StudioStore.self) private var store
 
-    private enum Step: Int, CaseIterable {
-        case essentials
-        case business
-        case confirm
-
-        var title: String {
-            switch self {
-            case .essentials: "快速建档"
-            case .business: "经营信息"
-            case .confirm: "确认客户"
-            }
-        }
-    }
-
     let onSaved: ((ClientRecord) -> Void)?
 
-    @State private var step: Step = .essentials
     @State private var name = ""
     @State private var city = ""
     @State private var phoneNumber = ""
@@ -49,57 +34,61 @@ private struct CreateClientFlowView: View {
     @State private var stage: LeadStage = .discovery
     @State private var stageMode: LeadStageMode = .manual
     @State private var tier: ClientTier = .standard
-    @State private var needsFollowUp = true
+    @State private var needsFollowUp = false
     @State private var nextContactAt = Date().addingTimeInterval(86_400)
+    @State private var showingBusinessFields = false
 
     var body: some View {
         NavigationStack {
-            AppPageScaffold(title: step.title, titleDisplayMode: .inline, topPadding: 14, bottomPadding: 28) {
+            AppPageScaffold(title: "新增客户", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 24) {
                 AppCreateHeader(
                     eyebrow: "新增客户",
                     title: trimmedName.isEmpty ? "记录一位新客户" : trimmedName,
-                    subtitle: "先沉淀客户关系，来源、层级和跟进时间可以后补。",
+                    subtitle: "先保存姓名和联系方式，经营信息之后再补也可以。",
                     systemImage: "person.badge.plus"
                 )
-                progressSection
-
-                switch step {
-                case .essentials:
-                    essentialsSection
-                case .business:
-                    businessSection
-                case .confirm:
-                    confirmSection
-                }
+                requiredNameHint
+                essentialsSection
+                businessDisclosure
+                savePreviewSection
             }
             .scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .bottom) {
+                Button(action: save) {
+                    Label("保存客户", systemImage: "checkmark")
+                        .font(AppTypography.bodyStrong)
+                        .foregroundStyle(AppTheme.panelStrong)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(trimmedName.isEmpty ? AppTheme.line.opacity(0.8) : AppTheme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(trimmedName.isEmpty)
+                .padding(.horizontal, AppSpacing.page)
+                .padding(.top, 10)
+                .padding(.bottom, 12)
+                .background(.regularMaterial)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消", role: .cancel) {
                         dismiss()
                     }
                 }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    if step == .confirm {
-                        Button("创建", action: save)
-                            .disabled(trimmedName.isEmpty)
-                    } else {
-                        Button("下一步", action: goForward)
-                            .disabled(trimmedName.isEmpty)
-                    }
-                }
             }
         }
     }
 
-    private var progressSection: some View {
-        AppStepProgress(titles: Step.allCases.map(\.title), currentIndex: step.rawValue)
+    @ViewBuilder
+    private var requiredNameHint: some View {
+        if trimmedName.isEmpty {
+            AppInlineNote(systemImage: "info.circle", text: "填写客户名称后即可保存。电话、微信、来源和跟进计划都不是必填。")
+        }
     }
 
     private var essentialsSection: some View {
         Group {
-            AppEditorCard(title: "客户是谁") {
+            AppEditorCard(title: "快速资料", subtitle: "最少只需要一个名字。") {
                 AppEditorLabeledField("客户名称") {
                     TextField("昵称、公司名或联系人", text: $name)
                 }
@@ -109,9 +98,7 @@ private struct CreateClientFlowView: View {
                 AppEditorLabeledField("城市 / 区域") {
                     TextField("例如：上海", text: $city)
                 }
-            }
-
-            AppEditorCard(title: "怎么联系") {
+                AppEditorDivider()
                 AppEditorLabeledField("电话") {
                     TextField("手机号", text: $phoneNumber)
                         .keyboardType(.phonePad)
@@ -135,71 +122,80 @@ private struct CreateClientFlowView: View {
         }
     }
 
-    private var businessSection: some View {
-        Group {
-            AppEditorCard(title: "来源与价值") {
-                AppEditorLabeledField("来源渠道") {
-                    TextField("小红书 / 转介绍 / 老客户复购", text: $sourceChannel)
-                }
-
-                AppEditorDivider()
-
-                AppEditorLabeledField("客户层级") {
-                    Picker("客户层级", selection: $tier) {
-                        ForEach(ClientTier.allCases) { item in
-                            Text(item.title).tag(item)
-                        }
+    private var businessDisclosure: some View {
+        DisclosureGroup(isExpanded: $showingBusinessFields) {
+            VStack(alignment: .leading, spacing: AppSpacing.section) {
+                AppEditorCard(title: "来源与价值") {
+                    AppEditorLabeledField("来源渠道") {
+                        TextField("小红书 / 转介绍 / 老客户复购", text: $sourceChannel)
                     }
-                }
 
-                AppEditorDivider()
-
-                AppEditorLabeledField("客户阶段") {
-                    Picker("客户阶段", selection: $stage) {
-                        ForEach(LeadStage.allCases) { item in
-                            Text(item.title).tag(item)
-                        }
-                    }
-                }
-            }
-
-            AppEditorCard(title: "跟进计划") {
-                Toggle("安排下次跟进", isOn: $needsFollowUp)
-                if needsFollowUp {
                     AppEditorDivider()
-                    AppEditorLabeledField("下次跟进") {
-                        DatePicker("下次跟进", selection: $nextContactAt)
-                            .labelsHidden()
+
+                    AppEditorLabeledField("客户层级") {
+                        Picker("客户层级", selection: $tier) {
+                            ForEach(ClientTier.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
+                        }
+                    }
+
+                    AppEditorDivider()
+
+                    AppEditorLabeledField("客户阶段") {
+                        Picker("客户阶段", selection: $stage) {
+                            ForEach(LeadStage.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
+                        }
+                    }
+                }
+
+                AppEditorCard(title: "跟进计划") {
+                    Toggle("安排下次跟进", isOn: $needsFollowUp)
+                    if needsFollowUp {
+                        AppEditorDivider()
+                        AppEditorLabeledField("下次跟进") {
+                            DatePicker("下次跟进", selection: $nextContactAt)
+                                .labelsHidden()
+                        }
+                    }
+                }
+
+                AppEditorCard(title: "备注") {
+                    AppEditorLabeledField("客户备注") {
+                        TextField("偏好、预算、沟通重点、拍摄风格等", text: $notesText, axis: .vertical)
+                            .lineLimit(3...7)
                     }
                 }
             }
-
-            AppEditorCard(title: "备注") {
-                AppEditorLabeledField("客户备注") {
-                    TextField("偏好、预算、沟通重点、拍摄风格等", text: $notesText, axis: .vertical)
-                        .lineLimit(3...7)
+            .padding(.top, 12)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: showingBusinessFields ? "chevron.down.circle.fill" : "slider.horizontal.3")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(showingBusinessFields ? "收起经营信息" : "补充来源、层级和跟进")
+                        .font(AppTypography.bodyStrong)
+                        .foregroundStyle(AppTheme.ink)
+                    Text("这些内容都可稍后在客户详情里补。")
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.secondaryInk)
                 }
+                Spacer()
             }
+            .padding(16)
+            .appCardSurface(fillColor: AppTheme.panel)
         }
+        .tint(AppTheme.ink)
     }
 
-    private var confirmSection: some View {
-        Group {
-            AppEditorCard(title: "客户摘要") {
-                AppKeyValueRow(title: "客户", value: trimmedName)
-                AppKeyValueRow(title: "城市", value: trimmedCity.isEmpty ? "未填写" : trimmedCity)
-                AppKeyValueRow(title: "联系方式", value: contactSummary)
-                AppKeyValueRow(title: "来源", value: trimmedSource.isEmpty ? "未填写" : trimmedSource)
-                AppKeyValueRow(title: "阶段", value: stage.title)
-                AppKeyValueRow(title: "层级", value: tier.title)
-                AppKeyValueRow(title: "下次跟进", value: needsFollowUp ? AppFormatters.relativeDueText(nextContactAt, calendar: Calendar.current) : "暂不安排")
-            }
-
-            AppEditorCard(title: "创建后可以继续") {
-                Label("从客户详情新建档期", systemImage: "calendar.badge.plus")
-                Label("在经营中心补合同、收据、发票", systemImage: "doc.text")
-                Label("按跟进时间自动进入优先关注", systemImage: "bell.badge")
-            }
+    private var savePreviewSection: some View {
+        AppEditorCard(title: "保存后") {
+            AppKeyValueRow(title: "客户", value: trimmedName.isEmpty ? "未填写" : trimmedName)
+            AppKeyValueRow(title: "联系方式", value: contactSummary)
+            AppKeyValueRow(title: "跟进", value: needsFollowUp ? AppFormatters.relativeDueText(nextContactAt, calendar: Calendar.current) : "暂不安排")
         }
     }
 
@@ -222,13 +218,8 @@ private struct CreateClientFlowView: View {
         return parts.isEmpty ? "暂无联系方式" : parts.joined(separator: " · ")
     }
 
-    private func goForward() {
-        guard let next = Step(rawValue: step.rawValue + 1) else { return }
-        step = next
-        AppHaptics.selection()
-    }
-
     private func save() {
+        guard trimmedName.isEmpty == false else { return }
         let draft = ClientRecord(
             id: UUID(),
             name: trimmedName,

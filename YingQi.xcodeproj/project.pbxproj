@@ -33,6 +33,7 @@
 		4C9168E714AF9DA39DF3E6A4 /* ThemeStyleCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F9A2D3A1564C9C694E6E47 /* ThemeStyleCard.swift */; };
 		4CA5C3D704723DA323085257 /* TouchpointEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A46B6F13CB7A359291D9A6 /* TouchpointEditorView.swift */; };
 		516B79336E490D5ECAE03019 /* ClientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4494039D1D03F7DEC0918F /* ClientsView.swift */; };
+		53144D25A55859949FCF3A41 /* BookingShareTextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A218F6BB6752A7989452F96 /* BookingShareTextBuilder.swift */; };
 		6018D4B15A924728ACF6B6AF /* BookingTemplateCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD14D880F621D6E4653D4488 /* BookingTemplateCard.swift */; };
 		6C32581E15AD0A5C8DD7FEBB /* GlassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A05EE765889328C953C172 /* GlassCard.swift */; };
 		739FA2D5673D8E007FFA3DA0 /* AppHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FAD5D704D5A78C20A97ADC5 /* AppHaptics.swift */; };
@@ -47,6 +48,7 @@
 		8D356B404765DBCAFFA5646B /* AppFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BF699AB978CF57C23840EB /* AppFormatters.swift */; };
 		90140984915A6FCC6BED5056 /* StudioStoreSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD46D44705E9C800B5BD6B2F /* StudioStoreSnapshot.swift */; };
 		908AECE615E3A880B2DDF417 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4224253C5D99AFFF3E342D74 /* WebKit.framework */; };
+		9367FFC721D4C18BD3A5C3EC /* StandardProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FF0F8040FE24B999B2FD2C2 /* StandardProfileView.swift */; };
 		937D41CE871819E6B2D019FB /* StudioBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7176735EA5F10DA6D6BB1460 /* StudioBackdrop.swift */; };
 		9707BD29B6AB20B779CA3853 /* BookingReminderActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 362F913EB9DD28A9A3C0B4DC /* BookingReminderActivityAttributes.swift */; };
 		9857B908AB7285243F20B47D /* BookingDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882161C36BFA001C050B3EE1 /* BookingDetailView.swift */; };
@@ -135,10 +137,12 @@
 		49725F1599B69C0CE3DBA0FA /* AppThemePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppThemePalette.swift; sourceTree = "<group>"; };
 		4A710933E47D13BC89473391 /* ClientEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientEditorView.swift; sourceTree = "<group>"; };
 		4C7DE932A3CE2AA88107C596 /* BookingTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingTemplate.swift; sourceTree = "<group>"; };
+		4FF0F8040FE24B999B2FD2C2 /* StandardProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandardProfileView.swift; sourceTree = "<group>"; };
 		538E0928AD5A3CF8C01100A4 /* PaymentStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentStatus.swift; sourceTree = "<group>"; };
 		54B065CA7F344252BB4A731C /* TestsDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = TestsDebug.xcconfig; sourceTree = "<group>"; };
 		575C9FD1122C16227F878970 /* AuthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthProfile.swift; sourceTree = "<group>"; };
 		593632EB057E8C4C4338065A /* CloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncService.swift; sourceTree = "<group>"; };
+		5A218F6BB6752A7989452F96 /* BookingShareTextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingShareTextBuilder.swift; sourceTree = "<group>"; };
 		60BE54D027AC372C88CDFE80 /* YingQiWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = YingQiWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6214A059CD3E11CED718B230 /* ClientAttentionRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientAttentionRules.swift; sourceTree = "<group>"; };
 		6B983E5752C803EF9090A0D1 /* UnifiedFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedFilterSheet.swift; sourceTree = "<group>"; };
@@ -248,6 +252,7 @@
 				CF139D277A77294AC6A291DB /* AppThemeStyle.swift */,
 				362F913EB9DD28A9A3C0B4DC /* BookingReminderActivityAttributes.swift */,
 				C4BDC1673EA3134B5E117E88 /* BookingReminderActivityManager.swift */,
+				5A218F6BB6752A7989452F96 /* BookingShareTextBuilder.swift */,
 				B57CF9457F64BBA68B09DF17 /* BusinessDocumentTextRenderer.swift */,
 				6214A059CD3E11CED718B230 /* ClientAttentionRules.swift */,
 				593632EB057E8C4C4338065A /* CloudSyncService.swift */,
@@ -365,6 +370,7 @@
 			isa = PBXGroup;
 			children = (
 				76422FB3A57DB723C43561AF /* SettingsView.swift */,
+				4FF0F8040FE24B999B2FD2C2 /* StandardProfileView.swift */,
 				F9F9A2D3A1564C9C694E6E47 /* ThemeStyleCard.swift */,
 			);
 			path = Settings;
@@ -596,6 +602,7 @@
 				9707BD29B6AB20B779CA3853 /* BookingReminderActivityAttributes.swift in Sources */,
 				2CE658A5FF81B967CDCAD91F /* BookingReminderActivityManager.swift in Sources */,
 				7F9952AA41A231D64D05CB02 /* BookingReminderOffset.swift in Sources */,
+				53144D25A55859949FCF3A41 /* BookingShareTextBuilder.swift in Sources */,
 				A5B2A3ED93BA9A272D6B059F /* BookingStatus.swift in Sources */,
 				A79CC6DE7F91327EDD2EDCFC /* BookingTemplate.swift in Sources */,
 				6018D4B15A924728ACF6B6AF /* BookingTemplateCard.swift in Sources */,
@@ -623,6 +630,7 @@
 				AAC435604531BAAD645DC0FC /* ServiceCategory.swift in Sources */,
 				43CE36A278EB836728BA43F2 /* SettingsView.swift in Sources */,
 				CABD7906C2CCA591075EDE0A /* ShootingAttribute.swift in Sources */,
+				9367FFC721D4C18BD3A5C3EC /* StandardProfileView.swift in Sources */,
 				E09635FDC77811727F4A27E5 /* StoreExportService.swift in Sources */,
 				937D41CE871819E6B2D019FB /* StudioBackdrop.swift in Sources */,
 				321EF3D5CDB1E1EBFE0AF5AC /* StudioStore.swift in Sources */,
@@ -781,10 +789,10 @@
 		};
 		7CA0F2B5AA6C797D8FA841B2 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7B344E590351B2E9E51F8B87 /* AppDebug.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2026052606;
 				DEVELOPMENT_TEAM = 9ZV32GL37D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Widgets/Info.plist;
@@ -794,7 +802,6 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wanglida.YingQi.widget;
 				PRODUCT_NAME = YingQiWidgetExtension;
 				SDKROOT = iphoneos;
@@ -899,11 +906,11 @@
 		};
 		D50AE87F1532B9919F597CE8 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 023296EABDD883B12667BAE8 /* AppRelease.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 2026052606;
 				DEVELOPMENT_TEAM = 9ZV32GL37D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Widgets/Info.plist;
@@ -913,7 +920,6 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wanglida.YingQi.widget;
 				PRODUCT_NAME = YingQiWidgetExtension;
 				PROVISIONING_PROFILE_SPECIFIER = "$(YINGQI_WIDGET_PROFILE_NAME)";

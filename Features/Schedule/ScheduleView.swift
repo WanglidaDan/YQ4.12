@@ -5,6 +5,7 @@ private enum ScheduleFilter: String, CaseIterable, Identifiable {
     case all
     case today
     case tomorrow
+    case upcoming
     case week
     case receivable
     case delivery
@@ -17,6 +18,7 @@ private enum ScheduleFilter: String, CaseIterable, Identifiable {
         case .all: "全部"
         case .today: "今天"
         case .tomorrow: "明天"
+        case .upcoming: "未来"
         case .week: "本周"
         case .receivable: "待回款"
         case .delivery: "待交付"
@@ -76,6 +78,7 @@ struct ScheduleView: View {
     @State private var editingBooking: BookingRecord?
     @State private var deletingBooking: BookingRecord?
     @State private var showingCreateBookingSheet = false
+    @State private var createBookingStartDate: Date?
     @State private var showingSearchSheet = false
 
     private let calendar = Calendar.current
@@ -205,7 +208,7 @@ struct ScheduleView: View {
                 BookingEditorView(booking: booking)
             }
             .sheet(isPresented: $showingCreateBookingSheet) {
-                BookingEditorView()
+                BookingEditorView(initialStartAt: createBookingStartDate)
             }
             .sheet(isPresented: $showingSearchSheet) {
                 ScheduleSearchSheet(
@@ -296,13 +299,13 @@ struct ScheduleView: View {
 
     private var overviewStrip: some View {
         HStack(spacing: 0) {
-            compactMetric("今日", value: todayCount)
+            compactMetric("今日", value: todayCount, filter: .today)
             Divider().frame(height: 30)
-            compactMetric("未来", value: upcomingCount)
+            compactMetric("未来", value: upcomingCount, filter: .upcoming)
             Divider().frame(height: 30)
-            compactMetric("待收", value: receivableCount)
+            compactMetric("待收", value: receivableCount, filter: .receivable)
             Divider().frame(height: 30)
-            compactMetric("待交付", value: deliveryCount)
+            compactMetric("待交付", value: deliveryCount, filter: .delivery)
         }
         .padding(.vertical, 16)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -312,16 +315,22 @@ struct ScheduleView: View {
         }
     }
 
-    private func compactMetric(_ title: String, value: Int) -> some View {
-        VStack(spacing: 5) {
-            Text("\(value)")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+    private func compactMetric(_ title: String, value: Int, filter targetFilter: ScheduleFilter) -> some View {
+        Button {
+            apply(filter: targetFilter)
+        } label: {
+            VStack(spacing: 5) {
+                Text("\(value)")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(filter == targetFilter ? Color.accentColor : .primary)
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(filter == targetFilter ? Color.accentColor : .secondary)
+            }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title)：\(value)")
     }
 
     private var quickFilterRow: some View {
@@ -329,15 +338,7 @@ struct ScheduleView: View {
             HStack(spacing: 10) {
                 ForEach(ScheduleFilter.allCases) { item in
                     Button {
-                        withAnimation(.snappy(duration: 0.18)) {
-                            filter = item
-                            if item == .today { focusDate = .now }
-                            if item == .tomorrow,
-                               let tomorrow = calendar.date(byAdding: .day, value: 1, to: .now) {
-                                focusDate = tomorrow
-                            }
-                        }
-                        AppHaptics.selection()
+                        apply(filter: item)
                     } label: {
                         Text(item.title)
                             .font(.system(size: 14, weight: .semibold))
@@ -486,7 +487,7 @@ struct ScheduleView: View {
             }
 
             if bookingsForFocusDate.isEmpty {
-                emptyState
+                focusDateEmptyState
             } else {
                 VStack(spacing: 10) {
                     ForEach(bookingsForFocusDate) { booking in
@@ -539,6 +540,33 @@ struct ScheduleView: View {
             Text("可以新建档期，或切换筛选条件查看。")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 26)
+    }
+
+    private var focusDateEmptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "calendar.badge.plus")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text("这天还空着")
+                .font(.system(size: 16, weight: .semibold))
+            Text("可以先占住时间，后面再补客户和报价。")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+            Button {
+                createBooking(on: focusDate)
+            } label: {
+                Label("新建这天的档期", systemImage: "plus")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color(.systemBackground))
+                    .padding(.horizontal, 16)
+                    .frame(height: 40)
+                    .background(Color.primary, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 26)
@@ -609,9 +637,8 @@ struct ScheduleView: View {
 
     private var addBookingButton: some View {
         Button {
-            showingCreateBookingSheet = true
+            createBooking(on: .now)
             onQuickActionButtonTap()
-            AppHaptics.impactMedium()
         } label: {
             Label("新建档期", systemImage: "plus")
                 .font(.system(size: 15, weight: .bold))
@@ -642,6 +669,12 @@ struct ScheduleView: View {
         AppHaptics.selection()
     }
 
+    private func createBooking(on date: Date) {
+        createBookingStartDate = date
+        showingCreateBookingSheet = true
+        AppHaptics.impactMedium()
+    }
+
     private func matchesFilter(_ booking: BookingRecord) -> Bool {
         switch filter {
         case .all:
@@ -653,6 +686,9 @@ struct ScheduleView: View {
         case .week:
             guard let week = calendar.dateInterval(of: .weekOfYear, for: .now) else { return true }
             return week.contains(booking.startAt)
+        case .upcoming:
+            let today = calendar.startOfDay(for: .now)
+            return booking.startAt >= today && booking.status != .cancelled
         case .receivable:
             return store.outstandingAmount(for: booking) > 0 && booking.status != .cancelled
         case .delivery:
@@ -681,6 +717,29 @@ struct ScheduleView: View {
         BookingCrewAssignment.normalized(booking.crewAssignments)
             .map { "\($0.displayName) · \($0.role.title)" }
             .joined(separator: " / ")
+    }
+
+    private func apply(filter targetFilter: ScheduleFilter) {
+        withAnimation(.snappy(duration: 0.18)) {
+            filter = targetFilter
+            switch targetFilter {
+            case .today:
+                focusDate = .now
+            case .tomorrow:
+                if let tomorrow = calendar.date(byAdding: .day, value: 1, to: .now) {
+                    focusDate = tomorrow
+                }
+            case .upcoming:
+                if let nextBooking = sourceBookings.first(where: { $0.startAt >= calendar.startOfDay(for: .now) && $0.status != .cancelled }) {
+                    focusDate = nextBooking.startAt
+                } else {
+                    focusDate = .now
+                }
+            case .all, .week, .receivable, .delivery, .conflict:
+                break
+            }
+        }
+        AppHaptics.selection()
     }
 }
 

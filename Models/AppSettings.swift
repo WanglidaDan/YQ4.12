@@ -101,7 +101,7 @@ struct AppSettings: Codable, Hashable, Sendable {
         defaultNotes: "",
         defaultDepositRatio: 0.3,
         defaultBalanceRule: "拍摄当天结清",
-        notificationsEnabled: true,
+        notificationsEnabled: false,
         defaultReminderHour: 18,
         remindOutstandingPayments: true,
         remindFollowUps: true,

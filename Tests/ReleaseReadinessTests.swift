@@ -142,6 +142,7 @@ struct ReleaseReadinessTests {
         settings.defaultReminderHour = 9
         settings.themeStyle = .crystalPurple
         store.updateSettings(settings)
+        store.flushPersistenceForTesting()
 
         let reloaded = StudioStore(saveURL: saveURL)
         #expect(reloaded.settings.notificationsEnabled == false)
@@ -189,6 +190,7 @@ struct ReleaseReadinessTests {
         )
 
         store.upsert(touchpoint: item)
+        store.flushPersistenceForTesting()
 
         let reloaded = StudioStore(saveURL: saveURL)
         #expect(reloaded.touchpoint(id: item.id)?.isSystemReminderEnabled == false)
@@ -230,6 +232,7 @@ struct ReleaseReadinessTests {
         )
 
         store.upsert(attachment: attachment)
+        store.flushPersistenceForTesting()
 
         let reloaded = StudioStore(saveURL: saveURL)
         guard let restoredAttachment = reloaded.attachments.first else {
