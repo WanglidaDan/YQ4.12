@@ -8,137 +8,45 @@ private enum RootTab: Hashable {
     case profile
 }
 
-private enum QuickActionDestination: String, Identifiable {
-    case booking
-    case client
-    case touchpoint
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .booking: "新建档期"
-        case .client: "新增客户"
-        case .touchpoint: "新增跟进"
-        }
-    }
-
-    var symbolName: String {
-        switch self {
-        case .booking: "calendar.badge.plus"
-        case .client: "person.crop.circle.badge.plus"
-        case .touchpoint: "bubble.left.and.bubble.right.fill"
-        }
-    }
-
-    var tint: Color {
-        switch self {
-        case .booking: AppTheme.accent
-        case .client: AppTheme.info
-        case .touchpoint: AppTheme.accentWarmDeep
-        }
-    }
-}
-
 struct RootTabView: View {
     let store: StudioStore
     @State private var selectedTab: RootTab = .overview
-    @State private var showingQuickActions = false
-    @State private var quickActionDestination: QuickActionDestination?
-    @State private var isPresentingQuickActionSheet = false
-    @State private var quickActionPresentationTask: Task<Void, Never>?
 
     init(store: StudioStore) {
         self.store = store
         Self.configureTabBarAppearance()
     }
 
-    private var shouldShowQuickActionButton: Bool {
-        selectedTab == .schedule
-    }
-
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            TabView(selection: $selectedTab) {
-                OverviewView(
-                    onOpenSchedule: { selectedTab = .schedule }
-                )
-                .tabItem {
-                    Label("工作台", systemImage: "square.grid.2x2.fill")
-                }
-                .tag(RootTab.overview)
+        TabView(selection: $selectedTab) {
+            OverviewView(
+                onOpenSchedule: { selectedTab = .schedule }
+            )
+            .tabItem {
+                Label("工作台", systemImage: "square.grid.2x2.fill")
+            }
+            .tag(RootTab.overview)
 
-                ScheduleView(
-                    quickActionsExpanded: showingQuickActions,
-                    quickActionDisabled: isPresentingQuickActionSheet,
-                    onQuickActionButtonTap: toggleQuickActions
-                )
+            ScheduleView()
                 .tabItem {
                     Label("档期", systemImage: "calendar")
                 }
                 .tag(RootTab.schedule)
 
-                ClientsView()
-                    .tabItem {
-                        Label("关系", systemImage: "person.2")
-                    }
-                    .tag(RootTab.clients)
+            ClientsView()
+                .tabItem {
+                    Label("关系", systemImage: "person.2")
+                }
+                .tag(RootTab.clients)
 
-                StandardProfileView()
-                    .tabItem {
-                        Label("我的", systemImage: "person.crop.circle")
-                    }
-                    .tag(RootTab.profile)
-            }
-
-            if shouldShowQuickActionButton && showingQuickActions {
-                Rectangle()
-                    .fill(AppTheme.background.opacity(0.72))
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                            showingQuickActions = false
-                        }
-                    }
-                    .transition(.opacity)
-            }
-
-            if shouldShowQuickActionButton && showingQuickActions {
-                quickActionMenu
-                    .padding(.top, 80)
-                    .padding(.trailing, 12)
-                    .zIndex(1)
-            }
+            StandardProfileView()
+                .tabItem {
+                    Label("我的", systemImage: "person.crop.circle")
+                }
+                .tag(RootTab.profile)
         }
         .tint(AppTheme.accentWarmDeep)
         .environment(store)
-        .onChange(of: selectedTab) { _, newValue in
-            guard newValue != .overview else { return }
-            quickActionPresentationTask?.cancel()
-            quickActionPresentationTask = nil
-            showingQuickActions = false
-            if quickActionDestination == nil {
-                isPresentingQuickActionSheet = false
-            }
-        }
-        .sheet(item: $quickActionDestination, onDismiss: {
-            quickActionPresentationTask?.cancel()
-            quickActionPresentationTask = nil
-            quickActionDestination = nil
-            isPresentingQuickActionSheet = false
-        }) { destination in
-            switch destination {
-            case .booking:
-                BookingEditorView()
-                    .environment(store)
-            case .client:
-                ClientEditorView()
-                    .environment(store)
-            case .touchpoint:
-                TouchpointEditorView()
-                    .environment(store)
-            }
-        }
     }
 
     private static func configureTabBarAppearance() {
@@ -215,91 +123,4 @@ struct RootTabView: View {
         }.resizableImage(withCapInsets: UIEdgeInsets(top: 20, left: 24, bottom: 20, right: 24))
     }
 
-    private var quickActionMenu: some View {
-        VStack(alignment: .trailing, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(AppTheme.accentWarmDeep)
-                Text("快捷新建")
-                    .font(AppTypography.meta.weight(.semibold))
-                    .foregroundStyle(AppTheme.secondaryInk)
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 32)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay {
-                Capsule()
-                    .stroke(AppTheme.line.opacity(0.82), lineWidth: 1)
-            }
-            .transition(.move(edge: .top).combined(with: .opacity))
-
-            ForEach([QuickActionDestination.touchpoint, .client, .booking]) { item in
-                Button {
-                    presentQuickAction(item)
-                } label: {
-                    HStack(spacing: 12) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                .fill(item.tint.opacity(0.12))
-                                .frame(width: 36, height: 36)
-
-                            Image(systemName: item.symbolName)
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(item.tint)
-                        }
-
-                        Text(item.title)
-                            .font(AppTypography.bodyStrong)
-
-                        Spacer(minLength: 0)
-
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    }
-                    .foregroundStyle(AppTheme.ink)
-                    .padding(.horizontal, 16)
-                    .frame(width: 184, height: 52)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(AppTheme.line.opacity(0.82), lineWidth: 1)
-                    }
-                    .shadow(color: AppTheme.cardShadow, radius: AppShadow.cardRadius, y: AppShadow.cardY)
-                }
-                .buttonStyle(.plain)
-                .disabled(isPresentingQuickActionSheet)
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
-    }
-
-    private func toggleQuickActions() {
-        guard isPresentingQuickActionSheet == false else { return }
-        quickActionPresentationTask?.cancel()
-        AppHaptics.tapLight()
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-            showingQuickActions.toggle()
-        }
-    }
-
-    private func presentQuickAction(_ destination: QuickActionDestination) {
-        guard isPresentingQuickActionSheet == false else { return }
-
-        isPresentingQuickActionSheet = true
-        quickActionPresentationTask?.cancel()
-        AppHaptics.impactMedium()
-
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-            showingQuickActions = false
-        }
-
-        quickActionPresentationTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(220))
-            guard Task.isCancelled == false else { return }
-            quickActionDestination = destination
-            quickActionPresentationTask = nil
-        }
-    }
 }

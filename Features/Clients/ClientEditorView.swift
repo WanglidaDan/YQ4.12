@@ -43,11 +43,11 @@ private struct CreateClientFlowView: View {
             AppPageScaffold(title: "新增客户", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 24) {
                 AppCreateHeader(
                     eyebrow: "新增客户",
-                    title: trimmedName.isEmpty ? "记录一位新客户" : trimmedName,
-                    subtitle: "先保存姓名和联系方式，经营信息之后再补也可以。",
+                    title: resolvedName,
+                    subtitle: "姓名、电话、微信都可以先只填一项；没有名称时会自动生成。",
                     systemImage: "person.badge.plus"
                 )
-                requiredNameHint
+                autoNameHint
                 essentialsSection
                 businessDisclosure
                 savePreviewSection
@@ -60,14 +60,13 @@ private struct CreateClientFlowView: View {
                         .foregroundStyle(AppTheme.panelStrong)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
-                        .background(trimmedName.isEmpty ? AppTheme.line.opacity(0.8) : AppTheme.accent, in: Capsule())
+                        .background(AppTheme.accent, in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(trimmedName.isEmpty)
                 .padding(.horizontal, AppSpacing.page)
                 .padding(.top, 10)
                 .padding(.bottom, 12)
-                .background(.regularMaterial)
+                .background(.thinMaterial)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -80,15 +79,15 @@ private struct CreateClientFlowView: View {
     }
 
     @ViewBuilder
-    private var requiredNameHint: some View {
+    private var autoNameHint: some View {
         if trimmedName.isEmpty {
-            AppInlineNote(systemImage: "info.circle", text: "填写客户名称后即可保存。电话、微信、来源和跟进计划都不是必填。")
+            AppInlineNote(systemImage: "wand.and.stars", text: "未填客户名称时，会保存为“\(resolvedName)”。电话、微信和来源都不是必填。", tint: AppTheme.accent)
         }
     }
 
     private var essentialsSection: some View {
         Group {
-            AppEditorCard(title: "快速资料", subtitle: "最少只需要一个名字。") {
+            AppEditorCard(title: "快速资料", subtitle: "只填你现在知道的信息，剩下的以后补。") {
                 AppEditorLabeledField("客户名称") {
                     TextField("昵称、公司名或联系人", text: $name)
                 }
@@ -194,6 +193,7 @@ private struct CreateClientFlowView: View {
     private var savePreviewSection: some View {
         AppEditorCard(title: "保存后") {
             AppKeyValueRow(title: "客户", value: trimmedName.isEmpty ? "未填写" : trimmedName)
+            AppKeyValueRow(title: "保存名称", value: resolvedName)
             AppKeyValueRow(title: "联系方式", value: contactSummary)
             AppKeyValueRow(title: "跟进", value: needsFollowUp ? AppFormatters.relativeDueText(nextContactAt, calendar: Calendar.current) : "暂不安排")
         }
@@ -201,6 +201,24 @@ private struct CreateClientFlowView: View {
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var resolvedName: String {
+        if trimmedName.isEmpty == false {
+            return trimmedName
+        }
+
+        let phone = AppFormatters.sanitizedPhoneNumber(phoneNumber)
+        if phone.isEmpty == false {
+            return "客户 \(phone.suffix(4))"
+        }
+
+        let wechat = wechatID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if wechat.isEmpty == false {
+            return "微信客户 \(wechat)"
+        }
+
+        return "新客户 \(AppFormatters.shortDate(.now))"
     }
 
     private var trimmedCity: String {
@@ -219,10 +237,9 @@ private struct CreateClientFlowView: View {
     }
 
     private func save() {
-        guard trimmedName.isEmpty == false else { return }
         let draft = ClientRecord(
             id: UUID(),
-            name: trimmedName,
+            name: resolvedName,
             city: trimmedCity,
             phoneNumber: AppFormatters.sanitizedPhoneNumber(phoneNumber),
             wechatID: wechatID.trimmingCharacters(in: .whitespacesAndNewlines),

@@ -38,7 +38,6 @@ private struct BookingFormPage: View {
     @State private var crewAssignments: [BookingCrewAssignment]
     @State private var reminderOffsets: [BookingReminderOffset]
     @State private var showingAdvanced: Bool
-    @State private var showingConflictConfirmation = false
     @State private var crewAssignmentDraft: BookingCrewAssignmentDraft?
 
     private let calendar = Calendar.current
@@ -82,10 +81,10 @@ private struct BookingFormPage: View {
                     VStack(alignment: .leading, spacing: 16) {
                         headerBar
                         quickCreateHero
-                        requiredHint
+                        autoSaveHint
 
-                        contentSection(title: "快速信息", subtitle: "只填项目标题就能保存，时间和地点可先用默认值。") {
-                            labeledField("项目标题", isRequired: true) {
+                        contentSection(title: "快速信息", subtitle: "标题、客户和地点都可以先空着，系统会按日期和类型自动命名。") {
+                            labeledField("项目标题") {
                                 flatTextField("例如：周末婚礼跟拍", text: $title)
                             }
                             fieldDivider
@@ -122,18 +121,10 @@ private struct BookingFormPage: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
                     .padding(.bottom, 12)
-                    .background(.regularMaterial)
+                    .background(.thinMaterial)
             }
             .toolbar(.hidden, for: .navigationBar)
             .scrollDismissesKeyboard(.interactively)
-            .confirmationDialog("当前时间可能有冲突", isPresented: $showingConflictConfirmation) {
-                Button(originalBooking == nil ? "仍然新建" : "仍然保存") {
-                    saveBooking()
-                }
-                Button("返回调整", role: .cancel) {}
-            } message: {
-                Text(conflictSummaryText)
-            }
             .sheet(item: $crewAssignmentDraft) { draft in
                 BookingCrewAssignmentEditorView(
                     assignment: Binding(
@@ -248,9 +239,9 @@ private struct BookingFormPage: View {
             .padding(.top, 12)
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: showingAdvanced ? "chevron.down.circle.fill" : "slider.horizontal.3")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    Image(systemName: showingAdvanced ? "chevron.down.circle.fill" : "slider.horizontal.3")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(showingAdvanced ? "收起补充信息" : "补充报价、提醒和团队")
                         .font(.system(size: 16, weight: .bold))
@@ -262,24 +253,13 @@ private struct BookingFormPage: View {
                 Spacer()
             }
             .padding(16)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-            }
+            .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
         }
-        .tint(.primary)
+        .tint(AppTheme.ink)
     }
 
     private var pageBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(.systemGroupedBackground),
-                Color(.secondarySystemGroupedBackground)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        AppTheme.backgroundGradient
     }
 
     private var headerBar: some View {
@@ -287,10 +267,10 @@ private struct BookingFormPage: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(originalBooking == nil ? "新建档期" : "编辑档期")
                     .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AppTheme.ink)
                 Text(headerSubtitle)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.secondaryInk)
             }
 
             Spacer()
@@ -299,6 +279,7 @@ private struct BookingFormPage: View {
                 dismiss()
             }
             .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(AppTheme.secondaryInk)
             .buttonStyle(.plain)
         }
     }
@@ -318,27 +299,24 @@ private struct BookingFormPage: View {
             compactMetric("待收", value: AppFormatters.currency(max(normalizedFee - normalizedDeposit, 0)))
         }
         .padding(.vertical, 16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private var quickCreateHero: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(Color(.systemBackground))
-                .frame(width: 42, height: 42)
-                .background(Color.primary, in: Circle())
+                Image(systemName: "calendar.badge.plus")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(AppTheme.panelStrong)
+                    .frame(width: 42, height: 42)
+                    .background(AppTheme.accent, in: Circle())
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("快速建档")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.ink)
                 Text("先把拍摄占住，客户、报价、分工和提醒都能之后补。")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.secondaryInk)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 8) {
@@ -348,7 +326,7 @@ private struct BookingFormPage: View {
                     }
                 }
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.secondaryInk)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
             }
@@ -356,36 +334,26 @@ private struct BookingFormPage: View {
             Spacer(minLength: 0)
         }
         .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panelSoft)
     }
 
     @ViewBuilder
-    private var requiredHint: some View {
-        if canSave == false {
-            Label("填写项目标题后即可保存。", systemImage: "info.circle")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.11), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    private var autoSaveHint: some View {
+        if trimmedTitle.isEmpty {
+            AppInlineNote(systemImage: "wand.and.stars", text: "不填标题也能保存，将自动命名为“\(resolvedTitle)”。", tint: AppTheme.accent)
         }
     }
 
     private func compactMetric(_ title: String, value: String) -> some View {
         VStack(spacing: 5) {
-            Text(value)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
+                Text(value)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(AppTheme.secondaryInk)
         }
         .frame(maxWidth: .infinity)
     }
@@ -395,11 +363,11 @@ private struct BookingFormPage: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AppTheme.ink)
                 if let subtitle {
                     Text(subtitle)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.secondaryInk)
                 }
             }
 
@@ -407,17 +375,13 @@ private struct BookingFormPage: View {
                 content()
             }
             .padding(16)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-            }
+            .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
         }
     }
 
     private var fieldDivider: some View {
         Divider()
-            .overlay(Color.primary.opacity(0.06))
+            .overlay(AppTheme.line.opacity(0.5))
     }
 
     private func flatTextField(_ placeholder: String, text: Binding<String>, axis: Axis = .horizontal) -> some View {
@@ -432,11 +396,11 @@ private struct BookingFormPage: View {
             HStack(spacing: 4) {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.secondaryInk)
                 if isRequired {
                     Text("必填")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Color.orange)
+                        .foregroundStyle(AppTheme.warning)
                 }
             }
 
@@ -481,16 +445,16 @@ private struct BookingFormPage: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: assignment.role.symbolName)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(AppTheme.accent)
                     .frame(width: 26)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(assignment.headlineText)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.ink)
                     Text(assignment.operationalSummaryText)
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.secondaryInk)
                         .lineLimit(1)
                 }
 
@@ -498,7 +462,7 @@ private struct BookingFormPage: View {
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.secondaryInk)
             }
             .padding(.vertical, 2)
         }
@@ -521,26 +485,27 @@ private struct BookingFormPage: View {
             HStack(spacing: 12) {
                 Label(offset.title, systemImage: offset.symbolName)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AppTheme.ink)
                 Spacer()
                 Image(systemName: reminderOffsets.contains(offset) ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(reminderOffsets.contains(offset) ? Color.accentColor : .secondary)
+                    .foregroundStyle(reminderOffsets.contains(offset) ? AppTheme.accent : AppTheme.secondaryInk)
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(originalBooking == nil ? "保存档期" : "保存修改")
     }
 
     private var conflictNotice: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppTheme.warning)
             Text(conflictSummaryText)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.primary)
+                .foregroundStyle(AppTheme.ink)
             Spacer()
         }
         .padding(16)
-        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(AppTheme.warning.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var saveBar: some View {
@@ -549,22 +514,36 @@ private struct BookingFormPage: View {
         } label: {
             Text(originalBooking == nil ? "保存档期" : "保存修改")
                 .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(Color(.systemBackground))
+                .foregroundStyle(AppTheme.panelStrong)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
-                .background(canSave ? Color.primary : Color.secondary.opacity(0.35), in: Capsule())
-                .shadow(color: canSave ? Color.black.opacity(0.16) : Color.clear, radius: 18, x: 0, y: 10)
+                .background(AppTheme.accent, in: Capsule())
+                .shadow(color: AppTheme.deepShadow.opacity(0.6), radius: 18, x: 0, y: 10)
         }
         .buttonStyle(.plain)
-        .disabled(canSave == false)
-    }
-
-    private var canSave: Bool {
-        trimmedTitle.isEmpty == false
     }
 
     private var trimmedTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var resolvedTitle: String {
+        if trimmedTitle.isEmpty == false {
+            return trimmedTitle
+        }
+
+        if let selectedClientID,
+           let client = store.client(id: selectedClientID),
+           client.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return "\(client.name) · \(category.title)"
+        }
+
+        let trimmedVenue = venue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedVenue.isEmpty == false {
+            return "\(trimmedVenue) · \(category.title)"
+        }
+
+        return "\(AppFormatters.shortDate(startAt)) \(category.title)"
     }
 
     private var normalizedFee: Double {
@@ -593,17 +572,13 @@ private struct BookingFormPage: View {
     }
 
     private func saveTapped() {
-        if conflictBookings.isEmpty == false {
-            showingConflictConfirmation = true
-        } else {
-            saveBooking()
-        }
+        saveBooking()
     }
 
     private func saveBooking() {
         let booking = BookingRecord(
             id: originalBooking?.id ?? UUID(),
-            title: trimmedTitle,
+            title: resolvedTitle,
             category: category,
             status: status,
             startAt: startAt,

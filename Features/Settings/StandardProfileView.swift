@@ -37,14 +37,13 @@ struct StandardProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                StudioBackdrop(mode: .ambient)
+                AppTheme.backgroundGradient
                     .ignoresSafeArea()
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 18) {
                         profileHero
                         workSummary
-                        statusPanel
                         settingsPanel
                         dataPanel
                     }
@@ -109,11 +108,7 @@ struct StandardProfileView: View {
             }
         }
         .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.ink.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.hero, fillColor: AppTheme.panelSoft, style: .emphasized)
     }
 
     private var workSummary: some View {
@@ -125,34 +120,12 @@ struct StandardProfileView: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2), spacing: 10) {
                 ProfileMetricTile(title: "档期", value: "\(store.activeBookings.count)", subtitle: "进行中")
                 ProfileMetricTile(title: "客户", value: "\(store.activeClients.count)", subtitle: "活跃关系")
-                ProfileMetricTile(title: "团队", value: "\(store.activeCrewMembers.count)", subtitle: "成员")
                 ProfileMetricTile(title: "待收", value: AppFormatters.currency(outstandingTotal), subtitle: "未结清")
+                ProfileMetricTile(title: "模式", value: store.settings.studioModeEnabled ? "团队" : "个人", subtitle: syncStatus)
             }
         }
         .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.ink.opacity(0.06), lineWidth: 1)
-        }
-    }
-
-    private var statusPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("当前状态")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.ink)
-
-            ProfileInfoRow(symbol: "person.text.rectangle", title: "账号", value: accountStatus)
-            ProfileInfoRow(symbol: "arrow.triangle.2.circlepath", title: "同步", value: syncStatus)
-            ProfileInfoRow(symbol: "person.3.sequence", title: "模式", value: studioModeStatus)
-        }
-        .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.ink.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private var settingsPanel: some View {
@@ -169,17 +142,13 @@ struct StandardProfileView: View {
                     symbol: "gearshape",
                     title: "完整设置",
                     subtitle: "主题、同步、团队、导出和备份",
-                    tint: AppTheme.accentWarmDeep
+                    tint: AppTheme.accent
                 )
             }
             .buttonStyle(.plain)
         }
         .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.ink.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private var dataPanel: some View {
@@ -195,7 +164,7 @@ struct StandardProfileView: View {
                     symbol: "trash",
                     title: "清空当前工作区",
                     subtitle: "保留登录状态和基础设置",
-                    tint: .red
+                    tint: AppTheme.danger
                 )
             }
             .buttonStyle(.plain)
@@ -207,17 +176,13 @@ struct StandardProfileView: View {
                     symbol: "rectangle.portrait.and.arrow.right",
                     title: "退出登录",
                     subtitle: "返回登录页，本地工作区保留",
-                    tint: .orange
+                    tint: AppTheme.warning
                 )
             }
             .buttonStyle(.plain)
         }
         .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.ink.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 }
 
@@ -237,7 +202,7 @@ private struct ProfileStatusBadge: View {
         .foregroundStyle(AppTheme.secondaryInk)
         .frame(maxWidth: .infinity)
         .frame(height: 34)
-        .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+        .background(AppTheme.panelStrong.opacity(0.72), in: Capsule())
     }
 }
 
@@ -262,33 +227,7 @@ private struct ProfileMetricTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-}
-
-private struct ProfileInfoRow: View {
-    let symbol: String
-    let title: String
-    let value: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppTheme.accentWarmDeep)
-                .frame(width: 32, height: 32)
-                .background(AppTheme.accentWarmDeep.opacity(0.12), in: Circle())
-
-            Text(title)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppTheme.ink)
-
-            Spacer()
-
-            Text(value)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(AppTheme.secondaryInk)
-        }
+        .background(AppTheme.panelStrong.opacity(0.72), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
     }
 }
 
@@ -323,6 +262,6 @@ private struct ProfileActionRow: View {
                 .foregroundStyle(AppTheme.secondaryInk.opacity(0.55))
         }
         .padding(12)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(AppTheme.panelStrong.opacity(0.72), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
     }
 }

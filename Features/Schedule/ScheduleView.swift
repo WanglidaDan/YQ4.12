@@ -66,10 +66,6 @@ private typealias BookingDayGroup = (date: Date, bookings: [BookingRecord])
 struct ScheduleView: View {
     @Environment(StudioStore.self) private var store
 
-    let quickActionsExpanded: Bool
-    let quickActionDisabled: Bool
-    let onQuickActionButtonTap: () -> Void
-
     @State private var filter: ScheduleFilter = .all
     @State private var viewMode: ScheduleViewMode = .month
     @State private var scope: ScheduleScope = .active
@@ -239,14 +235,7 @@ struct ScheduleView: View {
     }
 
     private var pageBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(.systemGroupedBackground),
-                Color(.secondarySystemGroupedBackground)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        AppTheme.backgroundGradient
     }
 
     private var headerBar: some View {
@@ -254,10 +243,10 @@ struct ScheduleView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("档期")
                     .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AppTheme.ink)
                 Text(monthTitle)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.secondaryInk)
             }
 
             Spacer()
@@ -308,11 +297,7 @@ struct ScheduleView: View {
             compactMetric("待交付", value: deliveryCount, filter: .delivery)
         }
         .padding(.vertical, 16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private func compactMetric(_ title: String, value: Int, filter targetFilter: ScheduleFilter) -> some View {
@@ -322,10 +307,10 @@ struct ScheduleView: View {
             VStack(spacing: 5) {
                 Text("\(value)")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(filter == targetFilter ? Color.accentColor : .primary)
+                    .foregroundStyle(filter == targetFilter ? AppTheme.accent : AppTheme.ink)
                 Text(title)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(filter == targetFilter ? Color.accentColor : .secondary)
+                    .foregroundStyle(filter == targetFilter ? AppTheme.accent : AppTheme.secondaryInk)
             }
             .frame(maxWidth: .infinity)
         }
@@ -342,10 +327,10 @@ struct ScheduleView: View {
                     } label: {
                         Text(item.title)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(filter == item ? Color(.systemBackground) : .primary)
+                            .foregroundStyle(filter == item ? AppTheme.panelStrong : AppTheme.ink)
                             .padding(.horizontal, 15)
                             .padding(.vertical, 9)
-                            .background(filter == item ? Color.primary : Color(.secondarySystemGroupedBackground), in: Capsule())
+                            .background(filter == item ? AppTheme.accent : AppTheme.panel, in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }
@@ -367,7 +352,7 @@ struct ScheduleView: View {
             if viewMode == .list {
                 Text("列表模式下按日期聚合所有匹配档期。")
                     .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.secondaryInk)
             } else {
                 weekdayHeader
 
@@ -386,11 +371,7 @@ struct ScheduleView: View {
             }
         }
         .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private var viewModeControl: some View {
@@ -402,15 +383,15 @@ struct ScheduleView: View {
                 } label: {
                     Text(mode.title)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(viewMode == mode ? .primary : .secondary)
+                        .foregroundStyle(viewMode == mode ? AppTheme.ink : AppTheme.secondaryInk)
                         .frame(width: 42, height: 30)
-                        .background(viewMode == mode ? Color(.systemBackground) : Color.clear, in: Capsule())
+                        .background(viewMode == mode ? AppTheme.panelStrong : Color.clear, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(4)
-        .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+        .background(AppTheme.panelSoft, in: Capsule())
     }
 
     private var weekdayHeader: some View {
@@ -418,7 +399,7 @@ struct ScheduleView: View {
             ForEach(AppFormatters.reorderedShortWeekdaySymbols(firstWeekday: calendar.firstWeekday), id: \.self) { symbol in
                 Text(symbol)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.secondaryInk)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -439,7 +420,7 @@ struct ScheduleView: View {
             VStack(spacing: 7) {
                 Text("\(calendar.component(.day, from: date))")
                     .font(.system(size: 15, weight: isSelected ? .bold : .semibold, design: .rounded))
-                    .foregroundStyle(isSelected ? Color(.systemBackground) : (isCurrentMonth ? .primary : .secondary.opacity(0.55)))
+                    .foregroundStyle(isSelected ? AppTheme.panelStrong : (isCurrentMonth ? AppTheme.ink : AppTheme.secondaryInk.opacity(0.55)))
 
                 HStack(spacing: 3) {
                     if bookings.isEmpty {
@@ -447,7 +428,7 @@ struct ScheduleView: View {
                     } else {
                         ForEach(0..<min(bookings.count, 3), id: \.self) { _ in
                             Circle()
-                                .fill(isSelected ? Color(.systemBackground).opacity(0.9) : (hasConflict ? Color.orange : Color.accentColor))
+                                .fill(isSelected ? AppTheme.panelStrong.opacity(0.9) : (hasConflict ? AppTheme.warning : AppTheme.accent))
                                 .frame(width: 5, height: 5)
                         }
                     }
@@ -457,11 +438,11 @@ struct ScheduleView: View {
             .frame(height: 50)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isSelected ? Color.primary : (isToday ? Color.accentColor.opacity(0.10) : Color(.tertiarySystemGroupedBackground)))
+                    .fill(isSelected ? AppTheme.accent : (isToday ? AppTheme.accent.opacity(0.10) : AppTheme.panelSoft))
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(hasConflict ? Color.orange.opacity(0.7) : Color.primary.opacity(0.05), lineWidth: 1)
+                    .stroke(hasConflict ? AppTheme.warning.opacity(0.7) : AppTheme.line.opacity(0.34), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -475,7 +456,7 @@ struct ScheduleView: View {
                         .font(.system(size: 20, weight: .bold, design: .rounded))
                     Text(bookingsForFocusDate.isEmpty ? "这一天暂无档期" : "\(bookingsForFocusDate.count) 个安排")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.secondaryInk)
                 }
                 Spacer()
                 Button("今天") {
@@ -497,11 +478,7 @@ struct ScheduleView: View {
             }
         }
         .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private var listSection: some View {
@@ -527,7 +504,7 @@ struct ScheduleView: View {
             }
         }
         .padding(18)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private var emptyState: some View {
@@ -560,10 +537,10 @@ struct ScheduleView: View {
             } label: {
                 Label("新建这天的档期", systemImage: "plus")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color(.systemBackground))
+                    .foregroundStyle(AppTheme.panelStrong)
                     .padding(.horizontal, 16)
                     .frame(height: 40)
-                    .background(Color.primary, in: Capsule())
+                    .background(AppTheme.accent, in: Capsule())
             }
             .buttonStyle(.plain)
             .padding(.top, 2)
@@ -638,19 +615,16 @@ struct ScheduleView: View {
     private var addBookingButton: some View {
         Button {
             createBooking(on: .now)
-            onQuickActionButtonTap()
         } label: {
             Label("新建档期", systemImage: "plus")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Color(.systemBackground))
+                .foregroundStyle(AppTheme.panelStrong)
                 .padding(.horizontal, 18)
                 .frame(height: 50)
-                .background(Color.primary, in: Capsule())
-                .shadow(color: Color.black.opacity(0.16), radius: 18, x: 0, y: 10)
+                .background(AppTheme.accent, in: Capsule())
+                .shadow(color: AppTheme.deepShadow.opacity(0.6), radius: 18, x: 0, y: 10)
         }
         .buttonStyle(.plain)
-        .disabled(quickActionDisabled)
-        .opacity(quickActionDisabled ? 0.55 : 1)
     }
 
     private func periodButton(_ symbol: String, action: @escaping () -> Void) -> some View {
