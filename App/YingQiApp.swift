@@ -42,7 +42,7 @@ private struct AppRootContainer: View {
                             weChatAuthService.signIn(completion: completion)
                         },
                         onContinueWithoutLogin: {
-                            hasEnteredGuestMode = true
+                            enterLocalWorkspace()
                         }
                     )
                     .environment(store)
@@ -64,6 +64,7 @@ private struct AppRootContainer: View {
         }
         .onChange(of: scenePhase) { _, newValue in
             guard newValue == .active else { return }
+            ensureLocalWorkspaceOwnerIfNeeded()
             store.normalizeAndPersistIfNeeded()
             BookingReminderActivityManager.shared.sync(
                 bookings: store.activeBookings,
@@ -73,6 +74,7 @@ private struct AppRootContainer: View {
         }
         .onAppear {
             weChatAuthService.registerIfPossible()
+            ensureLocalWorkspaceOwnerIfNeeded()
             showingLaunchIntro = !hasShownLaunchIntro
         }
         .onOpenURL { url in
@@ -89,6 +91,23 @@ private struct AppRootContainer: View {
             }
             hasShownLaunchIntro = true
         }
+    }
+
+    private func enterLocalWorkspace() {
+        ensureLocalWorkspaceOwnerIfNeeded(force: true)
+        hasEnteredGuestMode = true
+    }
+
+    private func ensureLocalWorkspaceOwnerIfNeeded(force: Bool = false) {
+        guard hasEnteredGuestMode || force else { return }
+        guard store.isAuthenticated == false else { return }
+
+        let localProfile = AuthProfile(
+            appleUserID: "local-workspace-owner",
+            email: nil,
+            fullName: "本地工作区"
+        )
+        store.setAuthProfile(localProfile)
     }
 }
 
