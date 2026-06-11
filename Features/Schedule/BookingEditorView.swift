@@ -42,6 +42,7 @@ private struct BookingFormPage: View {
     @State private var saveErrorMessage: String?
     @State private var voiceErrorMessage: String?
     @State private var speechDraft = ""
+    @State private var speechSuggestion = BookingSpeechSuggestion.empty
     @State private var speechService = BookingSpeechDraftService()
 
     private let calendar = Calendar.current
@@ -88,62 +89,7 @@ private struct BookingFormPage: View {
                     .padding(.vertical, 4)
                 }
 
-                Section {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .center, spacing: 12) {
-                            Image(systemName: speechService.isRecording ? "waveform.circle.fill" : "mic.circle.fill")
-                                .font(.system(size: 30, weight: .semibold))
-                                .foregroundStyle(speechService.isRecording ? AppTheme.warning : AppTheme.accent)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(speechService.isRecording ? "正在听你说档期" : "语音快速记录")
-                                    .font(.headline)
-                                Text("先说一整段安排，再一键填入标题或备注。")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer(minLength: 0)
-
-                            Button(speechService.isRecording ? "停止" : "开始") {
-                                toggleSpeechDraft()
-                            }
-                            .font(.subheadline.weight(.semibold))
-                            .buttonStyle(.borderedProminent)
-                        }
-
-                        if speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-                            Text(speechDraft)
-                                .font(.subheadline)
-                                .foregroundStyle(.primary)
-                                .padding(12)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-                            HStack(spacing: 10) {
-                                Button("填入标题") {
-                                    applySpeechDraftToTitle()
-                                }
-                                .buttonStyle(.bordered)
-
-                                Button("追加到说明") {
-                                    appendSpeechDraftToNotes()
-                                }
-                                .buttonStyle(.bordered)
-
-                                Button("清空") {
-                                    speechDraft = ""
-                                    speechService.transcript = ""
-                                }
-                                .buttonStyle(.borderless)
-                                .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                } footer: {
-                    Text("第一版先做语音草稿，避免自动识别错时间或金额；后续可升级为自动提取客户、时间、地点。")
-                }
+                voiceInputSection
 
                 Section("快速信息") {
                     TextField("项目标题，不填会自动命名", text: $title)
@@ -225,6 +171,11 @@ private struct BookingFormPage: View {
             }
             .onChange(of: speechService.transcript) { _, newValue in
                 speechDraft = newValue
+                speechSuggestion = BookingSpeechParser.parse(
+                    newValue,
+                    referenceDate: startAt,
+                    existingClients: store.activeClients
+                )
             }
             .onDisappear {
                 speechService.stopRecording()
@@ -245,6 +196,94 @@ private struct BookingFormPage: View {
             } message: {
                 Text(voiceErrorMessage ?? "请检查麦克风和语音识别权限。")
             }
+        }
+    }
+
+    private var voiceInputSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: speechService.isRecording ? "waveform.circle.fill" : "mic.circle.fill")
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(speechService.isRecording ? AppTheme.warning : AppTheme.accent)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(speechService.isRecording ? "正在听你说档期" : "语音智能填充")
+                            .font(.headline)
+                        Text("例如：明天下午两点，王女士，亲子写真，万达影棚，报价一千二，定金三百。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Button(speechService.isRecording ? "停止" : "开始") {
+                        toggleSpeechDraft()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.borderedProminent)
+                }
+
+                if speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+                    Text(speechDraft)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    if speechSuggestion.hasAnySuggestion {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("识别到这些信息")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 118), spacing: 8)], alignment: .leading, spacing: 8) {
+                                ForEach(speechSuggestion.chips, id: \.self) { chip in
+                                    Text(chip)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.accent)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.72)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 7)
+                                        .background(AppTheme.accentSurface, in: Capsule())
+                                }
+                            }
+                        }
+                    }
+
+                    HStack(spacing: 10) {
+                        Button("智能填充") {
+                            applySpeechSuggestion()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(speechSuggestion.hasAnySuggestion == false)
+
+                        Button("填入标题") {
+                            applySpeechDraftToTitle()
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("追加到说明") {
+                            appendSpeechDraftToNotes()
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("清空") {
+                            speechDraft = ""
+                            speechSuggestion = .empty
+                            speechService.transcript = ""
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+            }
+            .padding(.vertical, 4)
+        } footer: {
+            Text("智能填充只会覆盖识别到的字段；识别不确定时，原来的表单内容会保留。")
         }
     }
 
@@ -311,6 +350,53 @@ private struct BookingFormPage: View {
                 AppHaptics.error()
             }
         }
+    }
+
+    private func applySpeechSuggestion() {
+        if let matchedClientID = speechSuggestion.matchedClientID {
+            selectedClientID = matchedClientID
+        }
+
+        if let suggestedCategory = speechSuggestion.category {
+            category = suggestedCategory
+        }
+
+        if let suggestedStartAt = speechSuggestion.startAt {
+            let oldStartAt = startAt
+            startAt = suggestedStartAt
+            shiftEndDate(from: oldStartAt, to: suggestedStartAt)
+        }
+
+        if let suggestedVenue = speechSuggestion.venue, venue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            venue = suggestedVenue
+        }
+
+        if let suggestedCity = speechSuggestion.city, city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            city = suggestedCity
+        }
+
+        if let suggestedAddress = speechSuggestion.addressText, addressText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            addressText = suggestedAddress
+        }
+
+        if let suggestedFee = speechSuggestion.fee, fee <= 0 {
+            fee = suggestedFee
+        }
+
+        if let suggestedDeposit = speechSuggestion.depositPaid, depositPaid <= 0 {
+            depositPaid = min(suggestedDeposit, max(fee, suggestedDeposit))
+        }
+
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            title = speechSuggestion.titleFallback(defaultCategory: category, defaultStartAt: startAt)
+        }
+
+        if notesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            notesText = speechDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        AppHaptics.success()
     }
 
     private func applySpeechDraftToTitle() {
@@ -388,6 +474,260 @@ private struct BookingFormPage: View {
     private func shiftEndDate(from oldValue: Date, to newValue: Date) {
         let duration = endAt.timeIntervalSince(oldValue)
         endAt = max(newValue.addingTimeInterval(duration), newValue.addingTimeInterval(1_800))
+    }
+}
+
+private struct BookingSpeechSuggestion: Equatable {
+    var matchedClientID: UUID?
+    var clientName: String?
+    var category: ServiceCategory?
+    var startAt: Date?
+    var city: String?
+    var venue: String?
+    var addressText: String?
+    var fee: Double?
+    var depositPaid: Double?
+
+    static let empty = BookingSpeechSuggestion()
+
+    var hasAnySuggestion: Bool {
+        matchedClientID != nil ||
+        clientName != nil ||
+        category != nil ||
+        startAt != nil ||
+        city != nil ||
+        venue != nil ||
+        addressText != nil ||
+        fee != nil ||
+        depositPaid != nil
+    }
+
+    var chips: [String] {
+        var values: [String] = []
+        if let clientName { values.append("客户：\(clientName)") }
+        if let category { values.append("类型：\(category.title)") }
+        if let startAt { values.append("时间：\(AppFormatters.shortDate(startAt)) \(AppFormatters.timeRange(start: startAt, end: startAt.addingTimeInterval(7_200)))") }
+        if let venue { values.append("场地：\(venue)") }
+        if let city { values.append("城市：\(city)") }
+        if let fee { values.append("报价：\(AppFormatters.currency(fee))") }
+        if let depositPaid { values.append("定金：\(AppFormatters.currency(depositPaid))") }
+        return values
+    }
+
+    func titleFallback(defaultCategory: ServiceCategory, defaultStartAt: Date) -> String {
+        let name = clientName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let type = category ?? defaultCategory
+        if let name, name.isEmpty == false {
+            return "\(name) · \(type.title)"
+        }
+        if let venue, venue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return "\(venue) · \(type.title)"
+        }
+        let date = startAt ?? defaultStartAt
+        return "\(AppFormatters.shortDate(date)) \(type.title)"
+    }
+}
+
+private enum BookingSpeechParser {
+    static func parse(_ text: String, referenceDate: Date, existingClients: [ClientRecord]) -> BookingSpeechSuggestion {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleaned.isEmpty == false else { return .empty }
+
+        var suggestion = BookingSpeechSuggestion.empty
+        suggestion.category = parseCategory(from: cleaned)
+        suggestion.startAt = parseDateTime(from: cleaned, referenceDate: referenceDate)
+        suggestion.fee = parseAmount(from: cleaned, markers: ["报价", "总价", "费用", "价格", "收"])
+        suggestion.depositPaid = parseAmount(from: cleaned, markers: ["定金", "订金", "已收", "先收", "预付"])
+
+        if let matchedClient = existingClients.first(where: { client in
+            let name = client.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            return name.isEmpty == false && cleaned.localizedCaseInsensitiveContains(name)
+        }) {
+            suggestion.matchedClientID = matchedClient.id
+            suggestion.clientName = matchedClient.name
+        } else {
+            suggestion.clientName = parseClientName(from: cleaned)
+        }
+
+        suggestion.venue = parseVenue(from: cleaned)
+        suggestion.city = parseCity(from: cleaned)
+        suggestion.addressText = parseAddress(from: cleaned)
+
+        return suggestion
+    }
+
+    private static func parseCategory(from text: String) -> ServiceCategory? {
+        let rules: [(ServiceCategory, [String])] = [
+            (.wedding, ["婚礼", "婚宴", "接亲", "跟妆"]),
+            (.engagement, ["求婚", "订婚"]),
+            (.travel, ["旅拍", "旅行"]),
+            (.portrait, ["写真", "肖像", "个人照", "形象照"]),
+            (.couple, ["情侣", "双人"]),
+            (.bestie, ["闺蜜"]),
+            (.maternity, ["孕妇", "孕照"]),
+            (.newborn, ["新生儿", "满月"]),
+            (.children, ["儿童", "宝宝", "百天"]),
+            (.family, ["亲子", "全家福", "家庭"]),
+            (.graduation, ["毕业", "毕业照"]),
+            (.pet, ["宠物", "猫", "狗"]),
+            (.documentaryFilm, ["纪录片"]),
+            (.aerial, ["航拍", "无人机"]),
+            (.video, ["视频", "短片", "摄像"]),
+            (.event, ["活动", "会议", "年会", "发布会", "展会"]),
+            (.corporate, ["企业", "公司形象", "团队照"]),
+            (.product, ["产品", "静物"]),
+            (.ecommerce, ["电商", "服装", "服饰"]),
+            (.food, ["美食", "餐饮", "菜品"]),
+            (.space, ["空间", "建筑", "酒店", "民宿"]),
+            (.commercial, ["商业", "广告"])
+        ]
+
+        return rules.first { _, keywords in
+            keywords.contains { text.localizedCaseInsensitiveContains($0) }
+        }?.0
+    }
+
+    private static func parseDateTime(from text: String, referenceDate: Date) -> Date? {
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: referenceDate)
+
+        if text.contains("后天") {
+            components = calendar.dateComponents([.year, .month, .day], from: calendar.date(byAdding: .day, value: 2, to: referenceDate) ?? referenceDate)
+        } else if text.contains("明天") || text.contains("明日") {
+            components = calendar.dateComponents([.year, .month, .day], from: calendar.date(byAdding: .day, value: 1, to: referenceDate) ?? referenceDate)
+        } else if text.contains("今天") || text.contains("今日") {
+            components = calendar.dateComponents([.year, .month, .day], from: referenceDate)
+        } else if let explicitDate = match(text, pattern: "(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*[日号]?") {
+            if explicitDate.count >= 3,
+               let month = Int(explicitDate[1]),
+               let day = Int(explicitDate[2]) {
+                components.month = month
+                components.day = day
+                components.year = calendar.component(.year, from: referenceDate)
+                if let candidate = calendar.date(from: components), candidate < calendar.startOfDay(for: referenceDate) {
+                    components.year = (components.year ?? calendar.component(.year, from: referenceDate)) + 1
+                }
+            }
+        }
+
+        let hourMinute = parseHourMinute(from: text)
+        components.hour = hourMinute.hour
+        components.minute = hourMinute.minute
+        components.second = 0
+
+        return calendar.date(from: components)
+    }
+
+    private static func parseHourMinute(from text: String) -> (hour: Int, minute: Int) {
+        let period = parsePeriod(from: text)
+        if let match = match(text, pattern: "(\\d{1,2})\\s*[点:]\\s*(半|\\d{1,2})?") {
+            var hour = Int(match[safe: 1] ?? "") ?? 10
+            let minuteToken = match[safe: 2] ?? ""
+            var minute = 0
+            if minuteToken == "半" {
+                minute = 30
+            } else if let parsedMinute = Int(minuteToken) {
+                minute = parsedMinute
+            }
+
+            if ["下午", "晚上", "傍晚"].contains(period), hour < 12 {
+                hour += 12
+            }
+            if period == "中午", hour < 11 {
+                hour += 12
+            }
+            if ["早上", "上午"].contains(period), hour == 12 {
+                hour = 0
+            }
+
+            return (min(max(hour, 0), 23), min(max(minute, 0), 59))
+        }
+
+        return (10, 0)
+    }
+
+    private static func parsePeriod(from text: String) -> String {
+        ["早上", "上午", "中午", "下午", "傍晚", "晚上"].first { text.contains($0) } ?? ""
+    }
+
+    private static func parseAmount(from text: String, markers: [String]) -> Double? {
+        for marker in markers where text.contains(marker) {
+            let tail = text.components(separatedBy: marker).dropFirst().joined(separator: marker)
+            if let amount = parseFirstAmount(in: tail) {
+                return amount
+            }
+        }
+        return nil
+    }
+
+    private static func parseFirstAmount(in text: String) -> Double? {
+        if let match = match(text, pattern: "(\\d+(?:\\.\\d+)?)\\s*(万|千|百)?") {
+            guard let base = Double(match[safe: 1] ?? "") else { return nil }
+            switch match[safe: 2] {
+            case "万": return base * 10_000
+            case "千": return base * 1_000
+            case "百": return base * 100
+            default: return base
+            }
+        }
+
+        if text.contains("一千二") { return 1_200 }
+        if text.contains("一千五") { return 1_500 }
+        if text.contains("两千") { return 2_000 }
+        if text.contains("三千") { return 3_000 }
+        if text.contains("五千") { return 5_000 }
+        if text.contains("三百") { return 300 }
+        if text.contains("五百") { return 500 }
+        if text.contains("八百") { return 800 }
+        return nil
+    }
+
+    private static func parseClientName(from text: String) -> String? {
+        if let match = match(text, pattern: "([\\p{Han}]{1,4}(女士|先生|老师|总|姐|哥))") {
+            return match[safe: 1]
+        }
+        return nil
+    }
+
+    private static func parseVenue(from text: String) -> String? {
+        let markers = ["在", "到", "去", "地点", "场地"]
+        for marker in markers where text.contains(marker) {
+            let tail = text.components(separatedBy: marker).dropFirst().joined(separator: marker)
+            let cleaned = tail
+                .components(separatedBy: CharacterSet(charactersIn: "，,。；;"))
+                .first?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let cleaned, cleaned.count >= 2 {
+                return String(cleaned.prefix(18))
+            }
+        }
+        return nil
+    }
+
+    private static func parseCity(from text: String) -> String? {
+        if let match = match(text, pattern: "([\\p{Han}]{2,6}市)") {
+            return match[safe: 1]
+        }
+        return nil
+    }
+
+    private static func parseAddress(from text: String) -> String? {
+        if text.contains("路") || text.contains("街") || text.contains("号") || text.contains("楼") {
+            return parseVenue(from: text)
+        }
+        return nil
+    }
+
+    private static func match(_ text: String, pattern: String) -> [String]? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let result = regex.firstMatch(in: text, range: range) else { return nil }
+        return (0..<result.numberOfRanges).compactMap { index in
+            let nsRange = result.range(at: index)
+            guard nsRange.location != NSNotFound,
+                  let range = Range(nsRange, in: text) else { return nil }
+            return String(text[range])
+        }
     }
 }
 
@@ -484,6 +824,12 @@ private enum BookingSpeechDraftError: LocalizedError {
         case .microphonePermissionDenied:
             return "请在系统设置中允许影期使用麦克风。"
         }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 
