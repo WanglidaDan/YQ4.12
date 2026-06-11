@@ -318,9 +318,7 @@ private struct BookingFormPage: View {
     }
 
     private var resolvedTitle: String {
-        if trimmedTitle.isEmpty == false {
-            return trimmedTitle
-        }
+        if trimmedTitle.isEmpty == false { return trimmedTitle }
 
         if let selectedClientID,
            let client = store.client(id: selectedClientID),
@@ -336,13 +334,8 @@ private struct BookingFormPage: View {
         return "\(AppFormatters.shortDate(startAt)) \(category.title)"
     }
 
-    private var normalizedFee: Double {
-        max(fee, 0)
-    }
-
-    private var normalizedDeposit: Double {
-        min(max(depositPaid, 0), normalizedFee)
-    }
+    private var normalizedFee: Double { max(fee, 0) }
+    private var normalizedDeposit: Double { min(max(depositPaid, 0), normalizedFee) }
 
     private var conflictBookings: [BookingRecord] {
         store.activeBookings.filter { booking in
@@ -392,59 +385,29 @@ private struct BookingFormPage: View {
     }
 
     private func applySpeechSuggestion() {
-        if let matchedClientID = speechSuggestion.matchedClientID {
-            selectedClientID = matchedClientID
-        }
-
-        if let suggestedCategory = speechSuggestion.category {
-            category = suggestedCategory
-        }
-
+        if let matchedClientID = speechSuggestion.matchedClientID { selectedClientID = matchedClientID }
+        if let suggestedCategory = speechSuggestion.category { category = suggestedCategory }
         if let suggestedStartAt = speechSuggestion.startAt {
             startAt = suggestedStartAt
             endAt = speechSuggestion.endAt ?? suggestedStartAt.addingTimeInterval(7_200)
         }
-
-        if let suggestedVenue = speechSuggestion.venue, venue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            venue = suggestedVenue
-        }
-
-        if let suggestedCity = speechSuggestion.city, city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            city = suggestedCity
-        }
-
-        if let suggestedAddress = speechSuggestion.addressText, addressText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            addressText = suggestedAddress
-        }
-
-        if let suggestedFee = speechSuggestion.fee, fee <= 0 {
-            fee = suggestedFee
-        }
-
-        if let suggestedDeposit = speechSuggestion.depositPaid, depositPaid <= 0 {
-            depositPaid = min(suggestedDeposit, max(fee, suggestedDeposit))
-        }
-
-        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            title = speechSuggestion.titleFallback(defaultCategory: category, defaultStartAt: startAt)
-        }
-
+        if let suggestedVenue = speechSuggestion.venue, venue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { venue = suggestedVenue }
+        if let suggestedCity = speechSuggestion.city, city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { city = suggestedCity }
+        if let suggestedAddress = speechSuggestion.addressText, addressText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { addressText = suggestedAddress }
+        if let suggestedFee = speechSuggestion.fee, fee <= 0 { fee = suggestedFee }
+        if let suggestedDeposit = speechSuggestion.depositPaid, depositPaid <= 0 { depositPaid = min(suggestedDeposit, max(fee, suggestedDeposit)) }
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { title = speechSuggestion.titleFallback(defaultCategory: category, defaultStartAt: startAt) }
         if notesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
             notesText = speechDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-
         AppHaptics.success()
     }
 
     private func appendSpeechDraftToNotes() {
         let draft = speechDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard draft.isEmpty == false else { return }
-        if notesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            notesText = draft
-        } else {
-            notesText += "\n" + draft
-        }
+        notesText = notesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? draft : notesText + "\n" + draft
         AppHaptics.success()
     }
 
@@ -454,7 +417,6 @@ private struct BookingFormPage: View {
             AppHaptics.error()
             return
         }
-
         speechService.stopRecording()
         saveBooking()
     }
@@ -532,17 +494,17 @@ private struct BookingSpeechSuggestion: Equatable {
 
     var confidenceTitle: String {
         switch score {
-        case 5...: return "识别较完整"
-        case 3...4: return "可用"
-        default: return "需确认"
+        case 5...: "识别较完整"
+        case 3...4: "可用"
+        default: "需确认"
         }
     }
 
     var confidenceColor: Color {
         switch score {
-        case 5...: return AppTheme.success
-        case 3...4: return AppTheme.accent
-        default: return AppTheme.warning
+        case 5...: AppTheme.success
+        case 3...4: AppTheme.accent
+        default: AppTheme.warning
         }
     }
 
@@ -898,7 +860,7 @@ private final class BookingSpeechDraftService {
             throw BookingSpeechDraftError.speechPermissionDenied
         }
 
-        let microphoneGranted = await AVAudioSession.sharedInstance().requestRecordPermissionAsync()
+        let microphoneGranted = await MicrophonePermission.request()
         guard microphoneGranted else {
             throw BookingSpeechDraftError.microphonePermissionDenied
         }
@@ -968,6 +930,16 @@ private enum BookingSpeechDraftError: LocalizedError {
     }
 }
 
+private enum MicrophonePermission {
+    static func request() async -> Bool {
+        await withCheckedContinuation { continuation in
+            AVAudioApplication.requestRecordPermission { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+    }
+}
+
 private extension Array {
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
@@ -986,16 +958,6 @@ private extension SFSpeechRecognizer {
         await withCheckedContinuation { continuation in
             requestAuthorization { status in
                 continuation.resume(returning: status)
-            }
-        }
-    }
-}
-
-private extension AVAudioSession {
-    func requestRecordPermissionAsync() async -> Bool {
-        await withCheckedContinuation { continuation in
-            requestRecordPermission { granted in
-                continuation.resume(returning: granted)
             }
         }
     }
