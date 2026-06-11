@@ -36,7 +36,7 @@ private struct AppRootContainer: View {
                     AuthGateView(
                         onAuthenticated: { profile in
                             hasEnteredGuestMode = false
-                            store.setAuthProfile(profile)
+                            store.authenticateForAppEntry(profile)
                         },
                         onWeChatSignIn: { completion in
                             weChatAuthService.signIn(completion: completion)
@@ -94,20 +94,14 @@ private struct AppRootContainer: View {
     }
 
     private func enterLocalWorkspace() {
-        ensureLocalWorkspaceOwnerIfNeeded(force: true)
+        store.enterLocalWorkspaceAsOwner()
         hasEnteredGuestMode = true
     }
 
     private func ensureLocalWorkspaceOwnerIfNeeded(force: Bool = false) {
         guard hasEnteredGuestMode || force else { return }
         guard store.isAuthenticated == false else { return }
-
-        let localProfile = AuthProfile(
-            appleUserID: "local-workspace-owner",
-            email: nil,
-            fullName: "本地工作区"
-        )
-        store.setAuthProfile(localProfile)
+        store.enterLocalWorkspaceAsOwner()
     }
 }
 
@@ -564,7 +558,7 @@ private struct AppleIDAuthButton: View {
                 AppHaptics.success()
                 onSuccess(profile)
             case let .failure(error):
-                onFailure(error.localizedDescription)
+                onFailure("Apple 登录失败：\(error.localizedDescription)")
                 AppHaptics.error()
             }
         }
