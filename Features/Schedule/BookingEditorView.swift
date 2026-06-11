@@ -1,4 +1,5 @@
 import AVFoundation
+import Foundation
 import Speech
 import SwiftUI
 
@@ -401,11 +402,7 @@ private struct BookingFormPage: View {
 
         if let suggestedStartAt = speechSuggestion.startAt {
             startAt = suggestedStartAt
-            if let suggestedEndAt = speechSuggestion.endAt, suggestedEndAt > suggestedStartAt {
-                endAt = suggestedEndAt
-            } else {
-                endAt = suggestedStartAt.addingTimeInterval(7_200)
-            }
+            endAt = speechSuggestion.endAt ?? suggestedStartAt.addingTimeInterval(7_200)
         }
 
         if let suggestedVenue = speechSuggestion.venue, venue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -526,16 +523,7 @@ private struct BookingSpeechSuggestion: Equatable {
     static let empty = BookingSpeechSuggestion()
 
     var hasAnySuggestion: Bool {
-        matchedClientID != nil ||
-        clientName != nil ||
-        category != nil ||
-        startAt != nil ||
-        endAt != nil ||
-        city != nil ||
-        venue != nil ||
-        addressText != nil ||
-        fee != nil ||
-        depositPaid != nil
+        matchedClientID != nil || clientName != nil || category != nil || startAt != nil || endAt != nil || city != nil || venue != nil || addressText != nil || fee != nil || depositPaid != nil
     }
 
     var score: Int {
@@ -544,23 +532,17 @@ private struct BookingSpeechSuggestion: Equatable {
 
     var confidenceTitle: String {
         switch score {
-        case 5...:
-            return "识别较完整"
-        case 3...4:
-            return "可用"
-        default:
-            return "需确认"
+        case 5...: return "识别较完整"
+        case 3...4: return "可用"
+        default: return "需确认"
         }
     }
 
     var confidenceColor: Color {
         switch score {
-        case 5...:
-            return AppTheme.success
-        case 3...4:
-            return AppTheme.accent
-        default:
-            return AppTheme.warning
+        case 5...: return AppTheme.success
+        case 3...4: return AppTheme.accent
+        default: return AppTheme.warning
         }
     }
 
@@ -582,12 +564,8 @@ private struct BookingSpeechSuggestion: Equatable {
     func titleFallback(defaultCategory: ServiceCategory, defaultStartAt: Date) -> String {
         let name = clientName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let type = category ?? defaultCategory
-        if let name, name.isEmpty == false {
-            return "\(name) · \(type.title)"
-        }
-        if let venue, venue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return "\(venue) · \(type.title)"
-        }
+        if let name, name.isEmpty == false { return "\(name) · \(type.title)" }
+        if let venue, venue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false { return "\(venue) · \(type.title)" }
         let date = startAt ?? defaultStartAt
         return "\(AppFormatters.shortDate(date)) \(type.title)"
     }
@@ -601,7 +579,7 @@ private enum BookingSpeechParser {
         var suggestion = BookingSpeechSuggestion.empty
         suggestion.category = parseCategory(from: normalized)
         suggestion.startAt = parseDateTime(from: normalized, referenceDate: referenceDate)
-        suggestion.endAt = parseEndDateTime(from: normalized, startAt: suggestion.startAt, referenceDate: referenceDate)
+        suggestion.endAt = parseEndDateTime(from: normalized, startAt: suggestion.startAt)
         suggestion.fee = parseAmount(from: normalized, markers: ["报价", "总价", "费用", "价格", "价钱", "套餐", "一共"])
         suggestion.depositPaid = parseAmount(from: normalized, markers: ["定金", "订金", "已收", "先收", "预付", "押金"])
 
@@ -615,7 +593,6 @@ private enum BookingSpeechParser {
         suggestion.city = parseCity(from: normalized)
         suggestion.venue = parseVenue(from: normalized)
         suggestion.addressText = parseAddress(from: normalized)
-
         return suggestion
     }
 
@@ -629,39 +606,25 @@ private enum BookingSpeechParser {
             .replacingOccurrences(of: "礼拜", with: "星期")
             .replacingOccurrences(of: "周日", with: "星期日")
             .replacingOccurrences(of: "周天", with: "星期日")
+            .replacingOccurrences(of: " ", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func parseCategory(from text: String) -> ServiceCategory? {
         let rules: [(ServiceCategory, [String])] = [
             (.wedding, ["婚礼", "婚宴", "接亲", "跟妆", "婚庆"]),
-            (.engagement, ["求婚", "订婚"]),
-            (.travel, ["旅拍", "旅行拍摄"]),
             (.portrait, ["写真", "肖像", "个人照", "形象照", "证件照"]),
-            (.couple, ["情侣", "双人"]),
-            (.bestie, ["闺蜜"]),
-            (.maternity, ["孕妇", "孕照"]),
-            (.newborn, ["新生儿", "满月"]),
-            (.children, ["儿童", "宝宝", "百天", "周岁"]),
             (.family, ["亲子", "全家福", "家庭"]),
+            (.children, ["儿童", "宝宝", "百天", "周岁"]),
             (.graduation, ["毕业", "毕业照", "学士服"]),
-            (.pet, ["宠物", "猫", "狗"]),
-            (.documentary, ["跟拍", "纪实"]),
-            (.documentaryFilm, ["纪录片"]),
-            (.aerial, ["航拍", "无人机"]),
+            (.event, ["活动", "会议", "年会", "发布会", "展会", "晚会", "典礼", "跟拍", "纪实"]),
             (.video, ["视频", "短片", "摄像", "剪辑"]),
-            (.event, ["活动", "会议", "年会", "发布会", "展会", "晚会", "典礼"]),
-            (.corporate, ["企业", "公司形象", "团队照"]),
+            (.commercial, ["商业", "广告", "宣传片"]),
             (.product, ["产品", "静物"]),
-            (.ecommerce, ["电商", "服装", "服饰"]),
             (.food, ["美食", "餐饮", "菜品"]),
-            (.space, ["空间", "建筑", "酒店", "民宿", "样板间"]),
-            (.commercial, ["商业", "广告", "宣传片"])
+            (.space, ["空间", "建筑", "酒店", "民宿", "样板间"])
         ]
-
-        return rules.first { _, keywords in
-            keywords.contains { text.localizedCaseInsensitiveContains($0) }
-        }?.0
+        return rules.first { _, keywords in keywords.contains { text.localizedCaseInsensitiveContains($0) } }?.0
     }
 
     private static func parseDateTime(from text: String, referenceDate: Date) -> Date? {
@@ -685,27 +648,11 @@ private enum BookingSpeechParser {
         return calendar.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: targetDay)
     }
 
-    private static func parseEndDateTime(from text: String, startAt: Date?, referenceDate: Date) -> Date? {
+    private static func parseEndDateTime(from text: String, startAt: Date?) -> Date? {
         guard let startAt else { return nil }
-        let calendar = Calendar.current
-
         if let duration = parseDurationMinutes(from: text) {
             return startAt.addingTimeInterval(TimeInterval(duration * 60))
         }
-
-        if let endMatch = match(text, pattern: "(?:到|至|结束到|拍到)(上午|下午|晚上|傍晚|中午)?\s*([零〇一二两三四五六七八九十0-9]{1,3})\s*(?:点|:)(半|[零〇一二两三四五六七八九十0-9]{1,3})?") {
-            let period = endMatch[safe: 1] ?? ""
-            let hourText = endMatch[safe: 2] ?? ""
-            let minuteText = endMatch[safe: 3] ?? ""
-            var hour = chineseNumber(hourText) ?? Int(hourText) ?? calendar.component(.hour, from: startAt) + 2
-            var minute = minuteText == "半" ? 30 : (chineseNumber(minuteText) ?? Int(minuteText) ?? 0)
-            applyPeriod(period, hour: &hour)
-            minute = min(max(minute, 0), 59)
-            if let candidate = calendar.date(bySettingHour: min(max(hour, 0), 23), minute: minute, second: 0, of: startAt), candidate > startAt {
-                return candidate
-            }
-        }
-
         return startAt.addingTimeInterval(7_200)
     }
 
@@ -713,7 +660,7 @@ private enum BookingSpeechParser {
         let calendar = Calendar.current
         var components = calendar.dateComponents([.year, .month, .day], from: referenceDate)
 
-        if let match = match(text, pattern: "(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?") ?? match(text, pattern: "(\d{1,2})\s*/\s*(\d{1,2})") {
+        if let match = match(text, pattern: "([0-9]{1,2})月([0-9]{1,2})[日号]?") ?? match(text, pattern: "([0-9]{1,2})/([0-9]{1,2})") {
             guard let month = Int(match[safe: 1] ?? ""), let day = Int(match[safe: 2] ?? "") else { return nil }
             components.month = month
             components.day = day
@@ -728,7 +675,7 @@ private enum BookingSpeechParser {
             }
         }
 
-        if let match = match(text, pattern: "(?<!月)(\d{1,2})\s*[号日]") {
+        if let match = match(text, pattern: "([0-9]{1,2})[号日]") {
             guard let day = Int(match[safe: 1] ?? "") else { return nil }
             components.day = day
             components.hour = 0
@@ -756,8 +703,6 @@ private enum BookingSpeechParser {
         var delta = (weekday - currentWeekday + 7) % 7
         if text.contains("下周") || text.contains("下星期") {
             delta = delta == 0 ? 7 : delta + 7
-        } else if text.contains("这周") || text.contains("本周") || text.contains("这个周") {
-            delta = delta == 0 ? 0 : delta
         } else if delta == 0 {
             delta = 7
         }
@@ -765,18 +710,16 @@ private enum BookingSpeechParser {
     }
 
     private static func parseHourMinute(from text: String) -> (hour: Int, minute: Int)? {
-        let period = parsePeriod(from: text)
-        if let match = match(text, pattern: "(上午|下午|晚上|傍晚|中午|早上)?\s*([零〇一二两三四五六七八九十0-9]{1,3})\s*(?:点|:)(半|[零〇一二两三四五六七八九十0-9]{1,3})?") {
-            let localPeriod = match[safe: 1]?.isEmpty == false ? (match[safe: 1] ?? period) : period
-            let hourText = match[safe: 2] ?? ""
-            let minuteText = match[safe: 3] ?? ""
-            var hour = chineseNumber(hourText) ?? Int(hourText) ?? 10
-            var minute = minuteText == "半" ? 30 : (chineseNumber(minuteText) ?? Int(minuteText) ?? 0)
-            applyPeriod(localPeriod, hour: &hour)
-            minute = min(max(minute, 0), 59)
-            return (min(max(hour, 0), 23), minute)
-        }
-        return nil
+        let pattern = "(上午|下午|晚上|傍晚|中午|早上|凌晨)?([零〇一二两三四五六七八九十0-9]{1,3})(点|:)(半|[零〇一二两三四五六七八九十0-9]{1,3})?"
+        guard let result = match(text, pattern: pattern) else { return nil }
+        let period = result[safe: 1] ?? parsePeriod(from: text)
+        let hourText = result[safe: 2] ?? ""
+        let minuteText = result[safe: 4] ?? ""
+        var hour = chineseNumber(hourText) ?? Int(hourText) ?? 10
+        var minute = minuteText == "半" ? 30 : (chineseNumber(minuteText) ?? Int(minuteText) ?? 0)
+        applyPeriod(period, hour: &hour)
+        minute = min(max(minute, 0), 59)
+        return (min(max(hour, 0), 23), minute)
     }
 
     private static func parsePeriod(from text: String) -> String {
@@ -784,49 +727,35 @@ private enum BookingSpeechParser {
     }
 
     private static func applyPeriod(_ period: String, hour: inout Int) {
-        if ["下午", "晚上", "傍晚"].contains(period), hour < 12 {
-            hour += 12
-        }
-        if period == "中午", hour < 11 {
-            hour += 12
-        }
-        if ["凌晨", "早上", "上午"].contains(period), hour == 12 {
-            hour = 0
-        }
+        if ["下午", "晚上", "傍晚"].contains(period), hour < 12 { hour += 12 }
+        if period == "中午", hour < 11 { hour += 12 }
+        if ["凌晨", "早上", "上午"].contains(period), hour == 12 { hour = 0 }
     }
 
     private static func parseDurationMinutes(from text: String) -> Int? {
-        if let match = match(text, pattern: "(?:拍|预计|大概|时长)?\s*([零〇一二两三四五六七八九十0-9]{1,3})\s*(个)?\s*小时") {
-            let hoursText = match[safe: 1] ?? ""
-            if let hours = chineseNumber(hoursText) ?? Int(hoursText) {
-                return max(hours, 1) * 60
-            }
-        }
-        if let match = match(text, pattern: "([零〇一二两三四五六七八九十0-9]{1,3})\s*分钟") {
-            let minutesText = match[safe: 1] ?? ""
-            if let minutes = chineseNumber(minutesText) ?? Int(minutesText) {
-                return max(minutes, 15)
-            }
-        }
         if text.contains("半小时") { return 30 }
+        if let match = match(text, pattern: "(?:拍|预计|大概|时长)?([零〇一二两三四五六七八九十0-9]{1,3})(个)?小时") {
+            let hoursText = match[safe: 1] ?? ""
+            if let hours = chineseNumber(hoursText) ?? Int(hoursText) { return max(hours, 1) * 60 }
+        }
+        if let match = match(text, pattern: "([零〇一二两三四五六七八九十0-9]{1,3})分钟") {
+            let minutesText = match[safe: 1] ?? ""
+            if let minutes = chineseNumber(minutesText) ?? Int(minutesText) { return max(minutes, 15) }
+        }
         return nil
     }
 
     private static func parseAmount(from text: String, markers: [String]) -> Double? {
         for marker in markers where text.contains(marker) {
             let tail = text.components(separatedBy: marker).dropFirst().joined(separator: marker)
-            if let amount = parseFirstAmount(in: tail) {
-                return amount
-            }
+            if let amount = parseFirstAmount(in: tail) { return amount }
         }
         return nil
     }
 
     private static func parseFirstAmount(in text: String) -> Double? {
-        let head = text.components(separatedBy: CharacterSet(charactersIn: ",，。；;， 定金订金已收先收预付押金"))
-            .first ?? text
-
-        if let match = match(head, pattern: "(\d+(?:\.\d+)?)\s*(万|千|百)?") {
+        let head = text.components(separatedBy: CharacterSet(charactersIn: ",，。；; 定金订金已收先收预付押金"))[safe: 0] ?? text
+        if let match = match(head, pattern: "([0-9]+(?:[.][0-9]+)?)(万|千|百)?") {
             guard let base = Double(match[safe: 1] ?? "") else { return nil }
             switch match[safe: 2] {
             case "万": return base * 10_000
@@ -835,9 +764,9 @@ private enum BookingSpeechParser {
             default: return base
             }
         }
-
         if let match = match(head, pattern: "([零〇一二两三四五六七八九十百千万]+)") {
-            return Double(chineseMoney(match[safe: 1] ?? "") ?? 0).nilIfZero
+            let value = chineseMoney(match[safe: 1] ?? "") ?? 0
+            return value == 0 ? nil : Double(value)
         }
         return nil
     }
@@ -850,10 +779,10 @@ private enum BookingSpeechParser {
     }
 
     private static func parseClientName(from text: String) -> String? {
-        if let match = match(text, pattern: "(?:客户|给|约了|联系)\s*([\\p{Han}]{1,4}(女士|先生|老师|总|姐|哥|同学)?)") {
+        if let match = match(text, pattern: "(?:客户|给|约了|联系)([一-龥]{1,4}(女士|先生|老师|总|姐|哥|同学)?)") {
             return match[safe: 1]?.nilIfBlank
         }
-        if let match = match(text, pattern: "([\\p{Han}]{1,4}(女士|先生|老师|总|姐|哥|同学))") {
+        if let match = match(text, pattern: "([一-龥]{1,4}(女士|先生|老师|总|姐|哥|同学))") {
             return match[safe: 1]?.nilIfBlank
         }
         return nil
@@ -874,18 +803,13 @@ private enum BookingSpeechParser {
                 .replacingOccurrences(of: "拍摄", with: "")
                 .replacingOccurrences(of: "进行", with: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if cleaned.count >= 2 {
-                return String(cleaned.prefix(24))
-            }
+            if cleaned.count >= 2 { return String(cleaned.prefix(24)) }
         }
         return nil
     }
 
     private static func parseCity(from text: String) -> String? {
-        if let match = match(text, pattern: "([\\p{Han}]{2,6}市)") {
-            return match[safe: 1]
-        }
-        return nil
+        match(text, pattern: "([一-龥]{2,6}市)")?[safe: 1]
     }
 
     private static func parseAddress(from text: String) -> String? {
@@ -911,37 +835,27 @@ private enum BookingSpeechParser {
             let low = chineseMoney(parts[safe: 1] ?? "") ?? 0
             return high * 10_000 + low
         }
-
         if text.contains("千") {
             let parts = text.split(separator: "千", maxSplits: 1).map(String.init)
             let high = chineseMoney(parts[safe: 0] ?? "") ?? 1
             let lowText = parts[safe: 1] ?? ""
-            if lowText.count == 1, let tail = lowText.first.flatMap({ digits[$0] }) {
-                return high * 1_000 + tail * 100
-            }
+            if lowText.count == 1, let tail = lowText.first.flatMap({ digits[$0] }) { return high * 1_000 + tail * 100 }
             return high * 1_000 + (chineseMoney(lowText) ?? 0)
         }
-
         if text.contains("百") {
             let parts = text.split(separator: "百", maxSplits: 1).map(String.init)
             let high = chineseMoney(parts[safe: 0] ?? "") ?? 1
             let lowText = parts[safe: 1] ?? ""
-            if lowText.count == 1, let tail = lowText.first.flatMap({ digits[$0] }) {
-                return high * 100 + tail * 10
-            }
+            if lowText.count == 1, let tail = lowText.first.flatMap({ digits[$0] }) { return high * 100 + tail * 10 }
             return high * 100 + (chineseMoney(lowText) ?? 0)
         }
-
         if text.contains("十") {
             let parts = text.split(separator: "十", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
             let high = parts[safe: 0]?.isEmpty == false ? (chineseMoney(parts[0]) ?? 1) : 1
             let low = chineseMoney(parts[safe: 1] ?? "") ?? 0
             return high * 10 + low
         }
-
-        if text.count == 1, let first = text.first, let value = digits[first] {
-            return value
-        }
+        if text.count == 1, let first = text.first, let value = digits[first] { return value }
         return nil
     }
 
@@ -1064,12 +978,6 @@ private extension String {
     var nilIfBlank: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
-    }
-}
-
-private extension Double {
-    var nilIfZero: Double? {
-        self == 0 ? nil : self
     }
 }
 
