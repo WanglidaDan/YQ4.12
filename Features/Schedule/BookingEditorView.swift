@@ -1,3 +1,5 @@
+import AVFoundation
+import Speech
 import SwiftUI
 
 struct BookingEditorView: View {
@@ -38,6 +40,9 @@ private struct BookingFormPage: View {
     @State private var deliverableText: String
     @State private var notesText: String
     @State private var saveErrorMessage: String?
+    @State private var voiceErrorMessage: String?
+    @State private var speechDraft = ""
+    @State private var speechService = BookingSpeechDraftService()
 
     private let calendar = Calendar.current
 
@@ -81,6 +86,63 @@ private struct BookingFormPage: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .center, spacing: 12) {
+                            Image(systemName: speechService.isRecording ? "waveform.circle.fill" : "mic.circle.fill")
+                                .font(.system(size: 30, weight: .semibold))
+                                .foregroundStyle(speechService.isRecording ? AppTheme.warning : AppTheme.accent)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(speechService.isRecording ? "正在听你说档期" : "语音快速记录")
+                                    .font(.headline)
+                                Text("先说一整段安排，再一键填入标题或备注。")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Button(speechService.isRecording ? "停止" : "开始") {
+                                toggleSpeechDraft()
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .buttonStyle(.borderedProminent)
+                        }
+
+                        if speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+                            Text(speechDraft)
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                            HStack(spacing: 10) {
+                                Button("填入标题") {
+                                    applySpeechDraftToTitle()
+                                }
+                                .buttonStyle(.bordered)
+
+                                Button("追加到说明") {
+                                    appendSpeechDraftToNotes()
+                                }
+                                .buttonStyle(.bordered)
+
+                                Button("清空") {
+                                    speechDraft = ""
+                                    speechService.transcript = ""
+                                }
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                } footer: {
+                    Text("第一版先做语音草稿，避免自动识别错时间或金额；后续可升级为自动提取客户、时间、地点。")
                 }
 
                 Section("快速信息") {
@@ -151,12 +213,21 @@ private struct BookingFormPage: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("取消", role: .cancel) { dismiss() }
+                    Button("取消", role: .cancel) {
+                        speechService.stopRecording()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存", action: saveTapped)
                         .fontWeight(.semibold)
                 }
+            }
+            .onChange(of: speechService.transcript) { _, newValue in
+                speechDraft = newValue
+            }
+            .onDisappear {
+                speechService.stopRecording()
             }
             .alert("保存失败", isPresented: Binding(
                 get: { saveErrorMessage != nil },
@@ -165,6 +236,14 @@ private struct BookingFormPage: View {
                 Button("知道了", role: .cancel) { saveErrorMessage = nil }
             } message: {
                 Text(saveErrorMessage ?? "档期没有保存成功，请稍后再试。")
+            }
+            .alert("语音输入不可用", isPresented: Binding(
+                get: { voiceErrorMessage != nil },
+                set: { if $0 == false { voiceErrorMessage = nil } }
+            )) {
+                Button("知道了", role: .cancel) { voiceErrorMessage = nil }
+            } message: {
+                Text(voiceErrorMessage ?? "请检查麦克风和语音识别权限。")
             }
         }
     }
@@ -217,6 +296,41 @@ private struct BookingFormPage: View {
         return heads.isEmpty ? "当前时间没有发现重叠档期。" : "该时间段已有 \(heads)。"
     }
 
+    private func toggleSpeechDraft() {
+        Task { @MainActor in
+            do {
+                if speechService.isRecording {
+                    speechService.stopRecording()
+                    AppHaptics.selection()
+                } else {
+                    try await speechService.startRecording(localeIdentifier: "zh-CN")
+                    AppHaptics.impactMedium()
+                }
+            } catch {
+                voiceErrorMessage = error.localizedDescription
+                AppHaptics.error()
+            }
+        }
+    }
+
+    private func applySpeechDraftToTitle() {
+        let draft = speechDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard draft.isEmpty == false else { return }
+        title = String(draft.prefix(36))
+        AppHaptics.success()
+    }
+
+    private func appendSpeechDraftToNotes() {
+        let draft = speechDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard draft.isEmpty == false else { return }
+        if notesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            notesText = draft
+        } else {
+            notesText += "\n" + draft
+        }
+        AppHaptics.success()
+    }
+
     private func saveTapped() {
         guard store.canCurrentUserPerform(.manageBookings) else {
             saveErrorMessage = store.lastWorkspaceNoticeMessage ?? "当前账号没有新建或编辑档期的权限。请切换到工作区所有者，或在设置里调整成员权限。"
@@ -224,6 +338,7 @@ private struct BookingFormPage: View {
             return
         }
 
+        speechService.stopRecording()
         saveBooking()
     }
 
@@ -273,5 +388,121 @@ private struct BookingFormPage: View {
     private func shiftEndDate(from oldValue: Date, to newValue: Date) {
         let duration = endAt.timeIntervalSince(oldValue)
         endAt = max(newValue.addingTimeInterval(duration), newValue.addingTimeInterval(1_800))
+    }
+}
+
+@MainActor
+@Observable
+private final class BookingSpeechDraftService {
+    var transcript = ""
+    var isRecording = false
+
+    private let audioEngine = AVAudioEngine()
+    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var recognitionTask: SFSpeechRecognitionTask?
+    private var speechRecognizer: SFSpeechRecognizer?
+
+    func startRecording(localeIdentifier: String) async throws {
+        stopRecording()
+
+        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier)) else {
+            throw BookingSpeechDraftError.recognizerUnavailable
+        }
+        guard recognizer.isAvailable else {
+            throw BookingSpeechDraftError.recognizerUnavailable
+        }
+
+        let speechStatus = await SFSpeechRecognizer.requestAuthorizationAsync()
+        guard speechStatus == .authorized else {
+            throw BookingSpeechDraftError.speechPermissionDenied
+        }
+
+        let microphoneGranted = await AVAudioSession.sharedInstance().requestRecordPermissionAsync()
+        guard microphoneGranted else {
+            throw BookingSpeechDraftError.microphonePermissionDenied
+        }
+
+        speechRecognizer = recognizer
+        transcript = ""
+
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
+        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        recognitionRequest = request
+
+        let inputNode = audioEngine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.removeTap(onBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1_024, format: recordingFormat) { [weak request] buffer, _ in
+            request?.append(buffer)
+        }
+
+        audioEngine.prepare()
+        try audioEngine.start()
+        isRecording = true
+
+        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            Task { @MainActor in
+                if let result {
+                    self?.transcript = result.bestTranscription.formattedString
+                }
+                if error != nil || result?.isFinal == true {
+                    self?.stopRecording()
+                }
+            }
+        }
+    }
+
+    func stopRecording() {
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+        }
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        recognitionRequest = nil
+        isRecording = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+}
+
+private enum BookingSpeechDraftError: LocalizedError {
+    case recognizerUnavailable
+    case speechPermissionDenied
+    case microphonePermissionDenied
+
+    var errorDescription: String? {
+        switch self {
+        case .recognizerUnavailable:
+            return "当前设备暂时无法使用中文语音识别。"
+        case .speechPermissionDenied:
+            return "请在系统设置中允许影期使用语音识别。"
+        case .microphonePermissionDenied:
+            return "请在系统设置中允许影期使用麦克风。"
+        }
+    }
+}
+
+private extension SFSpeechRecognizer {
+    static func requestAuthorizationAsync() async -> SFSpeechRecognizerAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            requestAuthorization { status in
+                continuation.resume(returning: status)
+            }
+        }
+    }
+}
+
+private extension AVAudioSession {
+    func requestRecordPermissionAsync() async -> Bool {
+        await withCheckedContinuation { continuation in
+            requestRecordPermission { granted in
+                continuation.resume(returning: granted)
+            }
+        }
     }
 }
