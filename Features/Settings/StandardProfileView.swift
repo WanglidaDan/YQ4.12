@@ -41,19 +41,19 @@ struct StandardProfileView: View {
                     .ignoresSafeArea()
 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        profileHero
-                        workSummary
-                        settingsPanel
-                        dataPanel
+                    VStack(alignment: .leading, spacing: 24) {
+                        headerTitle
+                        identityHero
+                        workspaceLedger
+                        accountActions
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
-                    .padding(.bottom, 34)
+                    .padding(.bottom, 40)
                 }
             }
-            .navigationTitle("我的")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .confirmationDialog("确认退出登录？", isPresented: $confirmingSignOut) {
                 Button("退出登录", role: .destructive) {
                     store.clearAuthProfile()
@@ -76,192 +76,269 @@ struct StandardProfileView: View {
         }
     }
 
-    private var profileHero: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .center, spacing: 14) {
+    private var headerTitle: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("我的")
+                .font(.system(size: 34, weight: .black, design: .rounded))
+                .foregroundStyle(AppTheme.ink)
+            Text("账户、工作区和数据管理")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+    }
+
+    private var identityHero: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .center, spacing: 15) {
                 Image("BrandLogo")
                     .resizable()
                     .interpolation(.high)
                     .scaledToFit()
-                    .frame(width: 64, height: 64)
-                    .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-                    .shadow(color: .black.opacity(0.12), radius: 10, y: 5)
+                    .frame(width: 66, height: 66)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(.white.opacity(0.18), lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
 
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 7) {
                     Text(workspaceName)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundStyle(AppTheme.ink)
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
                         .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                    Text("\(accountStatus) · \(syncStatus)")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(AppTheme.secondaryInk)
+                    Text("\(accountStatus) · \(syncStatus) · \(studioModeStatus)")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.74))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
             }
 
-            HStack(spacing: 10) {
-                ProfileStatusBadge(symbol: "person.crop.circle", title: accountStatus)
-                ProfileStatusBadge(symbol: store.settings.iCloudSyncEnabled ? "icloud" : "iphone", title: syncStatus)
-                ProfileStatusBadge(symbol: "camera.aperture", title: studioModeStatus)
-            }
-        }
-        .padding(18)
-        .appCardSurface(cornerRadius: AppRadius.hero, fillColor: AppTheme.panelSoft, style: .emphasized)
-    }
+            Divider()
+                .overlay(.white.opacity(0.18))
 
-    private var workSummary: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("工作区")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.ink)
-
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2), spacing: 10) {
-                ProfileMetricTile(title: "档期", value: "\(store.activeBookings.count)", subtitle: "进行中")
-                ProfileMetricTile(title: "客户", value: "\(store.activeClients.count)", subtitle: "活跃关系")
-                ProfileMetricTile(title: "待收", value: AppFormatters.currency(outstandingTotal), subtitle: "未结清")
-                ProfileMetricTile(title: "协作", value: store.settings.studioModeEnabled ? "开启" : "个人", subtitle: syncStatus)
+            HStack(spacing: 0) {
+                heroMetric(title: "档期", value: "\(store.activeBookings.count)", subtitle: "进行中")
+                heroDivider
+                heroMetric(title: "客户", value: "\(store.activeClients.count)", subtitle: "活跃关系")
+                heroDivider
+                heroMetric(title: "待收", value: AppFormatters.currency(outstandingTotal), subtitle: "未结清")
             }
         }
-        .padding(18)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
+        .padding(22)
+        .background(identityHeroBackground)
+        .shadow(color: AppTheme.deepShadow.opacity(0.22), radius: 24, y: 14)
     }
 
-    private var settingsPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("设置")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.ink)
+    private var identityHeroBackground: some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(AppTheme.heroGradient)
 
-            NavigationLink {
-                SettingsView(store: store, showsCloseButton: false)
-                    .environment(store)
-            } label: {
-                ProfileActionRow(
-                    symbol: "gearshape",
-                    title: "完整设置",
-                    subtitle: "主题、同步、团队、导出和备份",
-                    tint: AppTheme.accent
-                )
-            }
-            .buttonStyle(.plain)
+            Circle()
+                .fill(.white.opacity(0.15))
+                .frame(width: 154, height: 154)
+                .offset(x: 62, y: -82)
+
+            Circle()
+                .fill(.white.opacity(0.07))
+                .frame(width: 106, height: 106)
+                .offset(x: -230, y: 114)
+
+            LinearGradient(
+                colors: [.white.opacity(0.15), .clear, .black.opacity(0.08)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 1)
         }
-        .padding(18)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
-    private var dataPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("数据")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.ink)
-
-            Button {
-                confirmingClearData = true
-            } label: {
-                ProfileActionRow(
-                    symbol: "trash",
-                    title: "清空当前工作区",
-                    subtitle: "保留登录状态和基础设置",
-                    tint: AppTheme.danger
-                )
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                confirmingSignOut = true
-            } label: {
-                ProfileActionRow(
-                    symbol: "rectangle.portrait.and.arrow.right",
-                    title: "退出登录",
-                    subtitle: "返回登录页，本地工作区保留",
-                    tint: AppTheme.warning
-                )
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(18)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
-    }
-}
-
-private struct ProfileStatusBadge: View {
-    let symbol: String
-    let title: String
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-        }
-        .foregroundStyle(AppTheme.secondaryInk)
-        .frame(maxWidth: .infinity)
-        .frame(height: 34)
-        .background(AppTheme.panelStrong.opacity(0.72), in: Capsule())
-    }
-}
-
-private struct ProfileMetricTile: View {
-    let title: String
-    let value: String
-    let subtitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(AppTheme.secondaryInk)
+    private func heroMetric(title: String, value: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             Text(value)
-                .font(.system(size: 21, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.ink)
+                .font(.system(size: 22, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
                 .lineLimit(1)
-                .minimumScaleFactor(0.68)
+                .minimumScaleFactor(0.62)
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white.opacity(0.72))
             Text(subtitle)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(AppTheme.secondaryInk.opacity(0.82))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.50))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(AppTheme.panelStrong.opacity(0.72), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
     }
-}
 
-private struct ProfileActionRow: View {
-    let symbol: String
-    let title: String
-    let subtitle: String
-    let tint: Color
+    private var heroDivider: some View {
+        Rectangle()
+            .fill(.white.opacity(0.18))
+            .frame(width: 1, height: 52)
+            .padding(.horizontal, 14)
+    }
 
-    var body: some View {
-        HStack(spacing: 12) {
+    private var workspaceLedger: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader(title: "工作区", subtitle: "当前使用状态")
+                .padding(.bottom, 12)
+
+            VStack(spacing: 0) {
+                infoRow(symbol: "person.crop.circle", title: "账户状态", value: accountStatus, tint: AppTheme.accent)
+                rowDivider
+                infoRow(symbol: store.settings.iCloudSyncEnabled ? "icloud" : "iphone", title: "数据保存", value: syncStatus, tint: AppTheme.info)
+                rowDivider
+                infoRow(symbol: "camera.aperture", title: "工作模式", value: studioModeStatus, tint: AppTheme.accentWarmDeep)
+                rowDivider
+                infoRow(symbol: "creditcard", title: "待收金额", value: AppFormatters.currency(outstandingTotal), tint: outstandingTotal > 0 ? AppTheme.warning : AppTheme.success)
+            }
+            .padding(.vertical, 4)
+            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+            }
+            .shadow(color: AppTheme.cardShadow.opacity(0.48), radius: 16, y: 8)
+        }
+    }
+
+    private var accountActions: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader(title: "管理", subtitle: "设置、数据和登录")
+                .padding(.bottom, 12)
+
+            VStack(spacing: 0) {
+                NavigationLink {
+                    SettingsView(store: store, showsCloseButton: false)
+                        .environment(store)
+                } label: {
+                    actionRow(
+                        symbol: "gearshape",
+                        title: "完整设置",
+                        subtitle: "主题、同步、团队、导出和备份",
+                        tint: AppTheme.accent,
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
+
+                rowDivider
+
+                Button {
+                    confirmingClearData = true
+                } label: {
+                    actionRow(
+                        symbol: "trash",
+                        title: "清空当前工作区",
+                        subtitle: "保留登录状态和基础设置",
+                        tint: AppTheme.danger,
+                        showsChevron: false
+                    )
+                }
+                .buttonStyle(.plain)
+
+                rowDivider
+
+                Button {
+                    confirmingSignOut = true
+                } label: {
+                    actionRow(
+                        symbol: "rectangle.portrait.and.arrow.right",
+                        title: "退出登录",
+                        subtitle: "返回登录页，本地工作区保留",
+                        tint: AppTheme.warning,
+                        showsChevron: false
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 4)
+            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+            }
+            .shadow(color: AppTheme.cardShadow.opacity(0.48), radius: 16, y: 8)
+        }
+    }
+
+    private func sectionHeader(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 22, weight: .black, design: .rounded))
+                .foregroundStyle(AppTheme.ink)
+            Text(subtitle)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+    }
+
+    private var rowDivider: some View {
+        Divider()
+            .overlay(AppTheme.line.opacity(0.72))
+            .padding(.leading, 64)
+    }
+
+    private func infoRow(symbol: String, title: String, value: String, tint: Color) -> some View {
+        HStack(spacing: 14) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(tint)
-                .frame(width: 36, height: 36)
-                .background(tint.opacity(0.12), in: Circle())
+                .frame(width: 34, height: 34)
+
+            Text(title)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(AppTheme.ink)
+
+            Spacer(minLength: 8)
+
+            Text(value)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
+                .lineLimit(1)
+                .minimumScaleFactor(0.70)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
+    }
+
+    private func actionRow(symbol: String, title: String, subtitle: String, tint: Color, showsChevron: Bool) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(tint)
+                .frame(width: 34, height: 34)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(AppTheme.ink)
                 Text(subtitle)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(AppTheme.secondaryInk)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(AppTheme.secondaryInk.opacity(0.55))
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(AppTheme.mutedInk)
+            }
         }
-        .padding(12)
-        .background(AppTheme.panelStrong.opacity(0.72), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 15)
+        .contentShape(Rectangle())
     }
 }
