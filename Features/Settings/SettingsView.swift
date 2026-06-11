@@ -28,6 +28,7 @@ struct SettingsView: View {
     @State private var showingNewCrewMember = false
     @State private var editingCrewMember: CrewMemberRecord?
     @State private var confirmingArchiveCrewMember: CrewMemberRecord?
+    @State private var settingsToastMessage: String?
 
     init(store: StudioStore? = nil, showsCloseButton: Bool = true) {
         self.showsCloseButton = showsCloseButton
@@ -37,7 +38,7 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            AppPageScaffold(title: showsCloseButton ? "设置" : "我的", topPadding: 14, bottomPadding: 32) {
+            AppPageScaffold(title: "设置", topPadding: 14, bottomPadding: 32) {
                 settingsHeaderCard
                 settingsStatusGrid
                 settingsEntrySection
@@ -47,19 +48,22 @@ struct SettingsView: View {
                         .padding(.horizontal, 4)
                 }
             }
+            .overlay(alignment: .bottom) {
+                if let settingsToastMessage {
+                    AppToast(message: settingsToastMessage)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 18)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
             .toolbar {
                 if showsCloseButton {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("关闭") { dismiss() }
                     }
                 }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("保存") {
-                        saveAll()
-                    }
-                }
             }
+            .toolbar(.hidden, for: .tabBar)
             .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if $0 == false { shareURL = nil } })) {
                 if let shareURL { ShareSheetView(activityItems: [shareURL]) }
             }
@@ -181,7 +185,7 @@ struct SettingsView: View {
 
             HStack(spacing: 10) {
                 statusPill(
-                    title: draftSettings.studioModeEnabled ? "团队模式" : "个人模式",
+                    title: draftSettings.studioModeEnabled ? "成员协作" : "个人工作区",
                     systemImage: draftSettings.studioModeEnabled ? "person.3.fill" : "person.fill",
                     tint: AppTheme.accent
                 )
@@ -206,9 +210,9 @@ struct SettingsView: View {
 
     private var settingsStatusGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            AppMetricTile(title: "客户", value: "\(store.activeClients.count)", subtitle: "启用资料")
-            AppMetricTile(title: "团队", value: "\(store.activeCrewMembers.count)", subtitle: draftSettings.studioModeEnabled ? "可分工成员" : "团队模式未开")
-            AppMetricTile(title: "档期", value: "\(store.activeBookings.count)", subtitle: "未归档订单")
+            AppMetricTile(title: "客户", value: "\(store.activeClients.count)", subtitle: "当前可用")
+            AppMetricTile(title: "成员", value: "\(store.activeCrewMembers.count)", subtitle: draftSettings.studioModeEnabled ? "可分配" : "未开启协作")
+            AppMetricTile(title: "档期", value: "\(store.activeBookings.count)", subtitle: "进行中")
             AppMetricTile(title: "提醒", value: draftSettings.notificationsEnabled ? "\(draftSettings.defaultReminderHour):00" : "关闭", subtitle: "默认时间")
         }
     }
@@ -779,7 +783,7 @@ struct SettingsView: View {
 
     private var workspaceSection: some View {
         settingsCard(title: "个人与工作模式", subtitle: "先定义你是谁，以及工作台如何识别你的分工。") {
-            settingsToggleRow(title: "团队模式", subtitle: "开启后可以按成员分配拍摄任务。", isOn: $draftSettings.studioModeEnabled)
+            settingsToggleRow(title: "成员协作", subtitle: "开启后可以把拍摄任务分配给不同成员。", isOn: $draftSettings.studioModeEnabled)
 
             settingsToggleRow(title: "高亮我的分工", subtitle: "在工作台优先显示属于我的安排。", isOn: $draftSettings.crewLensEnabled)
                 .disabled(draftSettings.studioModeEnabled == false)
@@ -1137,7 +1141,21 @@ struct SettingsView: View {
         draftSettings = store.settings
         draftStudioProfile = store.resolvedStudioProfile
         AppHaptics.success()
-        if showsCloseButton { dismiss() }
+        showSettingsToast("设置已保存")
+    }
+
+    private func showSettingsToast(_ message: String) {
+        withAnimation(.snappy(duration: 0.2)) {
+            settingsToastMessage = message
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.snappy(duration: 0.2)) {
+                if settingsToastMessage == message {
+                    settingsToastMessage = nil
+                }
+            }
+        }
     }
 
     private var appVersionText: String {

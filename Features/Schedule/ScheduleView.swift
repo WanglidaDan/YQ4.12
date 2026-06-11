@@ -76,6 +76,7 @@ struct ScheduleView: View {
     @State private var showingCreateBookingSheet = false
     @State private var createBookingStartDate: Date?
     @State private var showingSearchSheet = false
+    @State private var toastMessage: String?
 
     private let calendar = Calendar.current
 
@@ -170,6 +171,10 @@ struct ScheduleView: View {
         sourceBookings.filter { $0.status == .editing }.count
     }
 
+    private var isPristineSchedule: Bool {
+        sourceBookings.isEmpty && filter == .all && trimmedSearchText.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
@@ -179,13 +184,18 @@ struct ScheduleView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 18) {
                         headerBar
-                        overviewStrip
-                        quickFilterRow
-                        calendarSection
-                        focusDateSection
 
-                        if viewMode == .list {
-                            listSection
+                        if isPristineSchedule {
+                            scheduleStartState
+                        } else {
+                            overviewStrip
+                            quickFilterRow
+                            calendarSection
+                            focusDateSection
+
+                            if viewMode == .list {
+                                listSection
+                            }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -196,15 +206,27 @@ struct ScheduleView: View {
                 addBookingButton
                     .padding(.trailing, 20)
                     .padding(.bottom, 24)
+
+                if let toastMessage {
+                    AppToast(message: toastMessage)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 88)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
             .navigationDestination(for: ScheduleRoute.self) { route in
                 BookingDetailView(bookingID: route.bookingID)
             }
             .sheet(item: $editingBooking) { booking in
-                BookingEditorView(booking: booking)
+                BookingEditorView(booking: booking) { savedBooking in
+                    showSavedToast(for: savedBooking)
+                }
             }
             .sheet(isPresented: $showingCreateBookingSheet) {
-                BookingEditorView(initialStartAt: createBookingStartDate)
+                BookingEditorView(initialStartAt: createBookingStartDate) { savedBooking in
+                    showSavedToast(for: savedBooking)
+                }
             }
             .sheet(isPresented: $showingSearchSheet) {
                 ScheduleSearchSheet(
@@ -336,6 +358,26 @@ struct ScheduleView: View {
                 }
             }
             .padding(.vertical, 2)
+        }
+    }
+
+    private var scheduleStartState: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            AppCreateHeader(
+                eyebrow: scope == .active ? "开始记录" : "归档",
+                title: scope == .active ? "先把第一个拍摄占住" : "还没有归档档期",
+                subtitle: scope == .active ? "只选时间也能保存，客户、地点和报价都可以稍后补。" : "归档后的历史档期会显示在这里。",
+                systemImage: scope == .active ? "calendar.badge.plus" : "archivebox"
+            )
+
+            if scope == .active {
+                Button {
+                    createBooking(on: focusDate)
+                } label: {
+                    Label("新建档期", systemImage: "plus")
+                }
+                .buttonStyle(AppPrimaryButtonStyle())
+            }
         }
     }
 
@@ -647,6 +689,20 @@ struct ScheduleView: View {
         createBookingStartDate = date
         showingCreateBookingSheet = true
         AppHaptics.impactMedium()
+    }
+
+    private func showSavedToast(for booking: BookingRecord) {
+        withAnimation(.snappy(duration: 0.2)) {
+            toastMessage = "已保存：\(booking.title)"
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.snappy(duration: 0.2)) {
+                if toastMessage == "已保存：\(booking.title)" {
+                    toastMessage = nil
+                }
+            }
+        }
     }
 
     private func matchesFilter(_ booking: BookingRecord) -> Bool {

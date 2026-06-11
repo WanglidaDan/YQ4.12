@@ -208,6 +208,26 @@ struct AppEmptyState: View {
     }
 }
 
+struct AppToast: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppTheme.accent)
+            Text(message)
+                .font(AppTypography.meta.weight(.semibold))
+                .foregroundStyle(AppTheme.ink)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .appCardSurface(cornerRadius: 18, fillColor: AppTheme.panelStrong, style: .emphasized)
+    }
+}
+
 struct AppInfoCard<Content: View>: View {
     let title: String
     let subtitle: String?

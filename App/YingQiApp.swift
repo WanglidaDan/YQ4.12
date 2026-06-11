@@ -184,14 +184,10 @@ private struct AuthGateView: View {
                                         .font(.system(size: 13, weight: .semibold))
                                 }
                                 .font(.system(size: 15, weight: .semibold, design: .default))
-                                .foregroundStyle(.white.opacity(0.72))
+                                .foregroundStyle(AppTheme.ink)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 46)
-                                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .stroke(.white.opacity(0.10), lineWidth: 1)
-                                }
+                                .appCardSurface(cornerRadius: 16, fillColor: AppTheme.panel)
                             }
                             .buttonStyle(.plain)
 
@@ -208,7 +204,6 @@ private struct AuthGateView: View {
                 .scrollIndicators(.hidden)
             }
         }
-        .preferredColorScheme(.dark)
         .alert("登录失败", isPresented: Binding(
             get: { authErrorMessage != nil },
             set: { if $0 == false { authErrorMessage = nil } }
@@ -250,19 +245,19 @@ private struct AuthGateView: View {
     private var legalText: some View {
         Group {
             Text("继续即同意 ")
-                .foregroundStyle(.white.opacity(0.36))
+                .foregroundStyle(AppTheme.secondaryInk)
             Button("服务条款") {
                 showingLegalDocument = .terms
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white.opacity(0.70))
+            .foregroundStyle(AppTheme.accent)
             Text(" 和 ")
-                .foregroundStyle(.white.opacity(0.36))
+                .foregroundStyle(AppTheme.secondaryInk)
             Button("隐私政策") {
                 showingLegalDocument = .privacy
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white.opacity(0.70))
+            .foregroundStyle(AppTheme.accent)
         }
     }
 }
@@ -273,19 +268,17 @@ private struct AuthBrandHeader: View {
             YingQiBrandMark(size: 62, elevated: true)
                 .overlay {
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .stroke(.white.opacity(0.12), lineWidth: 1)
+                        .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
                 }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("影期")
                     .font(.system(size: 27, weight: .semibold, design: .default))
-                    .tracking(1)
-                    .foregroundStyle(.white.opacity(0.97))
+                    .foregroundStyle(AppTheme.ink)
 
                 Text("YingQi Studio")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .tracking(0.8)
-                    .foregroundStyle(.white.opacity(0.52))
+                    .foregroundStyle(AppTheme.secondaryInk)
             }
 
             Spacer()
@@ -299,13 +292,13 @@ private struct AuthHeroCopy: View {
             Text("今天的拍摄，\n开门就有数。")
                 .font(.system(size: 36, weight: .bold, design: .rounded))
                 .lineSpacing(3)
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.ink)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text("档期、客户、跟进和收款，回到一个干净的工作区。")
                 .font(.system(size: 16, weight: .medium, design: .default))
                 .lineSpacing(4)
-                .foregroundStyle(.white.opacity(0.66))
+                .foregroundStyle(AppTheme.secondaryInk)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -327,13 +320,13 @@ private struct AuthSignalRow: View {
                     Text(signal.1)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                 }
-                .foregroundStyle(.white.opacity(0.74))
+                .foregroundStyle(AppTheme.ink)
                 .frame(maxWidth: .infinity)
                 .frame(height: 38)
-                .background(.white.opacity(0.08), in: Capsule())
+                .background(AppTheme.panel.opacity(0.78), in: Capsule())
                 .overlay {
                     Capsule()
-                        .stroke(.white.opacity(0.09), lineWidth: 1)
+                        .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
                 }
             }
         }
@@ -358,61 +351,7 @@ private struct YingQiBrandMark: View {
 
 private struct AuthLuxuryBackdrop: View {
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.030, green: 0.036, blue: 0.044),
-                    Color(red: 0.075, green: 0.070, blue: 0.060),
-                    Color(red: 0.015, green: 0.018, blue: 0.024)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            LinearGradient(
-                stops: [
-                    .init(color: Color(red: 0.86, green: 0.76, blue: 0.58).opacity(0.25), location: 0.0),
-                    .init(color: Color(red: 0.25, green: 0.34, blue: 0.38).opacity(0.14), location: 0.34),
-                    .init(color: .clear, location: 0.72)
-                ],
-                startPoint: .topTrailing,
-                endPoint: .center
-            )
-
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0.0),
-                    .init(color: Color(red: 0.12, green: 0.16, blue: 0.17).opacity(0.30), location: 0.48),
-                    .init(color: Color.black.opacity(0.74), location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            LinearGradient(
-                stops: [
-                    .init(color: .white.opacity(0.08), location: 0.0),
-                    .init(color: .white.opacity(0.02), location: 0.22),
-                    .init(color: .clear, location: 0.44),
-                    .init(color: .black.opacity(0.24), location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            GeometryReader { proxy in
-                let spacing = max(42, proxy.size.width / 7)
-
-                Path { path in
-                    stride(from: -proxy.size.height, through: proxy.size.width, by: spacing).forEach { x in
-                        path.move(to: CGPoint(x: x, y: 0))
-                        path.addLine(to: CGPoint(x: x + proxy.size.height, y: proxy.size.height))
-                    }
-                }
-                .stroke(.white.opacity(0.028), lineWidth: 1)
-            }
-            .allowsHitTesting(false)
-        }
+        AppTheme.backgroundGradient
     }
 }
 
@@ -446,8 +385,8 @@ private struct WeChatAuthButton: View {
             .background(
                 LinearGradient(
                     colors: [
-                        Color(red: 0.08, green: 0.70, blue: 0.28),
-                        Color(red: 0.03, green: 0.45, blue: 0.25)
+                        AppTheme.accent,
+                        AppTheme.accentDeep
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -458,7 +397,7 @@ private struct WeChatAuthButton: View {
                 RoundedRectangle(cornerRadius: 19, style: .continuous)
                     .stroke(.white.opacity(0.18), lineWidth: 1)
             }
-            .shadow(color: Color(red: 0.00, green: 0.24, blue: 0.12).opacity(0.34), radius: 18, y: 10)
+            .shadow(color: AppTheme.deepShadow.opacity(0.42), radius: 18, y: 10)
         }
         .buttonStyle(.plain)
         .disabled(isLoading)
@@ -610,7 +549,7 @@ private struct AppleIDAuthButton: View {
                 AppHaptics.error()
             }
         }
-        .signInWithAppleButtonStyle(.black)
+        .signInWithAppleButtonStyle(.white)
         .frame(height: 56)
         .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.14), radius: 16, y: 9)

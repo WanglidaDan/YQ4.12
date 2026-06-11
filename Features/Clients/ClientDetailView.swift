@@ -68,6 +68,7 @@ struct ClientDetailView: View {
         }
         .navigationTitle("客户详情")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .sheet(item: $editingClient) { client in
             ClientEditorView(client: client)
         }

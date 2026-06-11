@@ -45,7 +45,7 @@ struct RootTabView: View {
                 }
                 .tag(RootTab.profile)
         }
-        .tint(AppTheme.accentWarmDeep)
+        .tint(AppTheme.accent)
         .environment(store)
     }
 
@@ -117,7 +117,7 @@ struct RootTabView: View {
                 if traitCollection.userInterfaceStyle == .dark {
                     return UIColor(hex: "#2B312D").withAlphaComponent(0.92)
                 }
-                return UIColor(hex: "#D8CEC2").withAlphaComponent(0.52)
+                return UIColor(hex: "#DDE8DC").withAlphaComponent(0.70)
             }.setFill()
             path.fill()
         }.resizableImage(withCapInsets: UIEdgeInsets(top: 20, left: 24, bottom: 20, right: 24))

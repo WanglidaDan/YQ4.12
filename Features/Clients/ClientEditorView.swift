@@ -44,7 +44,7 @@ private struct CreateClientFlowView: View {
                 AppCreateHeader(
                     eyebrow: "新增客户",
                     title: resolvedName,
-                    subtitle: "姓名、电话、微信都可以先只填一项；没有名称时会自动生成。",
+                    subtitle: "姓名、电话、微信都可以先只填一项；没有名称时会保存为待补全客户。",
                     systemImage: "person.badge.plus"
                 )
                 autoNameHint
@@ -81,7 +81,7 @@ private struct CreateClientFlowView: View {
     @ViewBuilder
     private var autoNameHint: some View {
         if trimmedName.isEmpty {
-            AppInlineNote(systemImage: "wand.and.stars", text: "未填客户名称时，会保存为“\(resolvedName)”。电话、微信和来源都不是必填。", tint: AppTheme.accent)
+            AppInlineNote(systemImage: "wand.and.stars", text: "未填客户名称时，会保存为“\(resolvedName)”，之后可在详情里改名。", tint: AppTheme.accent)
         }
     }
 
@@ -218,7 +218,7 @@ private struct CreateClientFlowView: View {
             return "微信客户 \(wechat)"
         }
 
-        return "新客户 \(AppFormatters.shortDate(.now))"
+        return "未命名客户"
     }
 
     private var trimmedCity: String {

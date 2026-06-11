@@ -13,7 +13,7 @@ private enum ClientFilter: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .all: "全部"
-        case .attention: "待经营"
+        case .attention: "需跟进"
         case .signature: "高价值"
         case .retained: "长期"
         case .receivable: "待回款"
@@ -67,6 +67,7 @@ struct ClientsView: View {
     @State private var deletingClient: ClientRecord?
     @State private var deletionResultMessage: String?
     @State private var showingSearchSheet = false
+    @State private var toastMessage: String?
 
     private let calendar = Calendar.current
 
@@ -109,6 +110,10 @@ struct ClientsView: View {
         sourceClients.count
     }
 
+    private var isPristineClients: Bool {
+        sourceClients.isEmpty && filter == .all && trimmedSearchText.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
@@ -118,9 +123,14 @@ struct ClientsView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 18) {
                         headerBar
-                        overviewStrip
-                        quickFilterRow
-                        relationshipList
+
+                        if isPristineClients {
+                            clientsStartState
+                        } else {
+                            overviewStrip
+                            quickFilterRow
+                            relationshipList
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
@@ -130,16 +140,28 @@ struct ClientsView: View {
                 addClientButton
                     .padding(.trailing, 20)
                     .padding(.bottom, 24)
+
+                if let toastMessage {
+                    AppToast(message: toastMessage)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 88)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
             .navigationDestination(for: ClientRoute.self) { route in
                 ClientDetailView(clientID: route.clientID)
             }
             .sheet(isPresented: $showingNewClient) {
-                ClientEditorView()
+                ClientEditorView { savedClient in
+                    showSavedToast(for: savedClient)
+                }
                     .environment(store)
             }
             .sheet(item: $editingClient) { client in
-                ClientEditorView(client: client)
+                ClientEditorView(client: client) { savedClient in
+                    showSavedToast(for: savedClient)
+                }
                     .environment(store)
             }
             .sheet(isPresented: $showingSearchSheet) {
@@ -184,14 +206,7 @@ struct ClientsView: View {
     }
 
     private var pageBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(.systemGroupedBackground),
-                Color(.secondarySystemGroupedBackground)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        AppTheme.backgroundGradient
     }
 
     private var headerBar: some View {
@@ -246,28 +261,24 @@ struct ClientsView: View {
         HStack(spacing: 0) {
             compactMetric("客户", value: totalClientCount)
             Divider().frame(height: 30)
-            compactMetric("待经营", value: attentionCount)
+            compactMetric("需跟进", value: attentionCount)
             Divider().frame(height: 30)
             compactMetric("待回款", value: receivableCount)
             Divider().frame(height: 30)
             compactMetric("长期", value: retainedCount)
         }
         .padding(.vertical, 16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private func compactMetric(_ title: String, value: Int) -> some View {
         VStack(spacing: 5) {
-            Text("\(value)")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+                Text("\(value)")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.ink)
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(AppTheme.secondaryInk)
         }
         .frame(maxWidth: .infinity)
     }
@@ -284,15 +295,36 @@ struct ClientsView: View {
                     } label: {
                         Text(item.title)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(filter == item ? Color(.systemBackground) : .primary)
+                            .foregroundStyle(filter == item ? AppTheme.panelStrong : AppTheme.ink)
                             .padding(.horizontal, 15)
                             .padding(.vertical, 9)
-                            .background(filter == item ? Color.primary : Color(.secondarySystemGroupedBackground), in: Capsule())
+                            .background(filter == item ? AppTheme.accent : AppTheme.panel, in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 2)
+        }
+    }
+
+    private var clientsStartState: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            AppCreateHeader(
+                eyebrow: scope == .active ? "开始关系库" : "归档",
+                title: scope == .active ? "先记录一个客户" : "还没有归档客户",
+                subtitle: scope == .active ? "只填昵称、电话或微信中的任意一项即可保存，后面再补来源和跟进。" : "归档后的客户会显示在这里。",
+                systemImage: scope == .active ? "person.badge.plus" : "archivebox"
+            )
+
+            if scope == .active {
+                Button {
+                    showingNewClient = true
+                    AppHaptics.impactMedium()
+                } label: {
+                    Label("新建客户", systemImage: "plus")
+                }
+                .buttonStyle(AppPrimaryButtonStyle())
+            }
         }
     }
 
@@ -382,7 +414,7 @@ struct ClientsView: View {
                             .lineLimit(1)
 
                         if scope == .active && clientNeedsAttention(client) {
-                            Text("待经营")
+                            Text("需跟进")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(.orange)
                                 .padding(.horizontal, 8)
@@ -470,11 +502,11 @@ struct ClientsView: View {
         } label: {
             Label("新建客户", systemImage: "plus")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Color(.systemBackground))
+                .foregroundStyle(AppTheme.panelStrong)
                 .padding(.horizontal, 18)
                 .frame(height: 50)
-                .background(Color.primary, in: Capsule())
-                .shadow(color: Color.black.opacity(0.16), radius: 18, x: 0, y: 10)
+                .background(AppTheme.accent, in: Capsule())
+                .shadow(color: AppTheme.deepShadow.opacity(0.6), radius: 18, x: 0, y: 10)
         }
         .buttonStyle(.plain)
     }
@@ -577,6 +609,20 @@ struct ClientsView: View {
             .filter { scope == .archived || $0.isComplete == false }
             .sorted { $0.dueAt < $1.dueAt }
             .first
+    }
+
+    private func showSavedToast(for client: ClientRecord) {
+        withAnimation(.snappy(duration: 0.2)) {
+            toastMessage = "已保存：\(client.name)"
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.snappy(duration: 0.2)) {
+                if toastMessage == "已保存：\(client.name)" {
+                    toastMessage = nil
+                }
+            }
+        }
     }
 }
 

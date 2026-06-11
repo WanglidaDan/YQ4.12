@@ -25,7 +25,7 @@ struct StandardProfileView: View {
     }
 
     private var studioModeStatus: String {
-        store.settings.studioModeEnabled ? "团队模式" : "个人模式"
+        store.settings.studioModeEnabled ? "成员协作" : "个人工作区"
     }
 
     private var outstandingTotal: Double {
@@ -121,7 +121,7 @@ struct StandardProfileView: View {
                 ProfileMetricTile(title: "档期", value: "\(store.activeBookings.count)", subtitle: "进行中")
                 ProfileMetricTile(title: "客户", value: "\(store.activeClients.count)", subtitle: "活跃关系")
                 ProfileMetricTile(title: "待收", value: AppFormatters.currency(outstandingTotal), subtitle: "未结清")
-                ProfileMetricTile(title: "模式", value: store.settings.studioModeEnabled ? "团队" : "个人", subtitle: syncStatus)
+                ProfileMetricTile(title: "协作", value: store.settings.studioModeEnabled ? "开启" : "个人", subtitle: syncStatus)
             }
         }
         .padding(18)
@@ -135,7 +135,7 @@ struct StandardProfileView: View {
                 .foregroundStyle(AppTheme.ink)
 
             NavigationLink {
-                SettingsView(store: store)
+                SettingsView(store: store, showsCloseButton: false)
                     .environment(store)
             } label: {
                 ProfileActionRow(

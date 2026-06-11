@@ -3,14 +3,16 @@ import SwiftUI
 struct BookingEditorView: View {
     private let booking: BookingRecord?
     private let initialStartAt: Date?
+    private let onSaved: ((BookingRecord) -> Void)?
 
-    init(booking: BookingRecord? = nil, initialStartAt: Date? = nil) {
+    init(booking: BookingRecord? = nil, initialStartAt: Date? = nil, onSaved: ((BookingRecord) -> Void)? = nil) {
         self.booking = booking
         self.initialStartAt = initialStartAt
+        self.onSaved = onSaved
     }
 
     var body: some View {
-        BookingFormPage(booking: booking, initialStartAt: initialStartAt)
+        BookingFormPage(booking: booking, initialStartAt: initialStartAt, onSaved: onSaved)
     }
 }
 
@@ -19,6 +21,7 @@ private struct BookingFormPage: View {
     @Environment(StudioStore.self) private var store
 
     private let originalBooking: BookingRecord?
+    private let onSaved: ((BookingRecord) -> Void)?
 
     @State private var title: String
     @State private var selectedClientID: UUID?
@@ -42,8 +45,9 @@ private struct BookingFormPage: View {
 
     private let calendar = Calendar.current
 
-    init(booking: BookingRecord?, initialStartAt: Date?) {
+    init(booking: BookingRecord?, initialStartAt: Date?, onSaved: ((BookingRecord) -> Void)?) {
         self.originalBooking = booking
+        self.onSaved = onSaved
         let defaultStartAt = Self.defaultStartDate(from: initialStartAt)
         let defaultEndAt = Calendar.current.date(byAdding: .hour, value: 2, to: defaultStartAt) ?? defaultStartAt.addingTimeInterval(7_200)
         _title = State(initialValue: booking?.title ?? "")
@@ -606,6 +610,7 @@ private struct BookingFormPage: View {
         if reminderOffsets.isEmpty {
             AppNotificationManager.shared.removeBookingReminders(for: booking.id)
         }
+        onSaved?(booking)
         AppHaptics.success()
         dismiss()
     }

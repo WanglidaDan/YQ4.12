@@ -102,6 +102,7 @@ struct BookingDetailView: View {
         }
         .navigationTitle("订单")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .sheet(item: $editingBooking) { booking in
             BookingEditorView(booking: booking)
         }
