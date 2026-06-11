@@ -229,7 +229,7 @@ struct OverviewView: View {
             }
 
             VStack(spacing: 10) {
-                heroDetailRow(systemImage: "clock.fill", title: "拍摄时间", value: "\(AppFormatters.shortMonthDay(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
+                heroDetailRow(systemImage: "clock.fill", title: "拍摄时间", value: "\(monthDayText(for: booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
                 heroDetailRow(systemImage: "mappin.and.ellipse", title: "拍摄地点", value: recentBookingLocationText(for: booking))
             }
         }
@@ -355,8 +355,8 @@ struct OverviewView: View {
                 emptyScheduleCard
             } else {
                 VStack(spacing: 12) {
-                    ForEach(Array(recentBookings.enumerated()), id: \.element.id) { index, booking in
-                        premiumBookingRow(booking: booking, index: index)
+                    ForEach(Array(recentBookings.enumerated()), id: \.element.id) { item in
+                        premiumBookingRow(booking: item.element, index: item.offset)
                     }
                 }
             }
@@ -389,27 +389,36 @@ struct OverviewView: View {
     }
 
     private func premiumBookingRow(booking: BookingRecord, index: Int) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        let dateText = monthDayText(for: booking.startAt)
+        let timeText = AppFormatters.timeRange(start: booking.startAt, end: booking.endAt)
+        let locationText = recentBookingLocationText(for: booking)
+        let countdownText = recentBookingCountdownText(for: booking)
+        let dateForeground: Color = index == 0 ? .white : AppTheme.accent
+        let timeForeground: Color = index == 0 ? .white.opacity(0.78) : AppTheme.mutedInk
+        let rowBackground = index == 0 ? AnyShapeStyle(AppTheme.heroGradient) : AnyShapeStyle(AppTheme.accentSurface)
+        let borderColor = index == 0 ? Color.white.opacity(0.18) : AppTheme.line.opacity(0.55)
+
+        return HStack(alignment: .top, spacing: 14) {
             VStack(spacing: 6) {
-                Text(AppFormatters.shortMonthDay(booking.startAt))
+                Text(dateText)
                     .font(.caption.weight(.black))
-                    .foregroundStyle(index == 0 ? .white : AppTheme.accent)
+                    .foregroundStyle(dateForeground)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
 
-                Text(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))
+                Text(timeText)
                     .font(.caption2.weight(.semibold))
                     .monospacedDigit()
-                    .foregroundStyle(index == 0 ? .white.opacity(0.78) : AppTheme.mutedInk)
+                    .foregroundStyle(timeForeground)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.72)
             }
             .frame(width: 72, height: 64)
-            .background(index == 0 ? AppTheme.heroGradient : AppTheme.accentSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(rowBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(index == 0 ? Color.white.opacity(0.18) : AppTheme.line.opacity(0.55), lineWidth: 1)
+                    .stroke(borderColor, lineWidth: 1)
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -422,7 +431,7 @@ struct OverviewView: View {
 
                     Spacer(minLength: 0)
 
-                    Text(recentBookingCountdownText(for: booking))
+                    Text(countdownText)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(index == 0 ? AppTheme.accent : AppTheme.mutedInk)
                         .lineLimit(1)
@@ -431,7 +440,7 @@ struct OverviewView: View {
                 HStack(spacing: 7) {
                     Label(store.clientName(for: booking), systemImage: "person.fill")
                     Text("·")
-                    Label(recentBookingLocationText(for: booking).isEmpty ? "未填写地点" : recentBookingLocationText(for: booking), systemImage: "mappin")
+                    Label(locationText.isEmpty ? "未填写地点" : locationText, systemImage: "mappin")
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(AppTheme.secondaryInk)
@@ -606,6 +615,10 @@ struct OverviewView: View {
             }
         }
         .frame(height: 9)
+    }
+
+    private func monthDayText(for date: Date) -> String {
+        AppFormatters.shortMonthDay(date)
     }
 
     private func recentBookingLocationText(for booking: BookingRecord) -> String {
