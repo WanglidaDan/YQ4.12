@@ -26,10 +26,18 @@ struct OverviewView: View {
         return "未来 \(count) 场拍摄"
     }
 
+    private var actionBoardSubtitle: String {
+        if snapshot.pendingActions.allSatisfy({ $0.valueText == "0" || $0.valueText == AppFormatters.currency(0) }) {
+            return "当前节奏很干净"
+        }
+        return "跟进、交付、回款一眼看清"
+    }
+
     var body: some View {
         NavigationStack {
             AppPageScaffold(title: "摄影工作台", topPadding: 14, bottomPadding: 32) {
                 heroCard
+                actionBoardSection
                 recentBookingsSection
                 monthlySummarySection
             }
@@ -130,6 +138,102 @@ struct OverviewView: View {
                 .stroke(Color.white.opacity(0.14), lineWidth: 1)
         }
         .shadow(color: AppTheme.deepShadow.opacity(0.14), radius: AppShadow.heroRadius, y: AppShadow.heroY)
+    }
+
+    private var actionBoardSection: some View {
+        GlassCard(title: "今日经营动作", subtitle: actionBoardSubtitle) {
+            VStack(alignment: .leading, spacing: 12) {
+                if snapshot.pendingActions.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("今天没有必须处理的事项")
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                        Text("保持当前节奏，新的拍摄、跟进和回款会自动汇总到这里。")
+                            .font(AppTypography.meta)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
+                } else {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(snapshot.pendingActions) { item in
+                            actionTile(item)
+                        }
+                    }
+                }
+
+                if let receivable = snapshot.receivableBookings.first, snapshot.monthlyOutstanding > 0 {
+                    Divider()
+                        .overlay(AppTheme.line.opacity(0.58))
+                        .padding(.vertical, 2)
+
+                    Button {
+                        onOpenSchedule()
+                    } label: {
+                        HStack(alignment: .center, spacing: 10) {
+                            Image(systemName: "banknote")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(AppTheme.accent)
+                                .frame(width: 30, height: 30)
+                                .background(AppTheme.accentSurface, in: Circle())
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("优先回款")
+                                    .font(AppTypography.meta.weight(.semibold))
+                                    .foregroundStyle(AppTheme.ink)
+                                Text("\(receivable.title) 还有尾款需要跟进")
+                                    .font(AppTypography.meta)
+                                    .foregroundStyle(AppTheme.secondaryInk)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(AppTheme.mutedInk)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func actionTile(_ item: OverviewActionItem) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: item.symbolName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 28, height: 28)
+                    .background(AppTheme.accentSurface, in: Circle())
+
+                Spacer(minLength: 0)
+
+                Text(item.valueText)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.58)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.title)
+                    .font(AppTypography.meta.weight(.semibold))
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                Text(item.subtitle)
+                    .font(AppTypography.meta)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(cornerRadius: 18, fillColor: AppTheme.panel)
     }
 
     private var recentBookingsSection: some View {
