@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 private enum ClientFilter: String, CaseIterable, Identifiable {
     case all
@@ -102,10 +101,6 @@ struct ClientsView: View {
         sourceClients.filter { outstandingValue(for: $0.id) > 0 }.count
     }
 
-    private var retainedCount: Int {
-        sourceClients.filter { $0.stage == .retained }.count
-    }
-
     private var totalClientCount: Int {
         sourceClients.count
     }
@@ -125,11 +120,11 @@ struct ClientsView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
-                pageBackground
+                AppTheme.backgroundGradient
                     .ignoresSafeArea()
 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 24) {
                         headerBar
 
                         if isPristineClients {
@@ -213,10 +208,6 @@ struct ClientsView: View {
         }
     }
 
-    private var pageBackground: some View {
-        AppTheme.backgroundGradient
-    }
-
     private var headerBar: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 14) {
@@ -260,7 +251,6 @@ struct ClientsView: View {
                                 Circle()
                                     .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
                             }
-                            .shadow(color: AppTheme.cardShadow.opacity(0.45), radius: 12, y: 7)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("筛选客户")
@@ -292,7 +282,6 @@ struct ClientsView: View {
                     Circle()
                         .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
                 }
-                .shadow(color: AppTheme.cardShadow.opacity(0.45), radius: 12, y: 7)
         }
         .buttonStyle(.plain)
     }
@@ -366,6 +355,9 @@ struct ClientsView: View {
                 radarColumn(title: "待回款", value: "\(receivableCount)", footnote: AppFormatters.currency(totalReceivableValue))
             }
 
+            Divider()
+                .overlay(.white.opacity(0.18))
+
             HStack(alignment: .firstTextBaseline) {
                 Text("关系资产")
                     .font(.caption.weight(.bold))
@@ -380,7 +372,7 @@ struct ClientsView: View {
         }
         .padding(22)
         .background(radarBackground)
-        .shadow(color: AppTheme.deepShadow.opacity(0.22), radius: 24, y: 14)
+        .shadow(color: AppTheme.deepShadow.opacity(0.16), radius: 22, y: 12)
     }
 
     private var radarBackground: some View {
@@ -389,17 +381,12 @@ struct ClientsView: View {
                 .fill(AppTheme.heroGradient)
 
             Circle()
-                .fill(.white.opacity(0.14))
+                .fill(.white.opacity(0.12))
                 .frame(width: 150, height: 150)
-                .offset(x: 66, y: -74)
-
-            Circle()
-                .fill(.white.opacity(0.07))
-                .frame(width: 110, height: 110)
-                .offset(x: -236, y: 126)
+                .offset(x: 68, y: -76)
 
             LinearGradient(
-                colors: [.white.opacity(0.14), .clear, .black.opacity(0.08)],
+                colors: [.white.opacity(0.12), .clear, .black.opacity(0.08)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -460,7 +447,7 @@ struct ClientsView: View {
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 18) {
+                HStack(spacing: 20) {
                     ForEach(ClientFilter.allCases) { item in
                         Button {
                             withAnimation(.snappy(duration: 0.18)) {
@@ -539,12 +526,10 @@ struct ClientsView: View {
                 emptyState
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(filteredClients.enumerated()), id: \.element.id) { index, client in
-                        clientRow(client)
-                        if index < filteredClients.count - 1 {
-                            Divider()
-                                .overlay(AppTheme.line.opacity(0.72))
-                                .padding(.leading, 66)
+                    ForEach(Array(filteredClients.enumerated()), id: \.element.id) { item in
+                        clientRow(item.element)
+                        if item.offset < filteredClients.count - 1 {
+                            rowDivider
                         }
                     }
                 }
@@ -553,7 +538,6 @@ struct ClientsView: View {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
                         .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
                 }
-                .shadow(color: AppTheme.cardShadow.opacity(0.52), radius: 18, y: 8)
             }
         }
     }
@@ -565,9 +549,6 @@ struct ClientsView: View {
 
     private var emptyState: some View {
         VStack(alignment: .center, spacing: 12) {
-            Image(systemName: "person.2")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(AppTheme.mutedInk)
             Text(emptyTitle)
                 .font(.system(size: 17, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.ink)
@@ -578,6 +559,7 @@ struct ClientsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 34)
+        .padding(.horizontal, 20)
         .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -598,7 +580,10 @@ struct ClientsView: View {
     private func clientRow(_ client: ClientRecord) -> some View {
         NavigationLink(value: ClientRoute(clientID: client.id)) {
             HStack(alignment: .top, spacing: 14) {
-                clientAvatar(client)
+                Text(client.initials)
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 38, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -609,24 +594,17 @@ struct ClientsView: View {
 
                         if scope == .active && clientNeedsAttention(client) {
                             Text("需跟进")
-                                .font(.caption.weight(.black))
-                                .foregroundStyle(AppTheme.warning)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(AppTheme.accent)
                         }
 
                         Spacer(minLength: 8)
                     }
 
-                    HStack(spacing: 8) {
-                        Text(client.stage.title)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(AppTheme.secondaryInk)
-                        Text("/")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(AppTheme.mutedInk)
-                        Text(client.tier.title)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    }
+                    Text("\(client.stage.title) / \(client.tier.title)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(1)
 
                     Text(clientMetaText(for: client))
                         .font(.system(size: 13, weight: .medium))
@@ -635,7 +613,7 @@ struct ClientsView: View {
 
                     Text(nextContactText(for: client))
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(clientNeedsAttention(client) ? AppTheme.warning : AppTheme.mutedInk)
+                        .foregroundStyle(clientNeedsAttention(client) ? AppTheme.accent : AppTheme.mutedInk)
                         .lineLimit(1)
                 }
 
@@ -650,7 +628,7 @@ struct ClientsView: View {
                     if outstanding > 0 {
                         Text("待收 \(AppFormatters.currency(outstanding))")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(AppTheme.warning)
+                            .foregroundStyle(AppTheme.accent)
                             .lineLimit(1)
                             .minimumScaleFactor(0.70)
                     }
@@ -681,20 +659,6 @@ struct ClientsView: View {
         }
     }
 
-    private func clientAvatar(_ client: ClientRecord) -> some View {
-        ZStack {
-            Circle()
-                .fill(AppTheme.accentSurface)
-                .frame(width: 48, height: 48)
-            Circle()
-                .stroke(AppTheme.accent.opacity(0.20), lineWidth: 1)
-                .frame(width: 48, height: 48)
-            Text(client.initials)
-                .font(.system(size: 15, weight: .black, design: .rounded))
-                .foregroundStyle(AppTheme.accent)
-        }
-    }
-
     private var addClientButton: some View {
         Button {
             showingNewClient = true
@@ -710,9 +674,15 @@ struct ClientsView: View {
                     Capsule()
                         .stroke(.white.opacity(0.18), lineWidth: 1)
                 }
-                .shadow(color: AppTheme.deepShadow.opacity(0.42), radius: 18, x: 0, y: 10)
+                .shadow(color: AppTheme.deepShadow.opacity(0.28), radius: 16, x: 0, y: 9)
         }
         .buttonStyle(.plain)
+    }
+
+    private var rowDivider: some View {
+        Divider()
+            .overlay(AppTheme.line.opacity(0.72))
+            .padding(.leading, 68)
     }
 
     private func clientMetaText(for client: ClientRecord) -> String {
@@ -867,7 +837,7 @@ private struct ClientSearchSheet: View {
                             if outstanding > 0 {
                                 Text("待收 \(AppFormatters.currency(outstanding))")
                                     .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(AppTheme.warning)
+                                    .foregroundStyle(AppTheme.accent)
                             }
                         }
                         .padding(.vertical, 4)
