@@ -70,33 +70,34 @@ enum AppTheme {
     }
 
     static var accentWarm: Color {
-        dynamic(light: UIColor(hex: "#C8B39A"), dark: UIColor(hex: "#A88F76"))
+        dynamic(light: UIColor(hex: "#6C756E"), dark: UIColor(hex: "#A9B2AA"))
     }
 
     static var accentWarmDeep: Color {
-        dynamic(light: UIColor(hex: "#89715A"), dark: UIColor(hex: "#C6B198"))
+        dynamic(light: UIColor(hex: "#4F5D52"), dark: UIColor(hex: "#C6CCC6"))
     }
 
     static var accentWarmSoft: Color {
-        dynamic(light: UIColor(hex: "#F1E7DB"), dark: UIColor(hex: "#2E2924"))
+        dynamic(light: UIColor(hex: "#EEF1EC"), dark: UIColor(hex: "#202822"))
     }
 
     static var accentRose: Color {
-        dynamic(light: UIColor(hex: "#857D78"), dark: UIColor(hex: "#C0B8B2"))
+        dynamic(light: UIColor(hex: "#6C756E"), dark: UIColor(hex: "#A9B2AA"))
     }
 
     static var accentRoseSoft: Color {
-        dynamic(light: UIColor(hex: "#F1ECE7"), dark: UIColor(hex: "#262320"))
+        dynamic(light: UIColor(hex: "#EEF1EC"), dark: UIColor(hex: "#202822"))
     }
 
-    static let info = dynamic(light: UIColor(hex: "#64758A"), dark: UIColor(hex: "#A5B5C4"))
-    static let success = dynamic(light: UIColor(hex: "#50715C"), dark: UIColor(hex: "#8FA891"))
-    static let warning = dynamic(light: UIColor(hex: "#C57A36"), dark: UIColor(hex: "#E0A15E"))
-    static let danger = dynamic(light: UIColor(hex: "#B44C56"), dark: UIColor(hex: "#E07A84"))
-    static let priorityLow = dynamic(light: UIColor(hex: "#4E8B6B"), dark: UIColor(hex: "#8EB79D"))
-    static let priorityMedium = dynamic(light: UIColor(hex: "#D19A5E"), dark: UIColor(hex: "#E6BD84"))
-    static let priorityHigh = dynamic(light: UIColor(hex: "#C9772F"), dark: UIColor(hex: "#E19A57"))
-    static let priorityUrgent = dynamic(light: UIColor(hex: "#A2465C"), dark: UIColor(hex: "#D97B93"))
+    // 全局状态色统一收敛到墨绿 / 中性灰体系，避免页面出现橙、蓝、红等跳色。
+    static let info = dynamic(light: UIColor(hex: "#56615B"), dark: UIColor(hex: "#C6CCC6"))
+    static let success = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
+    static let warning = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
+    static let danger = dynamic(light: UIColor(hex: "#56615B"), dark: UIColor(hex: "#C6CCC6"))
+    static let priorityLow = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
+    static let priorityMedium = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
+    static let priorityHigh = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
+    static let priorityUrgent = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
 
     static let cardShadow = dynamic(light: UIColor(hex: "#171E19").withAlphaComponent(0.075), dark: UIColor.black.withAlphaComponent(0.26))
     static let deepShadow = dynamic(light: UIColor(hex: "#101512").withAlphaComponent(0.14), dark: UIColor.black.withAlphaComponent(0.34))
