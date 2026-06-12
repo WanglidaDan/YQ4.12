@@ -94,13 +94,12 @@ struct StandardProfileView: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFit()
-                    .frame(width: 66, height: 66)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .frame(width: 62, height: 62)
+                    .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        RoundedRectangle(cornerRadius: 17, style: .continuous)
                             .stroke(.white.opacity(0.18), lineWidth: 1)
                     }
-                    .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(workspaceName)
@@ -132,7 +131,7 @@ struct StandardProfileView: View {
         }
         .padding(22)
         .background(identityHeroBackground)
-        .shadow(color: AppTheme.deepShadow.opacity(0.22), radius: 24, y: 14)
+        .shadow(color: AppTheme.deepShadow.opacity(0.16), radius: 22, y: 12)
     }
 
     private var identityHeroBackground: some View {
@@ -141,17 +140,12 @@ struct StandardProfileView: View {
                 .fill(AppTheme.heroGradient)
 
             Circle()
-                .fill(.white.opacity(0.15))
+                .fill(.white.opacity(0.12))
                 .frame(width: 154, height: 154)
                 .offset(x: 62, y: -82)
 
-            Circle()
-                .fill(.white.opacity(0.07))
-                .frame(width: 106, height: 106)
-                .offset(x: -230, y: 114)
-
             LinearGradient(
-                colors: [.white.opacity(0.15), .clear, .black.opacity(0.08)],
+                colors: [.white.opacity(0.12), .clear, .black.opacity(0.08)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -192,13 +186,13 @@ struct StandardProfileView: View {
                 .padding(.bottom, 12)
 
             VStack(spacing: 0) {
-                infoRow(symbol: "person.crop.circle", title: "账户状态", value: accountStatus, tint: AppTheme.accent)
+                infoRow(symbol: "person.crop.circle", title: "账户状态", value: accountStatus)
                 rowDivider
-                infoRow(symbol: store.settings.iCloudSyncEnabled ? "icloud" : "iphone", title: "数据保存", value: syncStatus, tint: AppTheme.info)
+                infoRow(symbol: store.settings.iCloudSyncEnabled ? "icloud" : "iphone", title: "数据保存", value: syncStatus)
                 rowDivider
-                infoRow(symbol: "camera.aperture", title: "工作模式", value: studioModeStatus, tint: AppTheme.accentWarmDeep)
+                infoRow(symbol: "camera.aperture", title: "工作模式", value: studioModeStatus)
                 rowDivider
-                infoRow(symbol: "creditcard", title: "待收金额", value: AppFormatters.currency(outstandingTotal), tint: outstandingTotal > 0 ? AppTheme.warning : AppTheme.success)
+                infoRow(symbol: "creditcard", title: "待收金额", value: AppFormatters.currency(outstandingTotal))
             }
             .padding(.vertical, 4)
             .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -206,7 +200,6 @@ struct StandardProfileView: View {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
             }
-            .shadow(color: AppTheme.cardShadow.opacity(0.48), radius: 16, y: 8)
         }
     }
 
@@ -224,7 +217,6 @@ struct StandardProfileView: View {
                         symbol: "gearshape",
                         title: "完整设置",
                         subtitle: "主题、同步、团队、导出和备份",
-                        tint: AppTheme.accent,
                         showsChevron: true
                     )
                 }
@@ -239,7 +231,6 @@ struct StandardProfileView: View {
                         symbol: "trash",
                         title: "清空当前工作区",
                         subtitle: "保留登录状态和基础设置",
-                        tint: AppTheme.danger,
                         showsChevron: false
                     )
                 }
@@ -254,7 +245,6 @@ struct StandardProfileView: View {
                         symbol: "rectangle.portrait.and.arrow.right",
                         title: "退出登录",
                         subtitle: "返回登录页，本地工作区保留",
-                        tint: AppTheme.warning,
                         showsChevron: false
                     )
                 }
@@ -266,7 +256,6 @@ struct StandardProfileView: View {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
             }
-            .shadow(color: AppTheme.cardShadow.opacity(0.48), radius: 16, y: 8)
         }
     }
 
@@ -287,11 +276,11 @@ struct StandardProfileView: View {
             .padding(.leading, 64)
     }
 
-    private func infoRow(symbol: String, title: String, value: String, tint: Color) -> some View {
+    private func infoRow(symbol: String, title: String, value: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(tint)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppTheme.mutedInk)
                 .frame(width: 34, height: 34)
 
             Text(title)
@@ -311,11 +300,11 @@ struct StandardProfileView: View {
         .contentShape(Rectangle())
     }
 
-    private func actionRow(symbol: String, title: String, subtitle: String, tint: Color, showsChevron: Bool) -> some View {
+    private func actionRow(symbol: String, title: String, subtitle: String, showsChevron: Bool) -> some View {
         HStack(spacing: 14) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(tint)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppTheme.mutedInk)
                 .frame(width: 34, height: 34)
 
             VStack(alignment: .leading, spacing: 3) {
