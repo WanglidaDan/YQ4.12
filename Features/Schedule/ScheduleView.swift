@@ -171,6 +171,30 @@ struct ScheduleView: View {
         sourceBookings.filter { $0.status == .editing }.count
     }
 
+    private var monthlyBookings: [BookingRecord] {
+        let base = scope == .active ? store.activeBookings : store.archivedBookings
+        guard let monthInterval = calendar.dateInterval(of: .month, for: .now) else { return [] }
+        return base.filter { booking in
+            monthInterval.contains(booking.startAt) && booking.status != .cancelled
+        }
+    }
+
+    private var monthlyBookedCount: Int {
+        monthlyBookings.count
+    }
+
+    private var monthlyRevenue: Double {
+        monthlyBookings.reduce(0) { $0 + $1.fee }
+    }
+
+    private var monthlyReceived: Double {
+        monthlyBookings.reduce(0) { $0 + $1.depositPaid }
+    }
+
+    private var monthlyOutstanding: Double {
+        monthlyBookings.reduce(0) { $0 + store.outstandingAmount(for: $1) }
+    }
+
     private var isPristineSchedule: Bool {
         sourceBookings.isEmpty && filter == .all && trimmedSearchText.isEmpty
     }
@@ -182,13 +206,14 @@ struct ScheduleView: View {
                     .ignoresSafeArea()
 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 20) {
                         headerBar
 
                         if isPristineSchedule {
                             scheduleStartState
                         } else {
-                            overviewStrip
+                            businessLedger
+                            scheduleLedger
                             quickFilterRow
                             calendarSection
                             focusDateSection
@@ -264,10 +289,10 @@ struct ScheduleView: View {
         HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("档期")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(.system(size: 34, weight: .black, design: .rounded))
                     .foregroundStyle(AppTheme.ink)
                 Text(monthTitle)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(AppTheme.secondaryInk)
             }
 
@@ -278,9 +303,14 @@ struct ScheduleView: View {
                 AppHaptics.tapLight()
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(AppTheme.ink)
                     .frame(width: 42, height: 42)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .background(AppTheme.panelStrong, in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
+                    }
             }
             .buttonStyle(.plain)
             .accessibilityLabel("搜索档期")
@@ -299,27 +329,64 @@ struct ScheduleView: View {
                 }
             } label: {
                 Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(AppTheme.ink)
                     .frame(width: 42, height: 42)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .background(AppTheme.panelStrong, in: Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
+                    }
             }
             .buttonStyle(.plain)
             .accessibilityLabel("筛选档期")
         }
     }
 
-    private var overviewStrip: some View {
-        HStack(spacing: 0) {
-            compactMetric("今日", value: todayCount, filter: .today)
-            Divider().frame(height: 30)
-            compactMetric("未来", value: upcomingCount, filter: .upcoming)
-            Divider().frame(height: 30)
-            compactMetric("待收", value: receivableCount, filter: .receivable)
-            Divider().frame(height: 30)
-            compactMetric("待交付", value: deliveryCount, filter: .delivery)
+    private var businessLedger: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader(title: "本月经营", subtitle: AppFormatters.monthYear(.now))
+                .padding(.bottom, 12)
+
+            VStack(spacing: 0) {
+                ledgerRow(title: "成交金额", value: AppFormatters.currency(monthlyRevenue))
+                rowDivider
+                ledgerRow(title: "已收金额", value: AppFormatters.currency(monthlyReceived))
+                rowDivider
+                ledgerRow(title: "待收金额", value: AppFormatters.currency(monthlyOutstanding))
+                rowDivider
+                ledgerRow(title: "本月订单", value: "\(monthlyBookedCount) 单")
+            }
+            .padding(.vertical, 4)
+            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+            }
         }
-        .padding(.vertical, 16)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
+    }
+
+    private var scheduleLedger: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader(title: "档期概览", subtitle: "按当前范围统计")
+                .padding(.bottom, 12)
+
+            HStack(spacing: 0) {
+                compactMetric("今日", value: todayCount, filter: .today)
+                metricDivider
+                compactMetric("未来", value: upcomingCount, filter: .upcoming)
+                metricDivider
+                compactMetric("待收", value: receivableCount, filter: .receivable)
+                metricDivider
+                compactMetric("交付", value: deliveryCount, filter: .delivery)
+            }
+            .padding(.vertical, 16)
+            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+            }
+        }
     }
 
     private func compactMetric(_ title: String, value: Int, filter targetFilter: ScheduleFilter) -> some View {
@@ -328,10 +395,10 @@ struct ScheduleView: View {
         } label: {
             VStack(spacing: 5) {
                 Text("\(value)")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundStyle(filter == targetFilter ? AppTheme.accent : AppTheme.ink)
                 Text(title)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(filter == targetFilter ? AppTheme.accent : AppTheme.secondaryInk)
             }
             .frame(maxWidth: .infinity)
@@ -340,24 +407,46 @@ struct ScheduleView: View {
         .accessibilityLabel("\(title)：\(value)")
     }
 
+    private var metricDivider: some View {
+        Rectangle()
+            .fill(AppTheme.line.opacity(0.72))
+            .frame(width: 1, height: 34)
+    }
+
     private var quickFilterRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(ScheduleFilter.allCases) { item in
-                    Button {
-                        apply(filter: item)
-                    } label: {
-                        Text(item.title)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(filter == item ? AppTheme.panelStrong : AppTheme.ink)
-                            .padding(.horizontal, 15)
-                            .padding(.vertical, 9)
-                            .background(filter == item ? AppTheme.accent : AppTheme.panel, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("视图")
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .foregroundStyle(AppTheme.ink)
+                Spacer()
+                Text("\(filter.title) · \(scope.title)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.mutedInk)
             }
-            .padding(.vertical, 2)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 20) {
+                    ForEach(ScheduleFilter.allCases) { item in
+                        Button {
+                            apply(filter: item)
+                        } label: {
+                            VStack(spacing: 7) {
+                                Text(item.title)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(filter == item ? AppTheme.accent : AppTheme.secondaryInk)
+                                Rectangle()
+                                    .fill(filter == item ? AppTheme.accent : .clear)
+                                    .frame(height: 3)
+                                    .clipShape(Capsule())
+                            }
+                            .frame(minWidth: 48)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
     }
 
@@ -393,7 +482,7 @@ struct ScheduleView: View {
 
             if viewMode == .list {
                 Text("列表模式下按日期聚合所有匹配档期。")
-                    .font(.system(size: 14))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(AppTheme.secondaryInk)
             } else {
                 weekdayHeader
@@ -413,27 +502,34 @@ struct ScheduleView: View {
             }
         }
         .padding(18)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+        }
     }
 
     private var viewModeControl: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 16) {
             ForEach(ScheduleViewMode.allCases) { mode in
                 Button {
                     viewMode = mode
                     AppHaptics.selection()
                 } label: {
-                    Text(mode.title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(viewMode == mode ? AppTheme.ink : AppTheme.secondaryInk)
-                        .frame(width: 42, height: 30)
-                        .background(viewMode == mode ? AppTheme.panelStrong : Color.clear, in: Capsule())
+                    VStack(spacing: 6) {
+                        Text(mode.title)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(viewMode == mode ? AppTheme.accent : AppTheme.secondaryInk)
+                        Rectangle()
+                            .fill(viewMode == mode ? AppTheme.accent : .clear)
+                            .frame(height: 2)
+                            .clipShape(Capsule())
+                    }
+                    .frame(width: 42)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(4)
-        .background(AppTheme.panelSoft, in: Capsule())
     }
 
     private var weekdayHeader: some View {
@@ -462,7 +558,7 @@ struct ScheduleView: View {
             VStack(spacing: 7) {
                 Text("\(calendar.component(.day, from: date))")
                     .font(.system(size: 15, weight: isSelected ? .bold : .semibold, design: .rounded))
-                    .foregroundStyle(isSelected ? AppTheme.panelStrong : (isCurrentMonth ? AppTheme.ink : AppTheme.secondaryInk.opacity(0.55)))
+                    .foregroundStyle(isSelected ? .white : (isCurrentMonth ? AppTheme.ink : AppTheme.secondaryInk.opacity(0.55)))
 
                 HStack(spacing: 3) {
                     if bookings.isEmpty {
@@ -470,7 +566,7 @@ struct ScheduleView: View {
                     } else {
                         ForEach(0..<min(bookings.count, 3), id: \.self) { _ in
                             Circle()
-                                .fill(isSelected ? AppTheme.panelStrong.opacity(0.9) : (hasConflict ? AppTheme.warning : AppTheme.accent))
+                                .fill(isSelected ? .white.opacity(0.9) : AppTheme.accent)
                                 .frame(width: 5, height: 5)
                         }
                     }
@@ -478,13 +574,10 @@ struct ScheduleView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 50)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isSelected ? AppTheme.accent : (isToday ? AppTheme.accent.opacity(0.10) : AppTheme.panelSoft))
-            )
+            .background(isSelected ? AppTheme.accent : (isToday ? AppTheme.accent.opacity(0.08) : Color.clear), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(hasConflict ? AppTheme.warning.opacity(0.7) : AppTheme.line.opacity(0.34), lineWidth: 1)
+                    .stroke(hasConflict ? AppTheme.accent.opacity(0.7) : AppTheme.line.opacity(0.34), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -495,9 +588,10 @@ struct ScheduleView: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(AppFormatters.day(focusDate))
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 21, weight: .black, design: .rounded))
+                        .foregroundStyle(AppTheme.ink)
                     Text(bookingsForFocusDate.isEmpty ? "这一天暂无档期" : "\(bookingsForFocusDate.count) 个安排")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(AppTheme.secondaryInk)
                 }
                 Spacer()
@@ -505,28 +599,37 @@ struct ScheduleView: View {
                     focusDate = .now
                     AppHaptics.selection()
                 }
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(AppTheme.accent)
                 .buttonStyle(.plain)
             }
 
             if bookingsForFocusDate.isEmpty {
                 focusDateEmptyState
             } else {
-                VStack(spacing: 10) {
-                    ForEach(bookingsForFocusDate) { booking in
-                        scheduleRow(booking, compact: false)
+                VStack(spacing: 0) {
+                    ForEach(Array(bookingsForFocusDate.enumerated()), id: \.element.id) { item in
+                        scheduleRow(item.element, compact: false)
+                        if item.offset < bookingsForFocusDate.count - 1 {
+                            rowDivider
+                        }
                     }
+                }
+                .padding(.vertical, 4)
+                .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
                 }
             }
         }
-        .padding(18)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private var listSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("全部档期")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.system(size: 21, weight: .black, design: .rounded))
+                .foregroundStyle(AppTheme.ink)
 
             if groupedBookings.isEmpty {
                 emptyState
@@ -535,117 +638,136 @@ struct ScheduleView: View {
                     ForEach(Array(groupedBookings.enumerated()), id: \.offset) { _, group in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(AppFormatters.day(group.date))
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                            ForEach(group.bookings) { booking in
-                                scheduleRow(booking, compact: true)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(AppTheme.secondaryInk)
+
+                            VStack(spacing: 0) {
+                                ForEach(Array(group.bookings.enumerated()), id: \.element.id) { item in
+                                    scheduleRow(item.element, compact: true)
+                                    if item.offset < group.bookings.count - 1 {
+                                        rowDivider
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 4)
+                            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                                    .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
                             }
                         }
                     }
                 }
             }
         }
-        .padding(18)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel)
     }
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.secondary)
             Text("没有匹配的档期")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(AppTheme.ink)
             Text("可以新建档期，或切换筛选条件查看。")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 26)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 18)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+        }
     }
 
     private var focusDateEmptyState: some View {
         VStack(spacing: 12) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.secondary)
             Text("这天还空着")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(AppTheme.ink)
             Text("可以先占住时间，后面再补客户和报价。")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
             Button {
                 createBooking(on: focusDate)
             } label: {
                 Label("新建这天的档期", systemImage: "plus")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(AppTheme.panelStrong)
-                    .padding(.horizontal, 16)
-                    .frame(height: 40)
-                    .background(AppTheme.accent, in: Capsule())
+                    .foregroundStyle(AppTheme.accent)
             }
             .buttonStyle(.plain)
             .padding(.top, 2)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 26)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 18)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+        }
     }
 
     private func scheduleRow(_ booking: BookingRecord, compact: Bool) -> some View {
         NavigationLink(value: ScheduleRoute(bookingID: booking.id)) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(spacing: 4) {
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(AppFormatters.time(booking.startAt))
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .black, design: .rounded))
+                        .foregroundStyle(AppTheme.ink)
                     Text(AppFormatters.time(booking.endAt))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(AppTheme.mutedInk)
                 }
-                .frame(width: 46)
+                .frame(width: 48, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(booking.title)
-                            .font(.system(size: compact ? 16 : 17, weight: .semibold))
-                            .foregroundStyle(.primary)
+                            .font(.system(size: compact ? 16 : 17, weight: .bold))
+                            .foregroundStyle(AppTheme.ink)
                             .lineLimit(2)
 
                         Spacer(minLength: 8)
 
                         Text(booking.status.title)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .lineLimit(1)
                     }
 
-                    Text(store.clientName(for: booking))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
+                    Text("客户：\(store.clientName(for: booking))")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(1)
 
                     if compact == false {
-                        HStack(spacing: 10) {
-                            Label(booking.category.title, systemImage: booking.category.symbolName)
-                            if booking.fullAddressText.isEmpty == false {
-                                Label(booking.fullAddressText, systemImage: "mappin.and.ellipse")
-                            }
+                        Text("类型：\(booking.category.title)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .lineLimit(1)
+
+                        if booking.fullAddressText.isEmpty == false {
+                            Text("地点：\(booking.fullAddressText)")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(AppTheme.secondaryInk)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
                     }
 
                     if booking.crewAssignments.isEmpty == false {
-                        Text(crewSummary(for: booking))
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.secondary)
+                        Text("人员：\(crewSummary(for: booking))")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppTheme.secondaryInk)
                             .lineLimit(1)
                     }
                 }
             }
-            .padding(14)
-            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 15)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -660,11 +782,11 @@ struct ScheduleView: View {
         } label: {
             Label("新建档期", systemImage: "plus")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(AppTheme.panelStrong)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 18)
                 .frame(height: 50)
                 .background(AppTheme.accent, in: Capsule())
-                .shadow(color: AppTheme.deepShadow.opacity(0.6), radius: 18, x: 0, y: 10)
+                .shadow(color: AppTheme.deepShadow.opacity(0.28), radius: 16, x: 0, y: 9)
         }
         .buttonStyle(.plain)
     }
@@ -673,10 +795,44 @@ struct ScheduleView: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(AppTheme.ink)
                 .frame(width: 34, height: 34)
-                .background(Color(.tertiarySystemGroupedBackground), in: Circle())
+                .background(AppTheme.panelSoft, in: Circle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func sectionHeader(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 21, weight: .black, design: .rounded))
+                .foregroundStyle(AppTheme.ink)
+            Text(subtitle)
+                .font(AppTypography.meta)
+                .foregroundStyle(AppTheme.mutedInk)
+        }
+    }
+
+    private func ledgerRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
+            Spacer(minLength: 12)
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.70)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+    }
+
+    private var rowDivider: some View {
+        Divider()
+            .overlay(AppTheme.line.opacity(0.72))
+            .padding(.leading, 16)
     }
 
     private func shiftFocus(by value: Int) {
@@ -786,7 +942,11 @@ private struct ScheduleSearchSheet: View {
                     .autocorrectionDisabled()
                     .padding(.horizontal, 14)
                     .frame(height: 46)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+                    }
                     .padding(.horizontal, 18)
 
                 if bookings.isEmpty {
@@ -808,6 +968,7 @@ private struct ScheduleSearchSheet: View {
             }
             .navigationTitle("搜索档期")
             .navigationBarTitleDisplayMode(.inline)
+            .background(AppTheme.backgroundGradient.ignoresSafeArea())
         }
     }
 }
