@@ -117,7 +117,7 @@ private struct BookingFormPage: View {
                             inputRow(symbol: "doc.text", title: "项目名称") {
                                 TextField("请输入项目名称", text: $title)
                                     .multilineTextAlignment(.trailing)
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.body.weight(.regular))
                             }
                             rowDivider
                             buttonRow(symbol: "person", title: "关联客户", value: selectedClientName) {
@@ -181,12 +181,12 @@ private struct BookingFormPage: View {
                         speechService.stopRecording()
                         dismiss()
                     }
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.body.weight(.regular))
                     .foregroundStyle(AppTheme.accent)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存", action: saveTapped)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(AppTheme.accent)
                 }
             }
@@ -223,17 +223,17 @@ private struct BookingFormPage: View {
     private var voicePanel: some View {
         HStack(spacing: 18) {
             Image(systemName: speechService.isRecording ? "waveform" : "mic")
-                .font(.system(size: 30, weight: .medium))
+                .font(.title2.weight(.regular))
                 .foregroundStyle(AppTheme.accent)
                 .frame(width: 74, height: 74)
                 .background(AppTheme.accentSurface, in: Circle())
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(speechService.isRecording ? "正在聆听" : "语音快速创建")
-                    .font(.system(size: 21, weight: .black, design: .rounded))
+                    .font(.headline.weight(.semibold))
                     .foregroundStyle(AppTheme.ink)
                 Text("项目、客户、时间、类型、地点")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.regular))
                     .foregroundStyle(AppTheme.secondaryInk)
                     .lineLimit(1)
             }
@@ -243,7 +243,7 @@ private struct BookingFormPage: View {
             Button(speechService.isRecording ? "停止" : "语音") {
                 toggleSpeechDraft()
             }
-            .font(.system(size: 17, weight: .bold))
+            .font(.body.weight(.semibold))
             .foregroundStyle(.white)
             .padding(.horizontal, 22)
             .frame(height: 48)
@@ -260,7 +260,7 @@ private struct BookingFormPage: View {
     private var speechResultPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             TextEditor(text: $speechDraft)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.body.weight(.regular))
                 .frame(minHeight: 74)
                 .scrollContentBackground(.hidden)
                 .onChange(of: speechDraft) { _, newValue in
@@ -271,7 +271,7 @@ private struct BookingFormPage: View {
                 Button("智能填充") {
                     applySpeechSuggestion()
                 }
-                .font(.system(size: 14, weight: .bold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .frame(height: 38)
@@ -283,7 +283,7 @@ private struct BookingFormPage: View {
                     speechSuggestion = .empty
                     speechService.transcript = ""
                 }
-                .font(.system(size: 14, weight: .bold))
+                .font(.subheadline.weight(.regular))
                 .foregroundStyle(AppTheme.secondaryInk)
 
                 Spacer()
@@ -304,7 +304,7 @@ private struct BookingFormPage: View {
                     .fill(AppTheme.accent)
                     .frame(width: 5, height: 22)
                 Text(title)
-                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(AppTheme.ink)
             }
 
@@ -323,11 +323,11 @@ private struct BookingFormPage: View {
     private func inputRow<Content: View>(symbol: String, title: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 16) {
             Image(systemName: symbol)
-                .font(.system(size: 20, weight: .semibold))
+                .font(.body.weight(.regular))
                 .foregroundStyle(AppTheme.secondaryInk)
                 .frame(width: 28)
             Text(title)
-                .font(.system(size: 17, weight: .bold))
+                .font(.body.weight(.medium))
                 .foregroundStyle(AppTheme.ink)
             Spacer(minLength: 12)
             content()
@@ -341,11 +341,11 @@ private struct BookingFormPage: View {
             inputRow(symbol: symbol, title: title) {
                 HStack(spacing: 8) {
                     Text(value)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.body.weight(.regular))
                         .foregroundStyle(AppTheme.secondaryInk)
                         .lineLimit(1)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(AppTheme.mutedInk)
                 }
             }
@@ -368,11 +368,11 @@ private struct BookingFormPage: View {
     private func textInputRow(title: String, text: Binding<String>, placeholder: String, axis: Axis = .horizontal) -> some View {
         HStack(alignment: axis == .vertical ? .top : .center, spacing: 16) {
             Text(title)
-                .font(.system(size: 17, weight: .bold))
+                .font(.body.weight(.medium))
                 .foregroundStyle(AppTheme.ink)
                 .frame(minWidth: 86, alignment: .leading)
             TextField(placeholder, text: text, axis: axis)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.body.weight(.regular))
                 .multilineTextAlignment(.trailing)
                 .lineLimit(axis == .vertical ? 3 : 1)
         }
@@ -382,12 +382,12 @@ private struct BookingFormPage: View {
     private func moneyInputRow(title: String, value: Binding<Double>) -> some View {
         HStack(spacing: 16) {
             Text(title)
-                .font(.system(size: 17, weight: .bold))
+                .font(.body.weight(.medium))
                 .foregroundStyle(AppTheme.ink)
             Spacer(minLength: 12)
             TextField("0", value: value, format: .number.precision(.fractionLength(0...0)))
                 .keyboardType(.decimalPad)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.body.weight(.regular))
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 140)
         }
@@ -397,11 +397,11 @@ private struct BookingFormPage: View {
     private func readonlyRow(title: String, value: String) -> some View {
         HStack(spacing: 16) {
             Text(title)
-                .font(.system(size: 17, weight: .bold))
+                .font(.body.weight(.medium))
                 .foregroundStyle(AppTheme.ink)
             Spacer(minLength: 12)
             Text(value)
-                .font(.system(size: 17, weight: .black, design: .rounded))
+                .font(.body.weight(.medium))
                 .foregroundStyle(AppTheme.ink)
         }
         .padding(.vertical, 17)
@@ -414,7 +414,7 @@ private struct BookingFormPage: View {
 
     private var conflictPanel: some View {
         Text(conflictSummaryText)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.subheadline.weight(.regular))
             .foregroundStyle(AppTheme.secondaryInk)
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -485,17 +485,17 @@ private struct BookingFormPage: View {
             HStack(spacing: 14) {
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.body.weight(.regular))
                         .foregroundStyle(AppTheme.accent)
                         .frame(width: 26)
                 }
                 Text(title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.body.weight(.regular))
                     .foregroundStyle(AppTheme.ink)
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(AppTheme.accent)
                 }
             }
