@@ -253,10 +253,10 @@ struct ScheduleView: View {
         HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("档期")
-                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .font(.largeTitle.weight(.semibold))
                     .foregroundStyle(AppTheme.ink)
                 Text(monthTitle)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.regular))
                     .foregroundStyle(AppTheme.secondaryInk)
             }
 
@@ -267,7 +267,7 @@ struct ScheduleView: View {
                 AppHaptics.tapLight()
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.regular))
                     .foregroundStyle(AppTheme.ink)
                     .frame(width: 42, height: 42)
                     .background(AppTheme.panelStrong, in: Circle())
@@ -286,7 +286,7 @@ struct ScheduleView: View {
                 }
             } label: {
                 Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.regular))
                     .foregroundStyle(AppTheme.ink)
                     .frame(width: 42, height: 42)
                     .background(AppTheme.panelStrong, in: Circle())
@@ -321,12 +321,12 @@ struct ScheduleView: View {
     private func summaryItem(title: String, value: String) -> some View {
         VStack(spacing: 5) {
             Text(value)
-                .font(.system(size: 16, weight: .black, design: .rounded))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(AppTheme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.56)
             Text(title)
-                .font(.system(size: 12, weight: .bold))
+                .font(.caption.weight(.regular))
                 .foregroundStyle(AppTheme.mutedInk)
         }
         .frame(maxWidth: .infinity)
@@ -347,7 +347,7 @@ struct ScheduleView: View {
                     } label: {
                         VStack(spacing: 7) {
                             Text(item.title)
-                                .font(.system(size: 15, weight: .bold))
+                                .font(.subheadline.weight(.medium))
                                 .foregroundStyle(filter == item ? AppTheme.accent : AppTheme.secondaryInk)
                             Rectangle()
                                 .fill(filter == item ? AppTheme.accent : .clear)
@@ -372,7 +372,7 @@ struct ScheduleView: View {
                 } label: {
                     VStack(spacing: 7) {
                         Text(mode.title)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(viewMode == mode ? AppTheme.accent : AppTheme.secondaryInk)
                         Rectangle()
                             .fill(viewMode == mode ? AppTheme.accent : .clear)
@@ -390,14 +390,14 @@ struct ScheduleView: View {
     private var scheduleStartState: some View {
         VStack(spacing: 16) {
             Text(scope == .active ? "暂无档期" : "暂无归档")
-                .font(.system(size: 20, weight: .black, design: .rounded))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(AppTheme.ink)
             if scope == .active {
                 Button {
                     createBooking(on: focusDate)
                 } label: {
                     Text("新建档期")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 22)
                         .frame(height: 44)
@@ -421,7 +421,7 @@ struct ScheduleView: View {
                 periodButton("chevron.left") { shiftFocus(by: -1) }
                 Spacer()
                 Text(monthTitle)
-                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .font(.headline.weight(.semibold))
                     .foregroundStyle(AppTheme.ink)
                 Spacer()
                 periodButton("chevron.right") { shiftFocus(by: 1) }
@@ -454,7 +454,7 @@ struct ScheduleView: View {
         HStack(spacing: 0) {
             ForEach(AppFormatters.reorderedShortWeekdaySymbols(firstWeekday: calendar.firstWeekday), id: \.self) { symbol in
                 Text(symbol)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.caption.weight(.regular))
                     .foregroundStyle(AppTheme.secondaryInk)
                     .frame(maxWidth: .infinity)
             }
@@ -475,7 +475,7 @@ struct ScheduleView: View {
         } label: {
             VStack(spacing: 7) {
                 Text("\(calendar.component(.day, from: date))")
-                    .font(.system(size: 15, weight: isSelected ? .bold : .semibold, design: .rounded))
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? .white : (isCurrentMonth ? AppTheme.ink : AppTheme.secondaryInk.opacity(0.55)))
 
                 HStack(spacing: 3) {
@@ -505,14 +505,14 @@ struct ScheduleView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text(AppFormatters.day(focusDate))
-                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(AppTheme.ink)
                 Spacer()
                 Button("今天") {
                     focusDate = .now
                     AppHaptics.selection()
                 }
-                .font(.system(size: 14, weight: .bold))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(AppTheme.accent)
                 .buttonStyle(.plain)
             }
@@ -533,7 +533,7 @@ struct ScheduleView: View {
                 ForEach(Array(groupedBookings.enumerated()), id: \.offset) { _, group in
                     VStack(alignment: .leading, spacing: 10) {
                         Text(AppFormatters.day(group.date))
-                            .font(.system(size: 15, weight: .black, design: .rounded))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(AppTheme.secondaryInk)
                         bookingList(group.bookings)
                     }
@@ -562,13 +562,13 @@ struct ScheduleView: View {
     private var compactEmptyState: some View {
         VStack(spacing: 12) {
             Text("暂无档期")
-                .font(.system(size: 17, weight: .black, design: .rounded))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(AppTheme.ink)
             Button {
                 createBooking(on: focusDate)
             } label: {
                 Text("新建档期")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(AppTheme.accent)
             }
             .buttonStyle(.plain)
@@ -587,10 +587,10 @@ struct ScheduleView: View {
             HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(AppFormatters.time(booking.startAt))
-                        .font(.system(size: 15, weight: .black, design: .rounded))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.ink)
                     Text(AppFormatters.time(booking.endAt))
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.caption.weight(.regular))
                         .foregroundStyle(AppTheme.mutedInk)
                 }
                 .frame(width: 50, alignment: .leading)
@@ -598,24 +598,24 @@ struct ScheduleView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(booking.title)
-                            .font(.system(size: 17, weight: .bold))
+                            .font(.body.weight(.medium))
                             .foregroundStyle(AppTheme.ink)
                             .lineLimit(2)
                         if shouldShowStatus(for: booking) {
                             Text(booking.status.title)
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.caption.weight(.medium))
                                 .foregroundStyle(AppTheme.accent)
                         }
                     }
 
                     Text(rowSubtitle(for: booking))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.subheadline.weight(.regular))
                         .foregroundStyle(AppTheme.secondaryInk)
                         .lineLimit(1)
 
                     if booking.fullAddressText.isEmpty == false {
                         Text(booking.fullAddressText)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.caption.weight(.regular))
                             .foregroundStyle(AppTheme.mutedInk)
                             .lineLimit(1)
                     }
@@ -624,7 +624,7 @@ struct ScheduleView: View {
                 Spacer(minLength: 0)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(AppTheme.mutedInk)
                     .padding(.top, 5)
             }
@@ -654,7 +654,7 @@ struct ScheduleView: View {
             createBooking(on: .now)
         } label: {
             Label("新建档期", systemImage: "plus")
-                .font(.system(size: 15, weight: .bold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)
                 .frame(height: 50)
@@ -667,7 +667,7 @@ struct ScheduleView: View {
     private func periodButton(_ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 14, weight: .bold))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(AppTheme.ink)
                 .frame(width: 34, height: 34)
                 .background(AppTheme.panelSoft, in: Circle())
@@ -795,9 +795,9 @@ private struct ScheduleSearchSheet: View {
                     List(bookings.prefix(30)) { booking in
                         VStack(alignment: .leading, spacing: 5) {
                             Text(booking.title)
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.body.weight(.medium))
                             Text("\(clientName(booking)) · \(AppFormatters.fullDate(booking.startAt))")
-                                .font(.system(size: 13))
+                                .font(.subheadline.weight(.regular))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
