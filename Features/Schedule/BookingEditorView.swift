@@ -374,7 +374,7 @@ private struct BookingFormPage: View {
             TextField(placeholder, text: text, axis: axis)
                 .font(.system(size: 16, weight: .semibold))
                 .multilineTextAlignment(.trailing)
-                .lineLimit(axis == .vertical ? 1...3 : 1)
+                .lineLimit(axis == .vertical ? 3 : 1)
         }
         .padding(.vertical, 17)
     }
