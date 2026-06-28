@@ -33,6 +33,7 @@ jobs:
           import tempfile
           import time
           import urllib.parse
+          import urllib.error
           import urllib.request
 
           def b64url(data):
@@ -90,6 +91,13 @@ jobs:
               with urllib.request.urlopen(req, timeout=30) as resp:
                   return json.loads(resp.read().decode("utf-8"))
 
+          def asc_get_optional(path, params=None):
+              try:
+                  return asc_get(path, params)
+              except urllib.error.HTTPError as error:
+                  print(f"OPTIONAL_QUERY_FAILED={path} HTTP_{error.code}")
+                  return None
+
           apps = asc_get("apps", {"filter[bundleId]": os.environ["BUNDLE_ID"]})
           if not apps.get("data"):
               raise SystemExit("App not found for bundle id " + os.environ["BUNDLE_ID"])
@@ -120,7 +128,8 @@ jobs:
               print("BETA_REVIEW_STATE=" + str(attrs.get("betaReviewState")))
               print("UPLOADED_DATE=" + str(attrs.get("uploadedDate")))
               print("EXPIRED=" + str(attrs.get("expired")))
-              groups = asc_get(f"builds/{build['id']}/betaGroups", {"limit": "20"}).get("data", [])
+              group_payload = asc_get_optional(f"builds/{build['id']}/betaGroups", {"limit": "20"})
+              groups = [] if group_payload is None else group_payload.get("data", [])
               print("BETA_GROUP_COUNT=" + str(len(groups)))
               if groups:
                   print("BETA_GROUPS=" + ", ".join(g.get("attributes", {}).get("name", g["id"]) for g in groups))
