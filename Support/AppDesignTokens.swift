@@ -1,16 +1,21 @@
 import SwiftUI
 
 enum AppTypography {
-    static let pageTitle = Font.system(size: 31, weight: .bold, design: .rounded)
-    static let heroTitle = Font.system(size: 29, weight: .bold, design: .rounded)
-    static let sectionTitle = Font.system(size: 20, weight: .semibold, design: .rounded)
-    static let sectionSubtitle = Font.system(size: 13, weight: .medium, design: .default)
-    static let body = Font.system(size: 16, weight: .regular, design: .default)
-    static let bodyStrong = Font.system(size: 16, weight: .semibold, design: .default)
-    static let meta = Font.system(size: 13, weight: .medium, design: .default)
-    static let badge = Font.system(size: 12, weight: .semibold, design: .rounded)
-    static let data = Font.system(size: 27, weight: .bold, design: .rounded)
-    static let dataCompact = Font.system(size: 21, weight: .bold, design: .rounded)
+    static let pageTitle = Font.system(.largeTitle, design: .default, weight: .semibold)
+    static let heroTitle = Font.system(.title, design: .default, weight: .semibold)
+    static let sectionTitle = Font.system(.title3, design: .default, weight: .semibold)
+    static let rowTitle = Font.system(.body, design: .default, weight: .semibold)
+    static let rowValue = Font.system(.callout, design: .default, weight: .semibold)
+    static let sectionSubtitle = Font.system(.footnote, design: .default, weight: .medium)
+    static let body = Font.system(.body, design: .default, weight: .regular)
+    static let bodyStrong = Font.system(.body, design: .default, weight: .semibold)
+    static let meta = Font.system(.footnote, design: .default, weight: .medium)
+    static let small = Font.system(.caption, design: .default, weight: .medium)
+    static let micro = Font.system(.caption2, design: .default, weight: .semibold)
+    static let badge = Font.system(.caption, design: .default, weight: .semibold)
+    static let data = Font.system(.title2, design: .default, weight: .semibold)
+    static let dataCompact = Font.system(.title3, design: .default, weight: .semibold)
+    static let icon = Font.system(.body, design: .default, weight: .semibold)
 }
 
 enum AppSpacing {

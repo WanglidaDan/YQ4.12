@@ -115,7 +115,7 @@ private struct LaunchIntroView: View {
                 VStack(spacing: 18) {
                     YingQiBrandMark(size: 88, elevated: true)
                     Text("影期")
-                        .font(.system(size: min(34, proxy.size.width * 0.088), weight: .semibold, design: .default))
+                        .font(AppTypography.pageTitle)
                         .foregroundStyle(.white.opacity(0.98))
                 }
                 .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
@@ -194,9 +194,9 @@ private struct AuthGateView: View {
                                 HStack(spacing: 8) {
                                     Text("先进入本地工作区")
                                     Image(systemName: "arrow.right")
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .font(AppTypography.icon)
                                 }
-                                .font(.system(size: 15, weight: .semibold, design: .default))
+                                .font(AppTypography.rowTitle)
                                 .foregroundStyle(AppTheme.ink)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 46)
@@ -250,7 +250,7 @@ private struct AuthGateView: View {
                 legalText
             }
         }
-        .font(.system(size: 12, weight: .medium, design: .default))
+        .font(AppTypography.small)
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
     }
@@ -286,11 +286,11 @@ private struct AuthBrandHeader: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("影期")
-                    .font(.system(size: 27, weight: .semibold, design: .default))
+                    .font(AppTypography.dataCompact)
                     .foregroundStyle(AppTheme.ink)
 
                 Text("YingQi Studio")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(AppTypography.small)
                     .foregroundStyle(AppTheme.secondaryInk)
             }
 
@@ -303,13 +303,13 @@ private struct AuthHeroCopy: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("今天的拍摄，\n开门就有数。")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .font(AppTypography.heroTitle)
                 .lineSpacing(3)
                 .foregroundStyle(AppTheme.ink)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text("档期、客户、跟进和收款，回到一个干净的工作区。")
-                .font(.system(size: 16, weight: .medium, design: .default))
+                .font(AppTypography.body)
                 .lineSpacing(4)
                 .foregroundStyle(AppTheme.secondaryInk)
                 .fixedSize(horizontal: false, vertical: true)
@@ -329,9 +329,9 @@ private struct AuthSignalRow: View {
             ForEach(signals, id: \.1) { signal in
                 HStack(spacing: 7) {
                     Image(systemName: signal.0)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(AppTypography.icon)
                     Text(signal.1)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(AppTypography.badge)
                 }
                 .foregroundStyle(AppTheme.ink)
                 .frame(maxWidth: .infinity)
@@ -385,11 +385,11 @@ private struct WeChatAuthButton: View {
                 }
 
                 Text(isLoading ? "正在拉起微信" : "微信登录")
-                    .font(.system(size: 17, weight: .semibold, design: .default))
+                    .font(AppTypography.rowTitle)
 
                 if isLoading == false {
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(AppTypography.icon)
                 }
             }
             .foregroundStyle(.white)
@@ -512,7 +512,7 @@ private struct LegalSheetView: View {
     var body: some View {
         ScrollView {
             Text(bodyText)
-                .font(.body)
+                .font(AppTypography.body)
                 .foregroundStyle(AppTheme.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)

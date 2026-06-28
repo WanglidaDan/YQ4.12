@@ -77,14 +77,7 @@ struct StandardProfileView: View {
     }
 
     private var headerTitle: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("我的")
-                .font(.system(size: 34, weight: .black, design: .rounded))
-                .foregroundStyle(AppTheme.ink)
-            Text("账户、工作区和数据管理")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(AppTheme.secondaryInk)
-        }
+        AppPageHeader(title: "我的", subtitle: "账户、工作区和数据管理")
     }
 
     private var identityHero: some View {
@@ -103,13 +96,13 @@ struct StandardProfileView: View {
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(workspaceName)
-                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .font(AppTypography.heroTitle)
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text("\(accountStatus) · \(syncStatus) · \(studioModeStatus)")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(AppTypography.badge)
                         .foregroundStyle(.white.opacity(0.74))
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
@@ -139,11 +132,6 @@ struct StandardProfileView: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(AppTheme.heroGradient)
 
-            Circle()
-                .fill(.white.opacity(0.12))
-                .frame(width: 154, height: 154)
-                .offset(x: 62, y: -82)
-
             LinearGradient(
                 colors: [.white.opacity(0.12), .clear, .black.opacity(0.08)],
                 startPoint: .topLeading,
@@ -159,15 +147,15 @@ struct StandardProfileView: View {
     private func heroMetric(title: String, value: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(value)
-                .font(.system(size: 22, weight: .black, design: .rounded))
+                .font(AppTypography.dataCompact)
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.62)
             Text(title)
-                .font(.caption.weight(.bold))
+                .font(AppTypography.badge)
                 .foregroundStyle(.white.opacity(0.72))
             Text(subtitle)
-                .font(.caption2.weight(.semibold))
+                .font(AppTypography.micro)
                 .foregroundStyle(.white.opacity(0.50))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -215,7 +203,7 @@ struct StandardProfileView: View {
                 } label: {
                     actionRow(
                         symbol: "gearshape",
-                        title: "完整设置",
+                        title: "设置",
                         subtitle: "主题、同步、团队、导出和备份",
                         showsChevron: true
                     )
@@ -262,10 +250,10 @@ struct StandardProfileView: View {
     private func sectionHeader(title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 22, weight: .black, design: .rounded))
+                .font(AppTypography.sectionTitle)
                 .foregroundStyle(AppTheme.ink)
             Text(subtitle)
-                .font(.system(size: 13, weight: .semibold))
+                .font(AppTypography.meta)
                 .foregroundStyle(AppTheme.secondaryInk)
         }
     }
@@ -279,18 +267,18 @@ struct StandardProfileView: View {
     private func infoRow(symbol: String, title: String, value: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .semibold))
+                .font(AppTypography.icon)
                 .foregroundStyle(AppTheme.mutedInk)
                 .frame(width: 34, height: 34)
 
             Text(title)
-                .font(.system(size: 15, weight: .bold))
+                .font(AppTypography.rowTitle)
                 .foregroundStyle(AppTheme.ink)
 
             Spacer(minLength: 8)
 
             Text(value)
-                .font(.system(size: 15, weight: .semibold))
+                .font(AppTypography.rowValue)
                 .foregroundStyle(AppTheme.secondaryInk)
                 .lineLimit(1)
                 .minimumScaleFactor(0.70)
@@ -303,16 +291,16 @@ struct StandardProfileView: View {
     private func actionRow(symbol: String, title: String, subtitle: String, showsChevron: Bool) -> some View {
         HStack(spacing: 14) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .semibold))
+                .font(AppTypography.icon)
                 .foregroundStyle(AppTheme.mutedInk)
                 .frame(width: 34, height: 34)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(AppTypography.rowTitle)
                     .foregroundStyle(AppTheme.ink)
                 Text(subtitle)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(AppTypography.small)
                     .foregroundStyle(AppTheme.secondaryInk)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
@@ -322,7 +310,7 @@ struct StandardProfileView: View {
 
             if showsChevron {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(AppTypography.micro)
                     .foregroundStyle(AppTheme.mutedInk)
             }
         }

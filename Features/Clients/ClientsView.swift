@@ -210,25 +210,8 @@ struct ClientsView: View {
 
     private var headerBar: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("关系")
-                        .font(.system(size: 34, weight: .black, design: .rounded))
-                        .foregroundStyle(AppTheme.ink)
-                    Text(headerSubtitle)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AppTheme.secondaryInk)
-                }
-
-                Spacer()
-
+            AppPageHeader(title: "关系", subtitle: headerSubtitle) {
                 HStack(spacing: 10) {
-                    headerIconButton(systemImage: "magnifyingglass") {
-                        showingSearchSheet = true
-                        AppHaptics.tapLight()
-                    }
-                    .accessibilityLabel("搜索客户")
-
                     Menu {
                         Picker("范围", selection: $scope) {
                             ForEach(ClientScope.allCases) { item in
@@ -243,7 +226,7 @@ struct ClientsView: View {
                         }
                     } label: {
                         Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(AppTypography.icon)
                             .foregroundStyle(AppTheme.ink)
                             .frame(width: 42, height: 42)
                             .background(AppTheme.panelStrong, in: Circle())
@@ -271,62 +254,19 @@ struct ClientsView: View {
         return "客户、跟进、价值和回款统一管理"
     }
 
-    private func headerIconButton(systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(AppTheme.ink)
-                .frame(width: 42, height: 42)
-                .background(AppTheme.panelStrong, in: Circle())
-                .overlay {
-                    Circle()
-                        .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
-                }
-        }
-        .buttonStyle(.plain)
-    }
-
     private var inlineSearchBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(AppTheme.mutedInk)
-
-            TextField("搜索客户、城市、来源、手机号", text: $searchText)
-                .font(.system(size: 15, weight: .semibold))
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-
-            if trimmedSearchText.isEmpty == false {
-                Button {
-                    searchText = ""
-                    AppHaptics.selection()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(AppTheme.mutedInk)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 15)
-        .frame(height: 48)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.70), lineWidth: 1)
-        }
+        AppInlineSearchField(placeholder: "搜索客户、城市、来源、手机号", text: $searchText)
     }
 
     private var relationshipRadar: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(scope == .active ? "关系雷达" : "归档关系")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
+                    Text(scope == .active ? "客户概览" : "归档客户")
+                        .font(AppTypography.sectionTitle)
                         .foregroundStyle(.white)
                     Text(radarSubtitle)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(AppTypography.meta)
                         .foregroundStyle(.white.opacity(0.72))
                 }
 
@@ -334,12 +274,11 @@ struct ClientsView: View {
 
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("\(totalClientCount)")
-                        .font(.system(size: 38, weight: .black, design: .rounded))
+                        .font(AppTypography.data)
                         .foregroundStyle(.white)
                         .monospacedDigit()
-                    Text("CLIENTS")
-                        .font(.caption2.weight(.black))
-                        .tracking(1.2)
+                    Text("客户")
+                        .font(AppTypography.micro)
                         .foregroundStyle(.white.opacity(0.64))
                 }
             }
@@ -360,11 +299,11 @@ struct ClientsView: View {
 
             HStack(alignment: .firstTextBaseline) {
                 Text("关系资产")
-                    .font(.caption.weight(.bold))
+                    .font(AppTypography.badge)
                     .foregroundStyle(.white.opacity(0.62))
                 Spacer()
                 Text(AppFormatters.currency(totalRelationshipValue))
-                    .font(.system(size: 19, weight: .black, design: .rounded))
+                    .font(AppTypography.dataCompact)
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.68)
@@ -379,11 +318,6 @@ struct ClientsView: View {
         ZStack(alignment: .topTrailing) {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(AppTheme.heroGradient)
-
-            Circle()
-                .fill(.white.opacity(0.12))
-                .frame(width: 150, height: 150)
-                .offset(x: 68, y: -76)
 
             LinearGradient(
                 colors: [.white.opacity(0.12), .clear, .black.opacity(0.08)],
@@ -410,16 +344,16 @@ struct ClientsView: View {
     private func radarColumn(title: String, value: String, footnote: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(value)
-                .font(.system(size: 24, weight: .black, design: .rounded))
+                .font(AppTypography.dataCompact)
                 .foregroundStyle(.white)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.70)
             Text(title)
-                .font(.caption.weight(.bold))
+                .font(AppTypography.badge)
                 .foregroundStyle(.white.opacity(0.72))
             Text(footnote)
-                .font(.caption2.weight(.semibold))
+                .font(AppTypography.micro)
                 .foregroundStyle(.white.opacity(0.50))
                 .lineLimit(1)
                 .minimumScaleFactor(0.70)
@@ -438,11 +372,11 @@ struct ClientsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("视图")
-                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .font(AppTypography.sectionTitle)
                     .foregroundStyle(AppTheme.ink)
                 Spacer()
                 Text("\(filter.title) · \(sort.title)")
-                    .font(.caption.weight(.semibold))
+                    .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.mutedInk)
             }
 
@@ -457,7 +391,7 @@ struct ClientsView: View {
                         } label: {
                             VStack(spacing: 7) {
                                 Text(item.title)
-                                    .font(.system(size: 15, weight: .bold))
+                                    .font(AppTypography.rowValue)
                                     .foregroundStyle(filter == item ? AppTheme.accent : AppTheme.secondaryInk)
                                 Rectangle()
                                     .fill(filter == item ? AppTheme.accent : .clear)
@@ -500,10 +434,10 @@ struct ClientsView: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(scope == .active ? "客户关系" : "归档客户")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .font(AppTypography.sectionTitle)
                         .foregroundStyle(AppTheme.ink)
                     Text(listSummaryText)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(AppTypography.meta)
                         .foregroundStyle(AppTheme.secondaryInk)
                 }
 
@@ -515,7 +449,7 @@ struct ClientsView: View {
                         searchText = ""
                         AppHaptics.selection()
                     }
-                    .font(.system(size: 14, weight: .bold))
+                    .font(AppTypography.badge)
                     .foregroundStyle(AppTheme.accent)
                     .buttonStyle(.plain)
                 }
@@ -550,10 +484,10 @@ struct ClientsView: View {
     private var emptyState: some View {
         VStack(alignment: .center, spacing: 12) {
             Text(emptyTitle)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(AppTypography.rowTitle)
                 .foregroundStyle(AppTheme.ink)
             Text(emptySubtitle)
-                .font(.system(size: 13, weight: .medium))
+                .font(AppTypography.meta)
                 .foregroundStyle(AppTheme.secondaryInk)
                 .multilineTextAlignment(.center)
         }
@@ -581,20 +515,20 @@ struct ClientsView: View {
         NavigationLink(value: ClientRoute(clientID: client.id)) {
             HStack(alignment: .top, spacing: 14) {
                 Text(client.initials)
-                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .font(AppTypography.rowTitle)
                     .foregroundStyle(AppTheme.accent)
                     .frame(width: 38, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(client.name)
-                            .font(.system(size: 17, weight: .bold))
+                            .font(AppTypography.rowTitle)
                             .foregroundStyle(AppTheme.ink)
                             .lineLimit(1)
 
                         if scope == .active && clientNeedsAttention(client) {
                             Text("需跟进")
-                                .font(.caption.weight(.bold))
+                                .font(AppTypography.badge)
                                 .foregroundStyle(AppTheme.accent)
                         }
 
@@ -602,24 +536,24 @@ struct ClientsView: View {
                     }
 
                     Text("\(client.stage.title) / \(client.tier.title)")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(AppTypography.meta)
                         .foregroundStyle(AppTheme.secondaryInk)
                         .lineLimit(1)
 
                     Text(clientMetaText(for: client))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(AppTypography.meta)
                         .foregroundStyle(AppTheme.secondaryInk)
                         .lineLimit(1)
 
                     Text(nextContactText(for: client))
-                        .font(.system(size: 12, weight: .bold))
+                        .font(AppTypography.badge)
                         .foregroundStyle(clientNeedsAttention(client) ? AppTheme.accent : AppTheme.mutedInk)
                         .lineLimit(1)
                 }
 
                 VStack(alignment: .trailing, spacing: 7) {
                     Text(AppFormatters.currency(lifetimeValue(for: client.id)))
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(AppTypography.rowValue)
                         .foregroundStyle(AppTheme.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.70)
@@ -627,14 +561,14 @@ struct ClientsView: View {
                     let outstanding = outstandingValue(for: client.id)
                     if outstanding > 0 {
                         Text("待收 \(AppFormatters.currency(outstanding))")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(AppTypography.badge)
                             .foregroundStyle(AppTheme.accent)
                             .lineLimit(1)
                             .minimumScaleFactor(0.70)
                     }
 
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(AppTypography.micro)
                         .foregroundStyle(AppTheme.mutedInk)
                 }
                 .frame(minWidth: 82, alignment: .trailing)
@@ -665,7 +599,7 @@ struct ClientsView: View {
             AppHaptics.impactMedium()
         } label: {
             Label("新建客户", systemImage: "plus")
-                .font(.system(size: 15, weight: .bold))
+                .font(AppTypography.rowTitle)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)
                 .frame(height: 52)
@@ -811,6 +745,7 @@ private struct ClientSearchSheet: View {
         NavigationStack {
             VStack(spacing: 14) {
                 TextField("搜索客户、城市、来源、手机号", text: $searchText)
+                    .font(AppTypography.rowValue)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .padding(.horizontal, 14)
@@ -829,14 +764,14 @@ private struct ClientSearchSheet: View {
                     List(clients.prefix(30)) { client in
                         VStack(alignment: .leading, spacing: 5) {
                             Text(client.name)
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppTypography.rowTitle)
                             Text("\(client.city.isEmpty ? client.sourceChannel : client.city) · \(nextContactText(client)) · \(AppFormatters.currency(lifetimeValue(client.id)))")
-                                .font(.system(size: 13))
+                                .font(AppTypography.meta)
                                 .foregroundStyle(.secondary)
                             let outstanding = outstandingValue(client.id)
                             if outstanding > 0 {
                                 Text("待收 \(AppFormatters.currency(outstanding))")
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(AppTypography.badge)
                                     .foregroundStyle(AppTheme.accent)
                             }
                         }

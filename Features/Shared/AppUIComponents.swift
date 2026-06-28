@@ -194,6 +194,119 @@ struct AppSectionHeader: View {
     }
 }
 
+struct AppPageHeader<ActionContent: View>: View {
+    let title: String
+    let subtitle: String?
+    @ViewBuilder let actions: ActionContent
+
+    init(
+        title: String,
+        subtitle: String? = nil,
+        @ViewBuilder actions: () -> ActionContent = { EmptyView() }
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.actions = actions()
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(AppTypography.pageTitle)
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                if let subtitle, subtitle.isEmpty == false {
+                    Text(subtitle)
+                        .font(AppTypography.sectionSubtitle)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            actions
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension AppPageHeader where ActionContent == EmptyView {
+    init(title: String, subtitle: String? = nil) {
+        self.title = title
+        self.subtitle = subtitle
+        self.actions = EmptyView()
+    }
+}
+
+struct AppCircleIconButton: View {
+    let systemImage: String
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(AppTypography.icon)
+                .foregroundStyle(AppTheme.ink)
+                .frame(width: 42, height: 42)
+                .background(AppTheme.panelStrong, in: Circle())
+                .overlay {
+                    Circle()
+                        .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+struct AppInlineSearchField: View {
+    let placeholder: String
+    @Binding var text: String
+
+    private var trimmedText: String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(AppTypography.icon)
+                .foregroundStyle(AppTheme.mutedInk)
+
+            TextField(placeholder, text: $text)
+                .font(AppTypography.rowValue)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+
+            if trimmedText.isEmpty == false {
+                Button {
+                    text = ""
+                    AppHaptics.selection()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(AppTypography.icon)
+                        .foregroundStyle(AppTheme.mutedInk)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("清空搜索")
+            }
+        }
+        .padding(.horizontal, 15)
+        .frame(height: 48)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                .stroke(AppTheme.line.opacity(0.70), lineWidth: 1)
+        }
+    }
+}
+
 struct AppEmptyState: View {
     let title: String
     let subtitle: String
@@ -214,7 +327,7 @@ struct AppToast: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16, weight: .semibold))
+                .font(AppTypography.icon)
                 .foregroundStyle(AppTheme.accent)
             Text(message)
                 .font(AppTypography.meta.weight(.semibold))
@@ -277,7 +390,7 @@ struct AppCreateHeader: View {
             Spacer(minLength: 8)
 
             Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .semibold))
+                .font(AppTypography.icon)
                 .foregroundStyle(AppTheme.accent)
                 .frame(width: 38, height: 38)
                 .background(AppTheme.panelStrong, in: Circle())
@@ -424,7 +537,7 @@ struct AppInlineNote: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .semibold))
+                .font(AppTypography.icon)
                 .foregroundStyle(tint)
                 .frame(width: 18)
             Text(text)

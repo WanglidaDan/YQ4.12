@@ -8,7 +8,6 @@ struct OverviewView: View {
     let onOpenSchedule: () -> Void
 
     @State private var showingNewBooking = false
-    @State private var showingSettings = false
 
     private var snapshot: OverviewSnapshot {
         store.overviewSnapshot
@@ -40,15 +39,6 @@ struct OverviewView: View {
                 heroCard
                 recentBookingsSection
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    settingsButton
-                }
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView(store: store)
-                    .environment(store)
-            }
             .sheet(isPresented: $showingNewBooking) {
                 BookingEditorView()
                     .environment(store)
@@ -56,35 +46,17 @@ struct OverviewView: View {
         }
     }
 
-    private var settingsButton: some View {
-        Button {
-            showingSettings = true
-        } label: {
-            Image(systemName: "gearshape")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(AppTheme.ink)
-                .frame(width: 34, height: 34)
-                .background(AppTheme.panelStrong, in: Circle())
-                .overlay {
-                    Circle()
-                        .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
-                }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("打开设置")
-    }
-
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top, spacing: 18) {
                 VStack(alignment: .leading, spacing: 9) {
                     Text(heroEyebrowText)
-                        .font(.caption.weight(.bold))
+                        .font(AppTypography.micro)
                         .tracking(0.9)
                         .foregroundStyle(.white.opacity(0.72))
 
                     Text(heroHeadlineText)
-                        .font(.system(size: 32, weight: .black, design: .rounded))
+                        .font(AppTypography.heroTitle)
                         .foregroundStyle(.white)
                         .lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -94,11 +66,11 @@ struct OverviewView: View {
 
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(heroCountdownNumber)
-                        .font(.system(size: 37, weight: .black, design: .rounded))
+                        .font(AppTypography.data)
                         .foregroundStyle(.white)
                         .monospacedDigit()
                     Text(heroCountdownUnit)
-                        .font(.caption2.weight(.bold))
+                        .font(AppTypography.micro)
                         .tracking(0.8)
                         .foregroundStyle(.white.opacity(0.60))
                 }
@@ -143,9 +115,9 @@ struct OverviewView: View {
 
     private var heroEyebrowText: String {
         if todayBookings.isEmpty == false {
-            return "TODAY · \(todayBookings.count) 场拍摄"
+            return "今日 · \(todayBookings.count) 场拍摄"
         }
-        return "YINGQI STUDIO"
+        return "影期工作台"
     }
 
     private var heroHeadlineText: String {
@@ -175,11 +147,11 @@ struct OverviewView: View {
     }
 
     private var heroCountdownUnit: String {
-        guard let booking = featuredBooking else { return "DAYS" }
+        guard let booking = featuredBooking else { return "天后" }
         switch daysUntilBooking(booking) {
         case ..<0: return "待处理"
-        case 0: return "TODAY"
-        default: return "DAYS"
+        case 0: return "今天"
+        default: return "天后"
         }
     }
 
@@ -188,13 +160,13 @@ struct OverviewView: View {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(booking.title)
-                        .font(.system(size: 24, weight: .black, design: .rounded))
+                        .font(AppTypography.sectionTitle)
                         .foregroundStyle(.white)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(countdownTitle(for: booking))
-                        .font(.caption.weight(.bold))
+                        .font(AppTypography.badge)
                         .foregroundStyle(.white.opacity(0.68))
                 }
 
@@ -212,10 +184,10 @@ struct OverviewView: View {
     private var emptyHeroContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("还没有即将开始的拍摄")
-                .font(.system(size: 22, weight: .black, design: .rounded))
+                .font(AppTypography.sectionTitle)
                 .foregroundStyle(.white)
             Text("用语音或表单快速新建档期，首页会自动把下一场拍摄顶到最醒目的位置。")
-                .font(.subheadline.weight(.medium))
+                .font(AppTypography.meta)
                 .foregroundStyle(.white.opacity(0.78))
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -225,12 +197,12 @@ struct OverviewView: View {
     private func heroPlainRow(title: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Text(title)
-                .font(.caption.weight(.bold))
+                .font(AppTypography.badge)
                 .foregroundStyle(.white.opacity(0.56))
                 .frame(width: 34, alignment: .leading)
                 .padding(.top, 1)
             Text(value)
-                .font(.subheadline.weight(.semibold))
+                .font(AppTypography.rowValue)
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -271,7 +243,7 @@ struct OverviewView: View {
                 Image(systemName: systemImage)
                 Text(title)
             }
-            .font(.system(size: 14, weight: .bold))
+            .font(AppTypography.badge)
             .foregroundStyle(.white)
             .lineLimit(1)
             .minimumScaleFactor(0.78)
@@ -308,7 +280,7 @@ struct OverviewView: View {
     private var emptyScheduleBlock: some View {
         VStack(alignment: .leading, spacing: 9) {
             Text("暂无排期")
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(AppTypography.rowTitle)
                 .foregroundStyle(AppTheme.ink)
             Text("先创建一场拍摄，首页会自动生成你的工作节奏。")
                 .font(AppTypography.meta)
@@ -327,11 +299,11 @@ struct OverviewView: View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(AppFormatters.shortMonthDay(booking.startAt))
-                    .font(.caption.weight(.black))
+                    .font(AppTypography.badge)
                     .foregroundStyle(AppTheme.accent)
                     .lineLimit(1)
                 Text(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))
-                    .font(.caption2.weight(.semibold))
+                    .font(AppTypography.micro)
                     .foregroundStyle(AppTheme.mutedInk)
                     .monospacedDigit()
                     .lineLimit(2)
@@ -342,14 +314,14 @@ struct OverviewView: View {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(booking.title)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(AppTypography.rowTitle)
                         .foregroundStyle(AppTheme.ink)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
 
                     if isFirst {
                         Text("下一场")
-                            .font(.caption.weight(.bold))
+                            .font(AppTypography.badge)
                             .foregroundStyle(AppTheme.accent)
                     }
 
@@ -357,18 +329,18 @@ struct OverviewView: View {
                 }
 
                 Text("客户：\(store.clientName(for: booking))")
-                    .font(.caption.weight(.semibold))
+                    .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.secondaryInk)
                     .lineLimit(1)
 
                 Text("地点：\(navigationQuery(for: booking) ?? "未填写地点")")
-                    .font(.caption.weight(.semibold))
+                    .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.secondaryInk)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(countdownTitle(for: booking))
-                    .font(.caption.weight(.bold))
+                    .font(AppTypography.badge)
                     .foregroundStyle(AppTheme.accent)
                     .lineLimit(1)
             }
@@ -382,7 +354,7 @@ struct OverviewView: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 21, weight: .black, design: .rounded))
+                    .font(AppTypography.sectionTitle)
                     .foregroundStyle(AppTheme.ink)
                 Text(subtitle)
                     .font(AppTypography.meta)
