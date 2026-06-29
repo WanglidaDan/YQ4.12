@@ -1,0 +1,216 @@
+name: Invite TestFlight Tester
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Tester email"
+        required: true
+      first_name:
+        description: "Tester first name"
+        required: false
+        default: "YingQi"
+      last_name:
+        description: "Tester last name"
+        required: false
+        default: "Tester"
+      build_number:
+        description: "Build number to assign"
+        required: false
+        default: "2026062902"
+
+permissions:
+  contents: read
+
+jobs:
+  invite:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - name: Invite tester
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          TESTER_EMAIL: ${{ inputs.email }}
+          TESTER_FIRST_NAME: ${{ inputs.first_name }}
+          TESTER_LAST_NAME: ${{ inputs.last_name }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          BUNDLE_ID: com.wanglida.YingQi
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import tempfile
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          API_BASE = "https://api.appstoreconnect.apple.com/v1/"
+
+          def b64url(data):
+              return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+          def der_to_raw_ecdsa(der):
+              if der[0] != 0x30:
+                  raise ValueError("unexpected ECDSA signature")
+              i = 2
+              if der[1] & 0x80:
+                  i = 2 + (der[1] & 0x7F)
+              if der[i] != 0x02:
+                  raise ValueError("missing r")
+              r_len = der[i + 1]
+              r = der[i + 2:i + 2 + r_len]
+              i += 2 + r_len
+              if der[i] != 0x02:
+                  raise ValueError("missing s")
+              s_len = der[i + 1]
+              s = der[i + 2:i + 2 + s_len]
+              return r.lstrip(b"\x00").rjust(32, b"\x00") + s.lstrip(b"\x00").rjust(32, b"\x00")
+
+          def make_token():
+              key_id = os.environ["APP_STORE_CONNECT_API_KEY_ID"].strip()
+              issuer_id = os.environ["APP_STORE_CONNECT_API_ISSUER_ID"].strip()
+              pem = os.environ["APP_STORE_CONNECT_API_KEY_P8"].strip().replace("\\r", "")
+              if "\\n" in pem:
+                  pem = pem.replace("\\n", "\n")
+
+              now = int(time.time())
+              header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
+              payload = {"iss": issuer_id, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
+              signing_input = f"{b64url(json.dumps(header, separators=(',', ':')).encode())}.{b64url(json.dumps(payload, separators=(',', ':')).encode())}"
+
+              with tempfile.NamedTemporaryFile("w", delete=False) as key_file:
+                  key_file.write(pem.rstrip() + "\n")
+                  key_path = key_file.name
+              try:
+                  proc = subprocess.run(
+                      ["openssl", "dgst", "-sha256", "-sign", key_path],
+                      input=signing_input.encode(),
+                      stdout=subprocess.PIPE,
+                      stderr=subprocess.PIPE,
+                      check=True,
+                  )
+              finally:
+                  os.unlink(key_path)
+              return signing_input + "." + b64url(der_to_raw_ecdsa(proc.stdout))
+
+          token = make_token()
+
+          def request(method, path, params=None, payload=None, ok=(200, 201, 204)):
+              url = API_BASE + path
+              if params:
+                  url += "?" + urllib.parse.urlencode(params, doseq=True)
+              body = None
+              headers = {"Authorization": f"Bearer {token}"}
+              if payload is not None:
+                  body = json.dumps(payload).encode("utf-8")
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(url, data=body, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      raw = resp.read().decode("utf-8")
+                      if resp.status not in ok:
+                          raise RuntimeError(f"{method} {path} returned HTTP {resp.status}: {raw}")
+                      return {} if not raw else json.loads(raw)
+              except urllib.error.HTTPError as error:
+                  raw = error.read().decode("utf-8", errors="replace")
+                  print(f"HTTP_ERROR {method} {path} {error.code}")
+                  print(raw)
+                  raise
+
+          def request_optional(method, path, params=None, payload=None):
+              try:
+                  return request(method, path, params=params, payload=payload)
+              except urllib.error.HTTPError as error:
+                  print(f"OPTIONAL_FAILED {method} {path} HTTP_{error.code}")
+                  return None
+
+          email = os.environ["TESTER_EMAIL"].strip()
+          first_name = os.environ["TESTER_FIRST_NAME"].strip() or "YingQi"
+          last_name = os.environ["TESTER_LAST_NAME"].strip() or "Tester"
+          if "@" not in email:
+              raise SystemExit("TESTER_EMAIL must be an email address")
+
+          apps = request("GET", "apps", {"filter[bundleId]": os.environ["BUNDLE_ID"]})
+          app_id = apps["data"][0]["id"]
+          print("APP_RESOURCE_ID=" + app_id)
+
+          builds = request("GET", "builds", {
+              "filter[app]": app_id,
+              "filter[version]": os.environ["BUILD_NUMBER"].strip(),
+              "sort": "-uploadedDate",
+              "limit": "1",
+          })
+          if not builds.get("data"):
+              raise SystemExit("Build not found: " + os.environ["BUILD_NUMBER"])
+          build_id = builds["data"][0]["id"]
+          print("BUILD_ID=" + build_id)
+
+          testers = request("GET", "betaTesters", {"filter[email]": email, "limit": "1"})
+          if testers.get("data"):
+              tester_id = testers["data"][0]["id"]
+              print("TESTER_EXISTS=" + tester_id)
+          else:
+              payload = {
+                  "data": {
+                      "type": "betaTesters",
+                      "attributes": {
+                          "email": email,
+                          "firstName": first_name,
+                          "lastName": last_name,
+                      },
+                      "relationships": {
+                          "apps": {
+                              "data": [{"type": "apps", "id": app_id}]
+                          }
+                      },
+                  }
+              }
+              try:
+                  created = request("POST", "betaTesters", payload=payload, ok=(201,))
+              except urllib.error.HTTPError as error:
+                  if error.code != 409:
+                      raise
+                  testers = request("GET", "betaTesters", {"filter[email]": email, "limit": "1"})
+                  if not testers.get("data"):
+                      raise
+                  tester_id = testers["data"][0]["id"]
+              else:
+                  tester_id = created["data"]["id"]
+              print("TESTER_CREATED=" + tester_id)
+
+          request_optional(
+              "POST",
+              f"betaTesters/{tester_id}/relationships/apps",
+              payload={"data": [{"type": "apps", "id": app_id}]},
+          )
+
+          request(
+              "POST",
+              f"builds/{build_id}/relationships/individualTesters",
+              payload={"data": [{"type": "betaTesters", "id": tester_id}]},
+              ok=(204,),
+          )
+          print("BUILD_ASSIGNED_TO_TESTER=" + email)
+
+          request_optional(
+              "POST",
+              "buildBetaNotifications",
+              payload={
+                  "data": {
+                      "type": "buildBetaNotifications",
+                      "relationships": {
+                          "build": {
+                              "data": {"type": "builds", "id": build_id}
+                          }
+                      },
+                  }
+              },
+          )
+          print("INVITE_DONE=" + email)
+          PY
