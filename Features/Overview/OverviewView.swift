@@ -18,7 +18,7 @@ struct OverviewView: View {
     }
 
     private var recentBookings: [BookingRecord] {
-        Array(snapshot.nextBookings.prefix(5))
+        Array(snapshot.nextBookings.prefix(3))
     }
 
     private var todayBookings: [BookingRecord] {
@@ -26,18 +26,21 @@ struct OverviewView: View {
     }
 
     private var recentBookingsSubtitle: String {
-        guard recentBookings.isEmpty == false else { return "等待第一场拍摄" }
+        guard recentBookings.isEmpty == false else { return "" }
         if todayBookings.isEmpty == false {
-            return "今天 \(todayBookings.count) 场 · 未来 \(recentBookings.count) 场"
+            return "今天 \(todayBookings.count)"
         }
-        return "未来 \(recentBookings.count) 场拍摄"
+        return "未来 \(recentBookings.count)"
     }
 
     var body: some View {
         NavigationStack {
-            AppPageScaffold(title: "摄影工作台", topPadding: 10, bottomPadding: 34) {
+            AppPageScaffold(title: "工作台", topPadding: 10, bottomPadding: 34) {
                 heroCard
-                recentBookingsSection
+
+                if recentBookings.isEmpty == false {
+                    recentBookingsSection
+                }
             }
             .sheet(isPresented: $showingNewBooking) {
                 BookingEditorView()
@@ -47,14 +50,9 @@ struct OverviewView: View {
     }
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
                 VStack(alignment: .leading, spacing: 9) {
-                    Text(heroEyebrowText)
-                        .font(AppTypography.micro)
-                        .tracking(0.9)
-                        .foregroundStyle(.white.opacity(0.72))
-
                     Text(heroHeadlineText)
                         .font(AppTypography.heroTitle)
                         .foregroundStyle(.white)
@@ -71,13 +69,9 @@ struct OverviewView: View {
                         .monospacedDigit()
                     Text(heroCountdownUnit)
                         .font(AppTypography.micro)
-                        .tracking(0.8)
                         .foregroundStyle(.white.opacity(0.60))
                 }
             }
-
-            Divider()
-                .overlay(.white.opacity(0.18))
 
             if let booking = featuredBooking {
                 featuredBookingContent(booking)
@@ -85,12 +79,9 @@ struct OverviewView: View {
                 emptyHeroContent
             }
 
-            Divider()
-                .overlay(.white.opacity(0.18))
-
             heroActionRow
         }
-        .padding(24)
+        .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroBackground)
         .shadow(color: AppTheme.deepShadow.opacity(0.18), radius: 22, y: 12)
@@ -113,27 +104,20 @@ struct OverviewView: View {
         }
     }
 
-    private var heroEyebrowText: String {
-        if todayBookings.isEmpty == false {
-            return "今日 · \(todayBookings.count) 场拍摄"
-        }
-        return "影期工作台"
-    }
-
     private var heroHeadlineText: String {
         guard let booking = featuredBooking else {
-            return "把下一场拍摄\n放进影期"
+            return "下一场\n待安排"
         }
 
         switch daysUntilBooking(booking) {
         case ..<0:
-            return "这场拍摄\n需要回看处理"
+            return "待复盘"
         case 0:
-            return "今天开拍\n把现场稳住"
+            return "今天\n开拍"
         case 1:
-            return "明天开拍\n准备工作就位"
+            return "明天\n开拍"
         default:
-            return "下一场拍摄\n已经排好节奏"
+            return "下一场\n已排好"
         }
     }
 
@@ -156,147 +140,108 @@ struct OverviewView: View {
     }
 
     private func featuredBookingContent(_ booking: BookingRecord) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(booking.title)
-                        .font(AppTypography.sectionTitle)
-                        .foregroundStyle(.white)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(booking.title)
+                .font(AppTypography.sectionTitle)
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
-                    Text(countdownTitle(for: booking))
-                        .font(AppTypography.badge)
-                        .foregroundStyle(.white.opacity(0.68))
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            VStack(spacing: 11) {
-                heroPlainRow(title: "客户", value: store.clientName(for: booking))
-                heroPlainRow(title: "时间", value: "\(AppFormatters.shortMonthDay(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))")
-                heroPlainRow(title: "地点", value: navigationQuery(for: booking) ?? "未填写")
+            VStack(alignment: .leading, spacing: 7) {
+                heroMetaLine(
+                    systemImage: "clock",
+                    text: "\(AppFormatters.shortMonthDay(booking.startAt)) \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))"
+                )
+                heroMetaLine(systemImage: "mappin.and.ellipse", text: navigationQuery(for: booking) ?? "未填地点")
             }
         }
     }
 
     private var emptyHeroContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("还没有即将开始的拍摄")
-                .font(AppTypography.sectionTitle)
-                .foregroundStyle(.white)
-            Text("用语音或表单快速新建档期，首页会自动把下一场拍摄顶到最醒目的位置。")
-                .font(AppTypography.meta)
-                .foregroundStyle(.white.opacity(0.78))
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 10) {
+            Image(systemName: "calendar.badge.plus")
+                .font(.system(size: 15, weight: .semibold))
+            Text("先创建一场拍摄")
+                .font(AppTypography.rowValue)
         }
+        .foregroundStyle(.white.opacity(0.76))
+        .padding(.top, 2)
     }
 
-    private func heroPlainRow(title: String, value: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(title)
-                .font(AppTypography.badge)
-                .foregroundStyle(.white.opacity(0.56))
-                .frame(width: 34, alignment: .leading)
-                .padding(.top, 1)
-            Text(value)
-                .font(AppTypography.rowValue)
-                .foregroundStyle(.white)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+    private func heroMetaLine(systemImage: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 16)
+            Text(text)
+                .font(AppTypography.meta)
+                .lineLimit(1)
         }
+        .foregroundStyle(.white.opacity(0.76))
     }
 
     private var heroActionRow: some View {
-        HStack(spacing: 18) {
-            heroTextButton(title: "新建档期", systemImage: "calendar.badge.plus") {
+        HStack(spacing: 12) {
+            heroIconButton(title: "新建档期", systemImage: "plus") {
                 AppHaptics.impactMedium()
                 showingNewBooking = true
             }
 
-            Rectangle()
-                .fill(.white.opacity(0.18))
-                .frame(width: 1, height: 24)
-
-            heroTextButton(title: "查看档期", systemImage: "calendar") {
+            heroIconButton(title: "查看档期", systemImage: "calendar") {
                 onOpenSchedule()
             }
 
             if let booking = featuredBooking, navigationQuery(for: booking) != nil {
-                Rectangle()
-                    .fill(.white.opacity(0.18))
-                    .frame(width: 1, height: 24)
-
-                heroTextButton(title: "一键导航", systemImage: "location.fill") {
+                heroIconButton(title: "一键导航", systemImage: "location.fill") {
                     openNavigation(for: booking)
                 }
             }
+
+            Spacer(minLength: 0)
         }
+        .padding(.top, 2)
     }
 
-    private func heroTextButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+    private func heroIconButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: systemImage)
-                Text(title)
-            }
-            .font(AppTypography.badge)
+            Image(systemName: systemImage)
+            .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(.white)
-            .lineLimit(1)
-            .minimumScaleFactor(0.78)
+            .frame(width: 42, height: 34)
+            .background(.white.opacity(0.14), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(.white.opacity(0.16), lineWidth: 1)
+            }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 
     private var recentBookingsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(title: "拍摄排期", subtitle: recentBookingsSubtitle)
+            sectionHeader(title: "排期", subtitle: recentBookingsSubtitle)
                 .padding(.bottom, 12)
 
-            if recentBookings.isEmpty {
-                emptyScheduleBlock
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(recentBookings.enumerated()), id: \.element.id) { item in
-                        bookingPlainRow(booking: item.element, isFirst: item.offset == 0)
-                        if item.offset < recentBookings.count - 1 {
-                            rowDivider
-                        }
+            VStack(spacing: 0) {
+                ForEach(Array(recentBookings.enumerated()), id: \.element.id) { item in
+                    bookingPlainRow(booking: item.element, isFirst: item.offset == 0)
+                    if item.offset < recentBookings.count - 1 {
+                        rowDivider
                     }
                 }
-                .padding(.vertical, 4)
-                .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-                }
+            }
+            .padding(.vertical, 4)
+            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
             }
         }
     }
 
-    private var emptyScheduleBlock: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Text("暂无排期")
-                .font(AppTypography.rowTitle)
-                .foregroundStyle(AppTheme.ink)
-            Text("先创建一场拍摄，首页会自动生成你的工作节奏。")
-                .font(AppTypography.meta)
-                .foregroundStyle(AppTheme.secondaryInk)
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-        }
-    }
-
     private func bookingPlainRow(booking: BookingRecord, isFirst: Bool) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(AppFormatters.shortMonthDay(booking.startAt))
                     .font(AppTypography.badge)
@@ -328,20 +273,9 @@ struct OverviewView: View {
                     Spacer(minLength: 0)
                 }
 
-                Text("客户：\(store.clientName(for: booking))")
+                Text(compactBookingMeta(for: booking))
                     .font(AppTypography.meta)
                     .foregroundStyle(AppTheme.secondaryInk)
-                    .lineLimit(1)
-
-                Text("地点：\(navigationQuery(for: booking) ?? "未填写地点")")
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.secondaryInk)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(countdownTitle(for: booking))
-                    .font(AppTypography.badge)
-                    .foregroundStyle(AppTheme.accent)
                     .lineLimit(1)
             }
         }
@@ -352,13 +286,15 @@ struct OverviewView: View {
 
     private func sectionHeader(title: String, subtitle: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(title)
                     .font(AppTypography.sectionTitle)
                     .foregroundStyle(AppTheme.ink)
-                Text(subtitle)
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.mutedInk)
+                if subtitle.isEmpty == false {
+                    Text(subtitle)
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.mutedInk)
+                }
             }
 
             Spacer(minLength: 0)
@@ -387,6 +323,12 @@ struct OverviewView: View {
 
         let location = recentBookingLocationText(for: booking).trimmingCharacters(in: .whitespacesAndNewlines)
         return location.isEmpty ? nil : location
+    }
+
+    private func compactBookingMeta(for booking: BookingRecord) -> String {
+        let client = store.clientName(for: booking)
+        let location = navigationQuery(for: booking) ?? "未填地点"
+        return "\(client) · \(location)"
     }
 
     private func openNavigation(for booking: BookingRecord) {
