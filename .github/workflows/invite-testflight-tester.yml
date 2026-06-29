@@ -164,11 +164,6 @@ jobs:
                           "firstName": first_name,
                           "lastName": last_name,
                       },
-                      "relationships": {
-                          "apps": {
-                              "data": [{"type": "apps", "id": app_id}]
-                          }
-                      },
                   }
               }
               try:
