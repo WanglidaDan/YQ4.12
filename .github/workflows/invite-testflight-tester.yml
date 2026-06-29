@@ -164,6 +164,11 @@ jobs:
                           "firstName": first_name,
                           "lastName": last_name,
                       },
+                      "relationships": {
+                          "builds": {
+                              "data": [{"type": "builds", "id": build_id}]
+                          }
+                      },
                   }
               }
               try:
