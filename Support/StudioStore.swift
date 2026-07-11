@@ -19,6 +19,7 @@ final class StudioStore {
     @ObservationIgnored private var bookingsByClientID: [UUID: [BookingRecord]] = [:]
     @ObservationIgnored private var touchpointsByClientID: [UUID: [TouchpointRecord]] = [:]
     @ObservationIgnored private var analyticsDashboardCache: BusinessAnalyticsDashboard = .empty
+    @ObservationIgnored private var isUsingLocalWorkspaceAsOwner = false
 
     private static let systemManagedDepositNote = "系统初始化定金"
 
@@ -519,6 +520,11 @@ final class StudioStore {
 
     func setAuthProfile(_ authProfile: AuthProfile) {
         guard requirePermission(.manageWorkspace) || workspaceMembers.isEmpty else { return }
+        authenticateForAppEntry(authProfile)
+    }
+
+    func authenticateForAppEntry(_ authProfile: AuthProfile) {
+        isUsingLocalWorkspaceAsOwner = false
         if let workspaceOwnerAppleUserID, workspaceOwnerAppleUserID != authProfile.appleUserID {
             startIsolatedWorkspace(for: authProfile)
             return
@@ -533,8 +539,17 @@ final class StudioStore {
 
     func clearAuthProfile() {
         guard requirePermission(.manageWorkspace) || workspaceMembers.isEmpty else { return }
+        isUsingLocalWorkspaceAsOwner = false
         authProfile = nil
         settings.iCloudSyncEnabled = false
+        normalizeAndPersistIfNeeded()
+    }
+
+    func enterLocalWorkspaceAsOwner() {
+        isUsingLocalWorkspaceAsOwner = true
+        authProfile = nil
+        settings.iCloudSyncEnabled = false
+        lastWorkspaceNoticeMessage = nil
         normalizeAndPersistIfNeeded()
     }
 
@@ -1579,6 +1594,10 @@ extension StudioStore {
     }
 
     var currentWorkspaceRole: WorkspaceRole {
+        if isUsingLocalWorkspaceAsOwner {
+            return .owner
+        }
+
         if workspaceMembers.isEmpty {
             return .owner
         }
@@ -1698,6 +1717,10 @@ extension StudioStore {
     }
 
     func canCurrentUserPerform(_ permission: WorkspacePermission) -> Bool {
+        if isUsingLocalWorkspaceAsOwner {
+            return true
+        }
+
         if workspaceMembers.isEmpty {
             return true
         }

@@ -68,6 +68,8 @@ private struct BookingFormPage: View {
     @State private var speechDraft = ""
     @State private var speechSuggestion = BookingSpeechSuggestion.empty
     @State private var speechService = BookingSpeechDraftService()
+    @State private var showingQuickInput = false
+    @State private var showingMoreDetails = false
 
     private let calendar = Calendar.current
 
@@ -107,13 +109,7 @@ private struct BookingFormPage: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
-                        voicePanel
-
-                        if speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-                            speechResultPanel
-                        }
-
-                        formSection(title: "基本信息") {
+                        formSection(title: "档期") {
                             inputRow(symbol: "doc.text", title: "项目名称") {
                                 TextField("请输入项目名称", text: $title)
                                     .multilineTextAlignment(.trailing)
@@ -131,9 +127,7 @@ private struct BookingFormPage: View {
                             buttonRow(symbol: "clock", title: "状态", value: status.title) {
                                 selectionSheet = .status
                             }
-                        }
-
-                        formSection(title: "时间") {
+                            rowDivider
                             dateRow(symbol: "calendar", title: "开始时间", date: $startAt)
                                 .onChange(of: startAt) { oldValue, newValue in
                                     shiftEndDate(from: oldValue, to: newValue)
@@ -143,25 +137,16 @@ private struct BookingFormPage: View {
                         }
 
                         formSection(title: "地点") {
-                            textInputRow(title: "城市 / 区域", text: $city, placeholder: "未填写")
-                            rowDivider
                             textInputRow(title: "场地", text: $venue, placeholder: "未填写")
                             rowDivider
-                            textInputRow(title: "详细地址", text: $addressText, placeholder: "未填写", axis: .vertical)
-                            rowDivider
-                            textInputRow(title: "到场备注", text: $locationNote, placeholder: "未填写", axis: .vertical)
+                            textInputRow(title: "城市 / 区域", text: $city, placeholder: "未填写")
                         }
 
-                        formSection(title: "报价交付") {
-                            moneyInputRow(title: "报价", value: $fee)
-                            rowDivider
-                            moneyInputRow(title: "定金", value: $depositPaid)
-                            rowDivider
-                            readonlyRow(title: "待收", value: AppFormatters.currency(max(normalizedFee - normalizedDeposit, 0)))
-                            rowDivider
-                            textInputRow(title: "交付内容", text: $deliverableText, placeholder: "未填写", axis: .vertical)
-                            rowDivider
-                            textInputRow(title: "项目说明", text: $notesText, placeholder: "未填写", axis: .vertical)
+                        optionalDetailsDisclosure
+                        quickInputDisclosure
+
+                        if speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+                            speechResultPanel
                         }
 
                         if conflictBookings.isEmpty == false {
@@ -173,6 +158,17 @@ private struct BookingFormPage: View {
                     .padding(.bottom, 36)
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                Button("保存档期", systemImage: "checkmark", action: saveTapped)
+                    .font(AppTypography.bodyStrong)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(AppTheme.accent, in: Capsule())
+                    .padding(.horizontal, AppSpacing.page)
+                    .padding(.vertical, 10)
+                    .background(.thinMaterial)
+            }
             .navigationTitle(originalBooking == nil ? "新建档期" : "编辑档期")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -183,11 +179,6 @@ private struct BookingFormPage: View {
                     }
                     .font(.body.weight(.regular))
                     .foregroundStyle(AppTheme.accent)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("保存", action: saveTapped)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(AppTheme.accent)
                 }
             }
             .sheet(item: $selectionSheet) { sheet in
@@ -218,6 +209,59 @@ private struct BookingFormPage: View {
                 Text(voiceErrorMessage ?? "请检查权限。")
             }
         }
+    }
+
+    private var optionalDetailsDisclosure: some View {
+        DisclosureGroup(isExpanded: $showingMoreDetails) {
+            VStack(spacing: 24) {
+                formSection(title: "详细地点") {
+                    textInputRow(title: "详细地址", text: $addressText, placeholder: "未填写", axis: .vertical)
+                    rowDivider
+                    textInputRow(title: "到场备注", text: $locationNote, placeholder: "未填写", axis: .vertical)
+                }
+
+                formSection(title: "报价与交付") {
+                    moneyInputRow(title: "报价", value: $fee)
+                    rowDivider
+                    moneyInputRow(title: "定金", value: $depositPaid)
+                    rowDivider
+                    readonlyRow(title: "待收", value: AppFormatters.currency(max(normalizedFee - normalizedDeposit, 0)))
+                    rowDivider
+                    textInputRow(title: "交付内容", text: $deliverableText, placeholder: "未填写", axis: .vertical)
+                    rowDivider
+                    textInputRow(title: "项目说明", text: $notesText, placeholder: "未填写", axis: .vertical)
+                }
+            }
+            .padding(.top, 16)
+        } label: {
+            disclosureLabel(
+                title: showingMoreDetails ? "收起更多信息" : "更多信息",
+                systemImage: "slider.horizontal.3"
+            )
+        }
+        .tint(AppTheme.ink)
+    }
+
+    private var quickInputDisclosure: some View {
+        DisclosureGroup(isExpanded: $showingQuickInput) {
+            voicePanel
+                .padding(.top, 16)
+        } label: {
+            disclosureLabel(
+                title: showingQuickInput ? "收起语音输入" : "语音快速填写",
+                systemImage: "mic"
+            )
+        }
+        .tint(AppTheme.ink)
+    }
+
+    private func disclosureLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(AppTypography.bodyStrong)
+            .foregroundStyle(AppTheme.ink)
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .padding(.horizontal, 16)
+            .appCardSurface(fillColor: AppTheme.panel)
     }
 
     private var voicePanel: some View {

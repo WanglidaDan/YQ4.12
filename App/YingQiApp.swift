@@ -29,24 +29,22 @@ private struct AppRootContainer: View {
 
     var body: some View {
         ZStack {
-            Group {
-                if store.isAuthenticated || hasEnteredGuestMode {
-                    RootTabView(store: store)
-                } else {
-                    AuthGateView(
-                        onAuthenticated: { profile in
-                            hasEnteredGuestMode = false
-                            store.authenticateForAppEntry(profile)
-                        },
-                        onWeChatSignIn: { completion in
-                            weChatAuthService.signIn(completion: completion)
-                        },
-                        onContinueWithoutLogin: {
-                            enterLocalWorkspace()
-                        }
-                    )
-                    .environment(store)
-                }
+            if store.isAuthenticated || hasEnteredGuestMode {
+                RootTabView(store: store)
+            } else {
+                AuthGateView(
+                    onAuthenticated: { profile in
+                        hasEnteredGuestMode = false
+                        store.authenticateForAppEntry(profile)
+                    },
+                    onWeChatSignIn: { completion in
+                        weChatAuthService.signIn(completion: completion)
+                    },
+                    onContinueWithoutLogin: {
+                        enterLocalWorkspace()
+                    }
+                )
+                .environment(store)
             }
 
             if showingLaunchIntro {

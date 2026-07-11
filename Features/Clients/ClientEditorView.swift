@@ -37,27 +37,20 @@ private struct CreateClientFlowView: View {
     @State private var needsFollowUp = false
     @State private var nextContactAt = Date().addingTimeInterval(86_400)
     @State private var showingBusinessFields = false
+    @State private var saveErrorMessage: String?
 
     var body: some View {
         NavigationStack {
             AppPageScaffold(title: "新增客户", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 24) {
-                AppCreateHeader(
-                    eyebrow: "新增客户",
-                    title: resolvedName,
-                    subtitle: "姓名、电话、微信都可以先只填一项；没有名称时会保存为待补全客户。",
-                    systemImage: "person.badge.plus"
-                )
-                autoNameHint
                 essentialsSection
                 businessDisclosure
-                savePreviewSection
             }
             .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) {
                 Button(action: save) {
                     Label("保存客户", systemImage: "checkmark")
                         .font(AppTypography.bodyStrong)
-                        .foregroundStyle(AppTheme.panelStrong)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
                         .background(AppTheme.accent, in: Capsule())
@@ -75,29 +68,26 @@ private struct CreateClientFlowView: View {
                     }
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var autoNameHint: some View {
-        if trimmedName.isEmpty {
-            AppInlineNote(systemImage: "wand.and.stars", text: "未填客户名称时，会保存为“\(resolvedName)”，之后可在详情里改名。", tint: AppTheme.accent)
+            .alert("保存失败", isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if $0 == false { saveErrorMessage = nil } }
+            )) {
+                Button("知道了", role: .cancel) { saveErrorMessage = nil }
+            } message: {
+                Text(saveErrorMessage ?? "客户没有保存成功。")
+            }
         }
     }
 
     private var essentialsSection: some View {
         Group {
-            AppEditorCard(title: "快速资料", subtitle: "只填你现在知道的信息，剩下的以后补。") {
+            AppEditorCard(title: "基本信息", subtitle: "名称、电话或微信填一项即可。") {
                 AppEditorLabeledField("客户名称") {
                     TextField("昵称、公司名或联系人", text: $name)
                 }
 
                 AppEditorDivider()
 
-                AppEditorLabeledField("城市 / 区域") {
-                    TextField("例如：上海", text: $city)
-                }
-                AppEditorDivider()
                 AppEditorLabeledField("电话") {
                     TextField("手机号", text: $phoneNumber)
                         .keyboardType(.phonePad)
@@ -109,14 +99,6 @@ private struct CreateClientFlowView: View {
                     TextField("微信号", text: $wechatID)
                         .textInputAutocapitalization(.never)
                 }
-
-                AppEditorDivider()
-
-                AppEditorLabeledField("邮箱") {
-                    TextField("邮箱地址", text: $emailAddress)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                }
             }
         }
     }
@@ -125,6 +107,20 @@ private struct CreateClientFlowView: View {
         DisclosureGroup(isExpanded: $showingBusinessFields) {
             VStack(alignment: .leading, spacing: AppSpacing.section) {
                 AppEditorCard(title: "来源与价值") {
+                    AppEditorLabeledField("城市 / 区域") {
+                        TextField("例如：上海", text: $city)
+                    }
+
+                    AppEditorDivider()
+
+                    AppEditorLabeledField("邮箱") {
+                        TextField("邮箱地址", text: $emailAddress)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                    }
+
+                    AppEditorDivider()
+
                     AppEditorLabeledField("来源渠道") {
                         TextField("小红书 / 转介绍 / 老客户复购", text: $sourceChannel)
                     }
@@ -178,9 +174,6 @@ private struct CreateClientFlowView: View {
                     Text(showingBusinessFields ? "收起经营信息" : "补充来源、层级和跟进")
                         .font(AppTypography.bodyStrong)
                         .foregroundStyle(AppTheme.ink)
-                    Text("这些内容都可稍后在客户详情里补。")
-                        .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.secondaryInk)
                 }
                 Spacer()
             }
@@ -188,15 +181,6 @@ private struct CreateClientFlowView: View {
             .appCardSurface(fillColor: AppTheme.panel)
         }
         .tint(AppTheme.ink)
-    }
-
-    private var savePreviewSection: some View {
-        AppEditorCard(title: "保存后") {
-            AppKeyValueRow(title: "客户", value: trimmedName.isEmpty ? "未填写" : trimmedName)
-            AppKeyValueRow(title: "保存名称", value: resolvedName)
-            AppKeyValueRow(title: "联系方式", value: contactSummary)
-            AppKeyValueRow(title: "跟进", value: needsFollowUp ? AppFormatters.relativeDueText(nextContactAt, calendar: Calendar.current) : "暂不安排")
-        }
     }
 
     private var trimmedName: String {
@@ -229,14 +213,13 @@ private struct CreateClientFlowView: View {
         sourceChannel.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var contactSummary: String {
-        let parts = [phoneNumber, wechatID, emailAddress]
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { $0.isEmpty == false }
-        return parts.isEmpty ? "暂无联系方式" : parts.joined(separator: " · ")
-    }
-
     private func save() {
+        guard store.canCurrentUserPerform(.manageClients) else {
+            saveErrorMessage = store.lastWorkspaceNoticeMessage ?? "当前账号没有管理客户权限。"
+            AppHaptics.error()
+            return
+        }
+
         let draft = ClientRecord(
             id: UUID(),
             name: resolvedName,
@@ -257,6 +240,13 @@ private struct CreateClientFlowView: View {
         )
 
         store.upsert(client: draft)
+
+        guard store.client(id: draft.id) != nil else {
+            saveErrorMessage = store.lastWorkspaceNoticeMessage ?? "客户没有写入成功。"
+            AppHaptics.error()
+            return
+        }
+
         onSaved?(draft)
         AppHaptics.success()
         dismiss()
