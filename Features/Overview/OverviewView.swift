@@ -17,20 +17,8 @@ struct OverviewView: View {
         snapshot.nextBookings.first
     }
 
-    private var recentBookings: [BookingRecord] {
-        Array(snapshot.nextBookings.prefix(3))
-    }
-
-    private var todayBookings: [BookingRecord] {
-        snapshot.nextBookings.filter { Calendar.current.isDate($0.startAt, inSameDayAs: .now) }
-    }
-
-    private var recentBookingsSubtitle: String {
-        guard recentBookings.isEmpty == false else { return "" }
-        if todayBookings.isEmpty == false {
-            return "今天 \(todayBookings.count)"
-        }
-        return "未来 \(recentBookings.count)"
+    private var laterBookings: [BookingRecord] {
+        Array(snapshot.nextBookings.dropFirst().prefix(3))
     }
 
     var body: some View {
@@ -38,8 +26,8 @@ struct OverviewView: View {
             AppPageScaffold(title: "工作台", topPadding: 10, bottomPadding: 34) {
                 heroCard
 
-                if recentBookings.isEmpty == false {
-                    recentBookingsSection
+                if laterBookings.isEmpty == false {
+                    laterBookingsCard
                 }
             }
             .sheet(isPresented: $showingNewBooking) {
@@ -218,82 +206,81 @@ struct OverviewView: View {
         .accessibilityLabel(title)
     }
 
-    private var recentBookingsSection: some View {
+    private var laterBookingsCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(title: "排期", subtitle: recentBookingsSubtitle)
-                .padding(.bottom, 12)
+            Button(action: onOpenSchedule) {
+                HStack {
+                    Text("接下来")
+                        .font(AppTypography.sectionTitle)
+                        .foregroundStyle(AppTheme.ink)
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: "chevron.right")
+                        .font(AppTypography.small)
+                        .foregroundStyle(AppTheme.mutedInk)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 10)
+
+            Divider()
+                .overlay(AppTheme.line.opacity(0.72))
+                .padding(.leading, 16)
 
             VStack(spacing: 0) {
-                ForEach(Array(recentBookings.enumerated()), id: \.element.id) { item in
-                    bookingPlainRow(booking: item.element, isFirst: item.offset == 0)
-                    if item.offset < recentBookings.count - 1 {
+                ForEach(Array(laterBookings.enumerated()), id: \.element.id) { item in
+                    laterBookingRow(item.element)
+                    if item.offset < laterBookings.count - 1 {
                         rowDivider
                     }
                 }
             }
-            .padding(.vertical, 4)
+        }
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.card)
+                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
         }
     }
 
-    private func bookingPlainRow(booking: BookingRecord, isFirst: Bool) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(AppFormatters.shortMonthDay(booking.startAt))
-                    .font(AppTypography.badge)
-                    .foregroundStyle(AppTheme.accent)
-                    .lineLimit(1)
-                Text(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))
-                    .font(AppTypography.micro)
-                    .foregroundStyle(AppTheme.mutedInk)
-                    .monospacedDigit()
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(width: 82, alignment: .leading)
+    private func laterBookingRow(_ booking: BookingRecord) -> some View {
+        Button(action: onOpenSchedule) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(spacing: 2) {
+                    Text(AppFormatters.shortMonthDay(booking.startAt))
+                        .font(AppTypography.badge)
+                        .foregroundStyle(AppTheme.accent)
+                        .lineLimit(1)
+                    Text(AppFormatters.time(booking.startAt))
+                        .font(AppTypography.small)
+                        .foregroundStyle(AppTheme.mutedInk)
+                        .monospacedDigit()
+                }
+                .frame(width: 62)
 
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(booking.title)
                         .font(AppTypography.rowTitle)
                         .foregroundStyle(AppTheme.ink)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(2)
 
-                    if isFirst {
-                        Text("下一场")
-                            .font(AppTypography.badge)
-                            .foregroundStyle(AppTheme.accent)
-                    }
-
-                    Spacer(minLength: 0)
-                }
-
-                Text(compactBookingMeta(for: booking))
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.secondaryInk)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 15)
-        .contentShape(Rectangle())
-    }
-
-    private func sectionHeader(title: String, subtitle: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(title)
-                    .font(AppTypography.sectionTitle)
-                    .foregroundStyle(AppTheme.ink)
-                if subtitle.isEmpty == false {
-                    Text(subtitle)
+                    Text(laterBookingSubtitle(for: booking))
                         .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.mutedInk)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .lineLimit(1)
                 }
-            }
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     private var rowDivider: some View {
@@ -320,10 +307,10 @@ struct OverviewView: View {
         return location.isEmpty ? nil : location
     }
 
-    private func compactBookingMeta(for booking: BookingRecord) -> String {
+    private func laterBookingSubtitle(for booking: BookingRecord) -> String {
         let client = store.clientName(for: booking)
-        let location = navigationQuery(for: booking) ?? "未填地点"
-        return "\(client) · \(location)"
+        let location = recentBookingLocationText(for: booking)
+        return location.isEmpty ? client : location
     }
 
     private func openNavigation(for booking: BookingRecord) {

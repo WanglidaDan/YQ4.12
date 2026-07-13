@@ -29,15 +29,13 @@ private enum ScheduleFilter: String, CaseIterable, Identifiable {
 
 private enum ScheduleViewMode: String, CaseIterable, Identifiable {
     case month
-    case week
     case list
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .month: "月"
-        case .week: "周"
+        case .month: "月历"
         case .list: "列表"
         }
     }
@@ -110,18 +108,9 @@ struct ScheduleView: View {
         return stride(from: firstWeek.start, to: lastWeek.end, by: 60 * 60 * 24).map { $0 }
     }
 
-    private var weekDates: [Date] {
-        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: focusDate) else { return [] }
-        return stride(from: weekInterval.start, to: weekInterval.end, by: 60 * 60 * 24).map { $0 }
-    }
-
-    private var visibleDates: [Date] {
-        viewMode == .month ? monthDates : weekDates
-    }
-
     private var calendarRows: [[Date]] {
-        stride(from: 0, to: visibleDates.count, by: 7).map { start in
-            Array(visibleDates[start..<min(start + 7, visibleDates.count)])
+        stride(from: 0, to: monthDates.count, by: 7).map { start in
+            Array(monthDates[start..<min(start + 7, monthDates.count)])
         }
     }
 
@@ -145,37 +134,7 @@ struct ScheduleView: View {
     }
 
     private var monthTitle: String {
-        if viewMode == .week,
-           let start = weekDates.first,
-           let end = weekDates.last {
-            return AppFormatters.weekRange(start: start, end: end)
-        }
         return AppFormatters.monthYear(focusDate)
-    }
-
-    private var todayCount: Int {
-        sourceBookings.filter { calendar.isDateInToday($0.startAt) }.count
-    }
-
-    private var upcomingCount: Int {
-        let today = calendar.startOfDay(for: .now)
-        return sourceBookings.filter { $0.startAt >= today && $0.status != .cancelled }.count
-    }
-
-    private var monthlyBookings: [BookingRecord] {
-        let base = scope == .active ? store.activeBookings : store.archivedBookings
-        guard let monthInterval = calendar.dateInterval(of: .month, for: .now) else { return [] }
-        return base.filter { booking in
-            monthInterval.contains(booking.startAt) && booking.status != .cancelled
-        }
-    }
-
-    private var monthlyRevenue: Double {
-        monthlyBookings.reduce(0) { $0 + $1.fee }
-    }
-
-    private var monthlyOutstanding: Double {
-        monthlyBookings.reduce(0) { $0 + store.outstandingAmount(for: $1) }
     }
 
     private var isPristineSchedule: Bool {
@@ -184,7 +143,7 @@ struct ScheduleView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
+            ZStack {
                 AppTheme.backgroundGradient
                     .ignoresSafeArea()
 
@@ -193,9 +152,6 @@ struct ScheduleView: View {
                         if isPristineSchedule {
                             scheduleStartState
                         } else {
-                            filterStrip
-                            modeStrip
-
                             if viewMode == .list {
                                 listSection
                             } else {
@@ -206,18 +162,14 @@ struct ScheduleView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
-                    .padding(.bottom, 120)
+                    .padding(.bottom, 40)
                 }
-
-                addBookingButton
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 24)
 
                 if let toastMessage {
                     AppToast(message: toastMessage)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 88)
+                        .padding(.bottom, 24)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
@@ -251,103 +203,34 @@ struct ScheduleView: View {
                         AppHaptics.tapLight()
                     }
 
-                    Menu("范围", systemImage: "line.3.horizontal.decrease") {
+                    Menu("更多", systemImage: "ellipsis") {
+                        Picker("显示", selection: $viewMode) {
+                            ForEach(ScheduleViewMode.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
+                        }
+
                         Picker("范围", selection: $scope) {
                             ForEach(ScheduleScope.allCases) { item in
                                 Text(item.title).tag(item)
                             }
                         }
-                    }
-                }
-            }
-        }
-    }
 
-    private var summaryStrip: some View {
-        HStack(spacing: 0) {
-            summaryItem(title: "成交", value: AppFormatters.currency(monthlyRevenue))
-            summaryDivider
-            summaryItem(title: "待收", value: AppFormatters.currency(monthlyOutstanding))
-            summaryDivider
-            summaryItem(title: "今日", value: "\(todayCount)")
-            summaryDivider
-            summaryItem(title: "未来", value: "\(upcomingCount)")
-        }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 6)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-        }
-    }
-
-    private func summaryItem(title: String, value: String) -> some View {
-        VStack(spacing: 5) {
-            Text(value)
-                .font(AppTypography.rowValue)
-                .foregroundStyle(AppTheme.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.56)
-            Text(title)
-                .font(AppTypography.small)
-                .foregroundStyle(AppTheme.mutedInk)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var summaryDivider: some View {
-        Rectangle()
-            .fill(AppTheme.line.opacity(0.68))
-            .frame(width: 1, height: 32)
-    }
-
-    private var filterStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 22) {
-                ForEach(ScheduleFilter.allCases) { item in
-                    Button {
-                        apply(filter: item)
-                    } label: {
-                        VStack(spacing: 7) {
-                            Text(item.title)
-                                .font(AppTypography.rowValue)
-                                .foregroundStyle(filter == item ? AppTheme.accent : AppTheme.secondaryInk)
-                            Rectangle()
-                                .fill(filter == item ? AppTheme.accent : .clear)
-                                .frame(height: 3)
-                                .clipShape(Capsule())
+                        Picker("筛选", selection: $filter) {
+                            ForEach(ScheduleFilter.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
                         }
-                        .frame(minWidth: 42)
                     }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.vertical, 2)
-        }
-    }
 
-    private var modeStrip: some View {
-        HStack(spacing: 22) {
-            ForEach(ScheduleViewMode.allCases) { mode in
-                Button {
-                    viewMode = mode
-                    AppHaptics.selection()
-                } label: {
-                    VStack(spacing: 7) {
-                        Text(mode.title)
-                            .font(AppTypography.rowValue)
-                            .foregroundStyle(viewMode == mode ? AppTheme.accent : AppTheme.secondaryInk)
-                        Rectangle()
-                            .fill(viewMode == mode ? AppTheme.accent : .clear)
-                            .frame(height: 3)
-                            .clipShape(Capsule())
+                    Button("新建档期", systemImage: "plus") {
+                        createBooking(on: .now)
                     }
-                    .frame(minWidth: 42)
                 }
-                .buttonStyle(.plain)
             }
-            Spacer(minLength: 0)
+            .onChange(of: filter) { _, newValue in
+                apply(filter: newValue)
+            }
         }
     }
 
@@ -423,15 +306,13 @@ struct ScheduleView: View {
                     .font(isSelected ? AppTypography.rowValue : AppTypography.meta)
                     .foregroundStyle(isSelected ? .white : (isCurrentMonth ? AppTheme.ink : AppTheme.secondaryInk.opacity(0.55)))
 
-                HStack(spacing: 3) {
+                HStack(spacing: 0) {
                     if bookings.isEmpty {
                         Circle().fill(Color.clear).frame(width: 5, height: 5)
                     } else {
-                        ForEach(0..<min(bookings.count, 3), id: \.self) { _ in
-                            Circle()
-                                .fill(isSelected ? .white.opacity(0.9) : AppTheme.accent)
-                                .frame(width: 5, height: 5)
-                        }
+                        Circle()
+                            .fill(isSelected ? .white.opacity(0.9) : AppTheme.accent)
+                            .frame(width: 5, height: 5)
                     }
                 }
             }
@@ -439,8 +320,10 @@ struct ScheduleView: View {
             .frame(height: 50)
             .background(isSelected ? AppTheme.accent : (isToday ? AppTheme.accent.opacity(0.08) : Color.clear), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(hasConflict ? AppTheme.accent.opacity(0.7) : AppTheme.line.opacity(0.34), lineWidth: 1)
+                if hasConflict {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(AppTheme.accent.opacity(0.7), lineWidth: 1)
+                }
             }
         }
         .buttonStyle(.plain)
@@ -497,6 +380,11 @@ struct ScheduleView: View {
             }
         }
         .padding(.vertical, 4)
+        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.card))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppRadius.card)
+                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
+        }
     }
 
     private var compactEmptyState: some View {
@@ -536,12 +424,6 @@ struct ScheduleView: View {
                         .foregroundStyle(AppTheme.secondaryInk)
                         .lineLimit(1)
 
-                    if booking.fullAddressText.isEmpty == false {
-                        Text(booking.fullAddressText)
-                            .font(AppTypography.small)
-                            .foregroundStyle(AppTheme.mutedInk)
-                            .lineLimit(1)
-                    }
                 }
 
                 Spacer(minLength: 0)
@@ -572,21 +454,6 @@ struct ScheduleView: View {
         booking.status == .cancelled || booking.status == .editing
     }
 
-    private var addBookingButton: some View {
-        Button {
-            createBooking(on: .now)
-        } label: {
-            Label("新建档期", systemImage: "plus")
-                .font(AppTypography.rowTitle)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-                .frame(height: 50)
-                .background(AppTheme.accent, in: Capsule())
-                .shadow(color: AppTheme.deepShadow.opacity(0.28), radius: 16, x: 0, y: 9)
-        }
-        .buttonStyle(.plain)
-    }
-
     private func periodButton(_ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
@@ -605,8 +472,7 @@ struct ScheduleView: View {
     }
 
     private func shiftFocus(by value: Int) {
-        let component: Calendar.Component = viewMode == .week ? .weekOfYear : .month
-        focusDate = calendar.date(byAdding: component, value: value, to: focusDate) ?? focusDate
+        focusDate = calendar.date(byAdding: .month, value: value, to: focusDate) ?? focusDate
         AppHaptics.selection()
     }
 
