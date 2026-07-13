@@ -38,16 +38,29 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            AppPageScaffold(title: "设置", topPadding: 14, bottomPadding: 32) {
-                settingsHeaderCard
-                settingsStatusGrid
-                settingsEntrySection
+            List {
+                Section {
+                    settingsRouteLink("工作区与团队", systemImage: "person.3", route: .workspace)
+                    settingsRouteLink("业务偏好", systemImage: "slider.horizontal.3", route: .businessPreferences)
+                }
+
+                Section {
+                    settingsRouteLink("账号与同步", systemImage: "person.crop.circle", route: .account)
+                    settingsRouteLink("数据与支持", systemImage: "externaldrive", route: .dataSupport)
+                }
 
                 if let persistenceIssueDescription {
-                    AppInlineNote(systemImage: "exclamationmark.triangle.fill", text: persistenceIssueDescription, tint: .orange)
-                        .padding(.horizontal, 4)
+                    Section {
+                        Label(persistenceIssueDescription, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background.ignoresSafeArea())
+            .navigationTitle("设置")
+            .navigationBarTitleDisplayMode(.large)
             .overlay(alignment: .bottom) {
                 if let settingsToastMessage {
                     AppToast(message: settingsToastMessage)
@@ -153,6 +166,12 @@ struct SettingsView: View {
                     dataSupportLandingPage
                 }
             }
+        }
+    }
+
+    private func settingsRouteLink(_ title: String, systemImage: String, route: SettingsRoute) -> some View {
+        NavigationLink(value: route) {
+            Label(title, systemImage: systemImage)
         }
     }
 

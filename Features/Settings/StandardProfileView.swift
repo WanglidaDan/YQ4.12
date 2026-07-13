@@ -1,254 +1,152 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct StandardProfileView: View {
     @Environment(StudioStore.self) private var store
     @AppStorage("hasEnteredGuestMode") private var hasEnteredGuestMode = false
+    @AppStorage("profileAvatarData") private var avatarData = Data()
 
+    @State private var selectedPhoto: PhotosPickerItem?
     @State private var confirmingSignOut = false
-    @State private var confirmingClearData = false
 
     private var profile: StudioProfile {
         store.resolvedStudioProfile
     }
 
-    private var workspaceName: String {
+    private var displayName: String {
         let name = profile.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return name.isEmpty ? "影期工作区" : name
+        return name.isEmpty ? "影期" : name
     }
 
-    private var accountStatus: String {
+    private var accountLabel: String {
         store.isAuthenticated ? "已登录" : "本机模式"
-    }
-
-    private var syncStatus: String {
-        store.settings.iCloudSyncEnabled ? "iCloud 同步" : "本机保存"
-    }
-
-    private var outstandingTotal: Double {
-        store.activeBookings.reduce(0) { partialResult, booking in
-            partialResult + store.outstandingAmount(for: booking)
-        }
     }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AppTheme.backgroundGradient
-                    .ignoresSafeArea()
+            List {
+                profileSection
 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
-                        headerTitle
-                        identityHero
-                        accountActions
+                Section {
+                    NavigationLink {
+                        SettingsView(store: store, showsCloseButton: false)
+                            .environment(store)
+                    } label: {
+                        Label("设置", systemImage: "gearshape")
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 14)
-                    .padding(.bottom, 40)
+                }
+
+                Section {
+                    Button("退出登录", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                        confirmingSignOut = true
+                    }
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .navigationBar)
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background.ignoresSafeArea())
+            .navigationTitle("我的")
+            .navigationBarTitleDisplayMode(.large)
             .confirmationDialog("确认退出登录？", isPresented: $confirmingSignOut) {
-                Button("退出登录", role: .destructive) {
-                    store.clearAuthProfile()
-                    hasEnteredGuestMode = false
-                    AppHaptics.success()
-                }
+                Button("退出登录", role: .destructive, action: signOut)
                 Button("取消", role: .cancel) {}
-            } message: {
-                Text("退出后会回到登录页，当前设备上的本地工作区会保留。")
             }
-            .confirmationDialog("确认清空当前工作区？", isPresented: $confirmingClearData) {
-                Button("清空工作区", role: .destructive) {
-                    store.clearAllData()
-                    AppHaptics.success()
-                }
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text("这会清空当前设备上的客户、档期、跟进和经营数据。")
+            .onChange(of: selectedPhoto) {
+                loadSelectedAvatar()
             }
         }
     }
 
-    private var headerTitle: some View {
-        AppPageHeader(title: "我的")
+    private var profileSection: some View {
+        Section {
+            HStack(spacing: 16) {
+                PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                    avatar
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "camera.fill")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                                .frame(width: 24, height: 24)
+                                .background(AppTheme.accent, in: Circle())
+                                .overlay { Circle().stroke(AppTheme.background, lineWidth: 2) }
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("更换头像")
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(displayName)
+                        .font(.title3.bold())
+                        .foregroundStyle(AppTheme.ink)
+                    Text(accountLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 8)
+        }
     }
 
-    private var identityHero: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .center, spacing: 15) {
-                Image("BrandLogo")
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 62, height: 62)
-                    .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 17, style: .continuous)
-                            .stroke(.white.opacity(0.18), lineWidth: 1)
-                    }
+    @ViewBuilder
+    private var avatar: some View {
+        if let image = UIImage(data: avatarData) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 72, height: 72)
+                .clipShape(Circle())
+        } else {
+            Image(systemName: "person.crop.circle.fill")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 72, height: 72)
+                .foregroundStyle(AppTheme.accent, AppTheme.panelStrong)
+        }
+    }
 
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(workspaceName)
-                        .font(AppTypography.heroTitle)
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text("\(accountStatus) · \(syncStatus)")
-                        .font(AppTypography.badge)
-                        .foregroundStyle(.white.opacity(0.74))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                }
-
-                Spacer(minLength: 0)
+    private func loadSelectedAvatar() {
+        guard let selectedPhoto else { return }
+        Task {
+            guard let data = try? await selectedPhoto.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data),
+                  let compressedData = resizedAvatarData(from: image) else {
+                return
             }
-
-            Divider()
-                .overlay(.white.opacity(0.18))
-
-            HStack(spacing: 0) {
-                heroMetric(title: "档期", value: "\(store.activeBookings.count)", subtitle: "进行中")
-                heroDivider
-                heroMetric(title: "客户", value: "\(store.activeClients.count)", subtitle: "活跃关系")
-                heroDivider
-                heroMetric(title: "待收", value: AppFormatters.currency(outstandingTotal), subtitle: "未结清")
+            await MainActor.run {
+                avatarData = compressedData
+                AppHaptics.success()
             }
         }
-        .padding(22)
-        .background(identityHeroBackground)
-        .shadow(color: AppTheme.deepShadow.opacity(0.16), radius: 22, y: 12)
     }
 
-    private var identityHeroBackground: some View {
-        ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(AppTheme.heroGradient)
+    private func resizedAvatarData(from image: UIImage) -> Data? {
+        let side = min(image.size.width, image.size.height)
+        guard side > 0 else { return nil }
 
-            LinearGradient(
-                colors: [.white.opacity(0.12), .clear, .black.opacity(0.08)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+        let cropOrigin = CGPoint(
+            x: (image.size.width - side) / 2,
+            y: (image.size.height - side) / 2
+        )
+        let format = UIGraphicsImageRendererFormat.preferred()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 512, height: 512), format: format)
+        let resizedImage = renderer.image { _ in
+            image.draw(
+                in: CGRect(
+                    x: -cropOrigin.x * 512 / side,
+                    y: -cropOrigin.y * 512 / side,
+                    width: image.size.width * 512 / side,
+                    height: image.size.height * 512 / side
+                )
             )
-            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(.white.opacity(0.18), lineWidth: 1)
         }
+        return resizedImage.jpegData(compressionQuality: 0.82)
     }
 
-    private func heroMetric(title: String, value: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(value)
-                .font(AppTypography.dataCompact)
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.62)
-            Text(title)
-                .font(AppTypography.badge)
-                .foregroundStyle(.white.opacity(0.72))
-            Text(subtitle)
-                .font(AppTypography.micro)
-                .foregroundStyle(.white.opacity(0.50))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var heroDivider: some View {
-        Rectangle()
-            .fill(.white.opacity(0.18))
-            .frame(width: 1, height: 52)
-            .padding(.horizontal, 14)
-    }
-
-    private var accountActions: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(title: "管理")
-                .padding(.bottom, 12)
-
-            VStack(spacing: 0) {
-                NavigationLink {
-                    SettingsView(store: store, showsCloseButton: false)
-                        .environment(store)
-                } label: {
-                    actionRow(
-                        symbol: "gearshape",
-                        title: "设置",
-                        showsChevron: true
-                    )
-                }
-                .buttonStyle(.plain)
-
-                rowDivider
-
-                Button {
-                    confirmingClearData = true
-                } label: {
-                    actionRow(
-                        symbol: "trash",
-                        title: "清空当前工作区",
-                        showsChevron: false
-                    )
-                }
-                .buttonStyle(.plain)
-
-                rowDivider
-
-                Button {
-                    confirmingSignOut = true
-                } label: {
-                    actionRow(
-                        symbol: "rectangle.portrait.and.arrow.right",
-                        title: "退出登录",
-                        showsChevron: false
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.vertical, 4)
-            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-            }
-        }
-    }
-
-    private func sectionHeader(title: String) -> some View {
-        Text(title)
-            .font(AppTypography.sectionTitle)
-            .foregroundStyle(AppTheme.ink)
-    }
-
-    private var rowDivider: some View {
-        Divider()
-            .overlay(AppTheme.line.opacity(0.72))
-            .padding(.leading, 64)
-    }
-
-    private func actionRow(symbol: String, title: String, showsChevron: Bool) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: symbol)
-                .font(AppTypography.icon)
-                .foregroundStyle(AppTheme.mutedInk)
-                .frame(width: 34, height: 34)
-
-            Text(title)
-                .font(AppTypography.rowTitle)
-                .foregroundStyle(AppTheme.ink)
-
-            Spacer(minLength: 8)
-
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(AppTypography.micro)
-                    .foregroundStyle(AppTheme.mutedInk)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 15)
-        .contentShape(Rectangle())
+    private func signOut() {
+        store.clearAuthProfile()
+        hasEnteredGuestMode = false
+        AppHaptics.success()
     }
 }

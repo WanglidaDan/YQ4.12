@@ -124,19 +124,17 @@ struct ClientsView: View {
                     .ignoresSafeArea()
 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
-                        headerBar
-
+                    VStack(alignment: .leading, spacing: 18) {
+                        inlineSearchBar
                         if isPristineClients {
                             clientsStartState
                         } else {
-                            relationshipRadar
                             filterDock
                             relationshipList
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 12)
+                    .padding(.top, 10)
                     .padding(.bottom, 120)
                 }
 
@@ -204,43 +202,24 @@ struct ClientsView: View {
             } message: {
                 Text(deletionResultMessage ?? "")
             }
-            .toolbar(.hidden, for: .navigationBar)
-        }
-    }
-
-    private var headerBar: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            AppPageHeader(title: "关系", subtitle: headerSubtitle) {
-                HStack(spacing: 10) {
-                    Menu {
+            .navigationTitle("关系")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu("筛选", systemImage: "line.3.horizontal.decrease") {
                         Picker("范围", selection: $scope) {
                             ForEach(ClientScope.allCases) { item in
                                 Text(item.title).tag(item)
                             }
                         }
-
                         Picker("排序", selection: $sort) {
                             ForEach(ClientSort.allCases) { item in
                                 Text(item.title).tag(item)
                             }
                         }
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(AppTypography.icon)
-                            .foregroundStyle(AppTheme.ink)
-                            .frame(width: 42, height: 42)
-                            .background(AppTheme.panelStrong, in: Circle())
-                            .overlay {
-                                Circle()
-                                    .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
-                            }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("筛选客户")
                 }
             }
-
-            inlineSearchBar
         }
     }
 
@@ -369,17 +348,7 @@ struct ClientsView: View {
     }
 
     private var filterDock: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("视图")
-                    .font(AppTypography.sectionTitle)
-                    .foregroundStyle(AppTheme.ink)
-                Spacer()
-                Text("\(filter.title) · \(sort.title)")
-                    .font(AppTypography.meta)
-                    .foregroundStyle(AppTheme.mutedInk)
-            }
-
+        VStack(alignment: .leading, spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 20) {
                     ForEach(ClientFilter.allCases) { item in
@@ -409,24 +378,12 @@ struct ClientsView: View {
     }
 
     private var clientsStartState: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            AppCreateHeader(
-                eyebrow: scope == .active ? "开始关系库" : "归档",
-                title: scope == .active ? "先记录一个客户" : "还没有归档客户",
-                subtitle: scope == .active ? "只填昵称、电话或微信中的任意一项即可保存，后面再补来源和跟进。" : "归档后的客户会显示在这里。",
-                systemImage: scope == .active ? "person.badge.plus" : "archivebox"
-            )
-
-            if scope == .active {
-                Button {
-                    showingNewClient = true
-                    AppHaptics.impactMedium()
-                } label: {
-                    Label("新建客户", systemImage: "plus")
-                }
-                .buttonStyle(AppPrimaryButtonStyle())
-            }
-        }
+        ContentUnavailableView(
+            scope == .active ? "暂无客户" : "暂无归档",
+            systemImage: scope == .active ? "person.2" : "archivebox"
+        )
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
     }
 
     private var relationshipList: some View {
@@ -436,9 +393,6 @@ struct ClientsView: View {
                     Text(scope == .active ? "客户关系" : "归档客户")
                         .font(AppTypography.sectionTitle)
                         .foregroundStyle(AppTheme.ink)
-                    Text(listSummaryText)
-                        .font(AppTypography.meta)
-                        .foregroundStyle(AppTheme.secondaryInk)
                 }
 
                 Spacer()
@@ -467,11 +421,6 @@ struct ClientsView: View {
                         }
                     }
                 }
-                .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-                }
             }
         }
     }
@@ -482,23 +431,9 @@ struct ClientsView: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .center, spacing: 12) {
-            Text(emptyTitle)
-                .font(AppTypography.rowTitle)
-                .foregroundStyle(AppTheme.ink)
-            Text(emptySubtitle)
-                .font(AppTypography.meta)
-                .foregroundStyle(AppTheme.secondaryInk)
-                .multilineTextAlignment(.center)
-        }
+        ContentUnavailableView(emptyTitle, systemImage: "person.crop.circle.badge.questionmark")
         .frame(maxWidth: .infinity)
         .padding(.vertical, 34)
-        .padding(.horizontal, 20)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-        }
     }
 
     private var emptyTitle: String {

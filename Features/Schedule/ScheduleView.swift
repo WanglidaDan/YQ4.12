@@ -190,12 +190,9 @@ struct ScheduleView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 18) {
-                        headerBar
-
                         if isPristineSchedule {
                             scheduleStartState
                         } else {
-                            summaryStrip
                             filterStrip
                             modeStrip
 
@@ -208,7 +205,7 @@ struct ScheduleView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 14)
+                    .padding(.top, 10)
                     .padding(.bottom, 120)
                 }
 
@@ -245,37 +242,23 @@ struct ScheduleView: View {
                 )
                 .presentationDetents([.medium, .large])
             }
-            .toolbar(.hidden, for: .navigationBar)
-        }
-    }
+            .navigationTitle("档期")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("搜索", systemImage: "magnifyingglass") {
+                        showingSearchSheet = true
+                        AppHaptics.tapLight()
+                    }
 
-    private var headerBar: some View {
-        AppPageHeader(title: "档期", subtitle: monthTitle) {
-            HStack(spacing: 10) {
-                AppCircleIconButton(systemImage: "magnifyingglass", accessibilityLabel: "搜索档期") {
-                    showingSearchSheet = true
-                    AppHaptics.tapLight()
-                }
-
-                Menu {
-                    Picker("范围", selection: $scope) {
-                        ForEach(ScheduleScope.allCases) { item in
-                            Text(item.title).tag(item)
+                    Menu("范围", systemImage: "line.3.horizontal.decrease") {
+                        Picker("范围", selection: $scope) {
+                            ForEach(ScheduleScope.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
                         }
                     }
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(AppTypography.icon)
-                        .foregroundStyle(AppTheme.ink)
-                        .frame(width: 42, height: 42)
-                        .background(AppTheme.panelStrong, in: Circle())
-                        .overlay {
-                            Circle()
-                                .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
-                        }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("筛选档期范围")
             }
         }
     }
@@ -369,31 +352,12 @@ struct ScheduleView: View {
     }
 
     private var scheduleStartState: some View {
-        VStack(spacing: 16) {
-            Text(scope == .active ? "暂无档期" : "暂无归档")
-                .font(AppTypography.rowTitle)
-                .foregroundStyle(AppTheme.ink)
-            if scope == .active {
-                Button {
-                    createBooking(on: focusDate)
-                } label: {
-                    Text("新建档期")
-                        .font(AppTypography.rowTitle)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 22)
-                        .frame(height: 44)
-                        .background(AppTheme.accent, in: Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-        }
+        ContentUnavailableView(
+            scope == .active ? "暂无档期" : "暂无归档",
+            systemImage: scope == .active ? "calendar" : "archivebox"
+        )
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 42)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-        }
+        .padding(.vertical, 44)
     }
 
     private var calendarSection: some View {
@@ -533,34 +497,12 @@ struct ScheduleView: View {
             }
         }
         .padding(.vertical, 4)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-        }
     }
 
     private var compactEmptyState: some View {
-        VStack(spacing: 12) {
-            Text("暂无档期")
-                .font(AppTypography.rowTitle)
-                .foregroundStyle(AppTheme.ink)
-            Button {
-                createBooking(on: focusDate)
-            } label: {
-                Text("新建档期")
-                    .font(AppTypography.rowValue)
-                    .foregroundStyle(AppTheme.accent)
-            }
-            .buttonStyle(.plain)
-        }
+        ContentUnavailableView("暂无档期", systemImage: "calendar")
         .frame(maxWidth: .infinity)
         .padding(.vertical, 28)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-        }
     }
 
     private func scheduleRow(_ booking: BookingRecord) -> some View {

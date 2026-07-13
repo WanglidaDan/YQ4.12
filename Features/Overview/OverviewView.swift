@@ -232,11 +232,6 @@ struct OverviewView: View {
                 }
             }
             .padding(.vertical, 4)
-            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-            }
         }
     }
 
