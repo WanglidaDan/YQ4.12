@@ -38,24 +38,28 @@ struct StandardProfileView: View {
                 }
 
                 Section {
-                    Button("退出登录", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                    Button(exitTitle, systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                         confirmingSignOut = true
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("我的")
             .navigationBarTitleDisplayMode(.large)
-            .confirmationDialog("确认退出登录？", isPresented: $confirmingSignOut) {
-                Button("退出登录", role: .destructive, action: signOut)
+            .confirmationDialog("确认\(exitTitle)？", isPresented: $confirmingSignOut) {
+                Button(exitTitle, role: .destructive, action: signOut)
                 Button("取消", role: .cancel) {}
             }
             .onChange(of: selectedPhoto) {
                 loadSelectedAvatar()
             }
         }
+    }
+
+    private var exitTitle: String {
+        store.isAuthenticated ? "退出登录" : "退出本机工作区"
     }
 
     private var profileSection: some View {

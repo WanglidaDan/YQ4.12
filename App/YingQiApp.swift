@@ -147,18 +147,23 @@ private struct AuthGateView: View {
                     .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        AuthBrandHeader()
-                            .padding(.top, topPadding)
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 48)
 
-                        Spacer(minLength: 0)
-                            .frame(height: max(28, proxy.size.height * 0.10))
+                        VStack(spacing: 14) {
+                            YingQiBrandMark(size: 82, elevated: true)
 
-                        AuthHeroCopy()
-                            .padding(.bottom, 22)
+                            Text("影期")
+                                .font(AppTypography.pageTitle)
+                                .foregroundStyle(AppTheme.ink)
 
-                        AuthSignalRow()
-                            .padding(.bottom, 30)
+                            Text("摄影档期与客户管理")
+                                .font(AppTypography.body)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                        }
+                        .padding(.top, topPadding)
+
+                        Spacer(minLength: 56)
 
                         VStack(spacing: 13) {
                             WeChatAuthButton(isLoading: isSigningInWithWeChat) {
@@ -189,16 +194,16 @@ private struct AuthGateView: View {
                                 AppHaptics.tapLight()
                                 onContinueWithoutLogin()
                             } label: {
-                                HStack(spacing: 8) {
-                                    Text("先进入本地工作区")
-                                    Image(systemName: "arrow.right")
-                                        .font(AppTypography.icon)
-                                }
-                                .font(AppTypography.rowTitle)
+                                Text("本机使用")
+                                .font(AppTypography.bodyStrong)
                                 .foregroundStyle(AppTheme.ink)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 46)
-                                .appCardSurface(cornerRadius: 16, fillColor: AppTheme.panel)
+                                .frame(height: 50)
+                                .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                                        .stroke(AppTheme.line.opacity(0.65), lineWidth: 1)
+                                }
                             }
                             .buttonStyle(.plain)
 
@@ -210,7 +215,7 @@ private struct AuthGateView: View {
                         .padding(.bottom, bottomPadding)
                     }
                     .padding(.horizontal, horizontalPadding)
-                    .frame(minHeight: proxy.size.height, alignment: .top)
+                    .frame(minHeight: proxy.size.height)
                 }
                 .scrollIndicators(.hidden)
             }
@@ -273,77 +278,6 @@ private struct AuthGateView: View {
     }
 }
 
-private struct AuthBrandHeader: View {
-    var body: some View {
-        HStack(spacing: 14) {
-            YingQiBrandMark(size: 62, elevated: true)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
-                }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("影期")
-                    .font(AppTypography.dataCompact)
-                    .foregroundStyle(AppTheme.ink)
-
-                Text("YingQi Studio")
-                    .font(AppTypography.small)
-                    .foregroundStyle(AppTheme.secondaryInk)
-            }
-
-            Spacer()
-        }
-    }
-}
-
-private struct AuthHeroCopy: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("今天的拍摄，\n开门就有数。")
-                .font(AppTypography.heroTitle)
-                .lineSpacing(3)
-                .foregroundStyle(AppTheme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("档期、客户、跟进和收款，回到一个干净的工作区。")
-                .font(AppTypography.body)
-                .lineSpacing(4)
-                .foregroundStyle(AppTheme.secondaryInk)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-private struct AuthSignalRow: View {
-    private let signals = [
-        ("calendar", "档期"),
-        ("person.2", "客户"),
-        ("checkmark.seal", "交付")
-    ]
-
-    var body: some View {
-        HStack(spacing: 9) {
-            ForEach(signals, id: \.1) { signal in
-                HStack(spacing: 7) {
-                    Image(systemName: signal.0)
-                        .font(AppTypography.icon)
-                    Text(signal.1)
-                        .font(AppTypography.badge)
-                }
-                .foregroundStyle(AppTheme.ink)
-                .frame(maxWidth: .infinity)
-                .frame(height: 38)
-                .background(AppTheme.panel.opacity(0.78), in: Capsule())
-                .overlay {
-                    Capsule()
-                        .stroke(AppTheme.line.opacity(0.72), lineWidth: 1)
-                }
-            }
-        }
-    }
-}
-
 private struct YingQiBrandMark: View {
     let size: CGFloat
     var elevated: Bool
@@ -392,23 +326,12 @@ private struct WeChatAuthButton: View {
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(
-                LinearGradient(
-                    colors: [
-                        AppTheme.accent,
-                        AppTheme.accentDeep
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: 19, style: .continuous)
-            )
+            .frame(height: 54)
+            .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 19, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
                     .stroke(.white.opacity(0.18), lineWidth: 1)
             }
-            .shadow(color: AppTheme.deepShadow.opacity(0.42), radius: 18, y: 10)
         }
         .buttonStyle(.plain)
         .disabled(isLoading)

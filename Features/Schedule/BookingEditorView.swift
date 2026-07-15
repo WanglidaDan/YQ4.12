@@ -103,72 +103,98 @@ private struct BookingFormPage: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AppTheme.backgroundGradient
-                    .ignoresSafeArea()
+            Form {
+                Section("档期") {
+                    TextField("项目名称（可留空）", text: $title)
 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
-                        formSection(title: "档期") {
-                            inputRow(symbol: "doc.text", title: "项目名称") {
-                                TextField("请输入项目名称", text: $title)
-                                    .multilineTextAlignment(.trailing)
-                                    .font(.body.weight(.regular))
-                            }
-                            rowDivider
-                            buttonRow(symbol: "person", title: "关联客户", value: selectedClientName) {
-                                selectionSheet = .client
-                            }
-                            rowDivider
-                            buttonRow(symbol: category.symbolName, title: "拍摄类型", value: category.title) {
-                                selectionSheet = .category
-                            }
-                            rowDivider
-                            buttonRow(symbol: "clock", title: "状态", value: status.title) {
-                                selectionSheet = .status
-                            }
-                            rowDivider
-                            dateRow(symbol: "calendar", title: "开始时间", date: $startAt)
-                                .onChange(of: startAt) { oldValue, newValue in
-                                    shiftEndDate(from: oldValue, to: newValue)
-                                }
-                            rowDivider
-                            dateRow(symbol: "calendar", title: "结束时间", date: $endAt, range: startAt...)
+                    Button {
+                        selectionSheet = .client
+                    } label: {
+                        LabeledContent("客户", value: selectedClientName)
+                    }
+                    .foregroundStyle(AppTheme.ink)
+
+                    Picker("拍摄类型", selection: $category) {
+                        ForEach(ServiceCategory.allCases) { item in
+                            Text(item.title).tag(item)
                         }
+                    }
+                }
 
-                        formSection(title: "地点") {
-                            textInputRow(title: "场地", text: $venue, placeholder: "未填写")
-                            rowDivider
-                            textInputRow(title: "城市 / 区域", text: $city, placeholder: "未填写")
+                Section("时间") {
+                    DatePicker("开始", selection: $startAt)
+                        .onChange(of: startAt) { oldValue, newValue in
+                            shiftEndDate(from: oldValue, to: newValue)
                         }
+                    DatePicker("结束", selection: $endAt, in: startAt...)
+                }
 
-                        optionalDetailsDisclosure
-                        quickInputDisclosure
+                if showingMoreDetails {
+                    Section("地点") {
+                        TextField("场地", text: $venue)
+                        TextField("城市 / 区域", text: $city)
+                        TextField("详细地址", text: $addressText, axis: .vertical)
+                            .lineLimit(2...4)
+                        TextField("到场备注", text: $locationNote, axis: .vertical)
+                            .lineLimit(2...4)
+                    }
 
+                    Section("费用与交付") {
+                        TextField("报价", value: $fee, format: .number)
+                            .keyboardType(.decimalPad)
+                        TextField("定金", value: $depositPaid, format: .number)
+                            .keyboardType(.decimalPad)
+                        LabeledContent("待收", value: AppFormatters.currency(max(normalizedFee - normalizedDeposit, 0)))
+                        TextField("交付内容", text: $deliverableText, axis: .vertical)
+                            .lineLimit(2...4)
+                    }
+
+                    Section("状态与备注") {
+                        Picker("状态", selection: $status) {
+                            ForEach(BookingStatus.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
+                        }
+                        TextField("备注", text: $notesText, axis: .vertical)
+                            .lineLimit(3...6)
+                    }
+                } else {
+                    Section {
+                        Button("更多信息", systemImage: "ellipsis.circle") {
+                            withAnimation(.snappy) {
+                                showingMoreDetails = true
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    Button(showingQuickInput ? "关闭语音填写" : "语音填写", systemImage: "mic") {
+                        withAnimation(.snappy) {
+                            showingQuickInput.toggle()
+                        }
+                    }
+                }
+
+                if showingQuickInput {
+                    Section("语音填写") {
+                        voicePanel
                         if speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
                             speechResultPanel
                         }
-
-                        if conflictBookings.isEmpty == false {
-                            conflictPanel
-                        }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 22)
-                    .padding(.bottom, 36)
+                }
+
+                if conflictBookings.isEmpty == false {
+                    Section {
+                        Label(conflictSummaryText, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(AppTheme.warning)
+                    }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                Button("保存档期", systemImage: "checkmark", action: saveTapped)
-                    .font(AppTypography.bodyStrong)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(AppTheme.accent, in: Capsule())
-                    .padding(.horizontal, AppSpacing.page)
-                    .padding(.vertical, 10)
-                    .background(.thinMaterial)
-            }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(originalBooking == nil ? "新建档期" : "编辑档期")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -177,8 +203,11 @@ private struct BookingFormPage: View {
                         speechService.stopRecording()
                         dismiss()
                     }
-                    .font(.body.weight(.regular))
-                    .foregroundStyle(AppTheme.accent)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("保存", systemImage: "checkmark", action: saveTapped)
+                        .fontWeight(.semibold)
                 }
             }
             .sheet(item: $selectionSheet) { sheet in
@@ -211,75 +240,17 @@ private struct BookingFormPage: View {
         }
     }
 
-    private var optionalDetailsDisclosure: some View {
-        DisclosureGroup(isExpanded: $showingMoreDetails) {
-            VStack(spacing: 24) {
-                formSection(title: "详细地点") {
-                    textInputRow(title: "详细地址", text: $addressText, placeholder: "未填写", axis: .vertical)
-                    rowDivider
-                    textInputRow(title: "到场备注", text: $locationNote, placeholder: "未填写", axis: .vertical)
-                }
-
-                formSection(title: "报价与交付") {
-                    moneyInputRow(title: "报价", value: $fee)
-                    rowDivider
-                    moneyInputRow(title: "定金", value: $depositPaid)
-                    rowDivider
-                    readonlyRow(title: "待收", value: AppFormatters.currency(max(normalizedFee - normalizedDeposit, 0)))
-                    rowDivider
-                    textInputRow(title: "交付内容", text: $deliverableText, placeholder: "未填写", axis: .vertical)
-                    rowDivider
-                    textInputRow(title: "项目说明", text: $notesText, placeholder: "未填写", axis: .vertical)
-                }
-            }
-            .padding(.top, 16)
-        } label: {
-            disclosureLabel(
-                title: showingMoreDetails ? "收起更多信息" : "更多信息",
-                systemImage: "slider.horizontal.3"
-            )
-        }
-        .tint(AppTheme.ink)
-    }
-
-    private var quickInputDisclosure: some View {
-        DisclosureGroup(isExpanded: $showingQuickInput) {
-            voicePanel
-                .padding(.top, 16)
-        } label: {
-            disclosureLabel(
-                title: showingQuickInput ? "收起语音输入" : "语音快速填写",
-                systemImage: "mic"
-            )
-        }
-        .tint(AppTheme.ink)
-    }
-
-    private func disclosureLabel(title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(AppTypography.bodyStrong)
-            .foregroundStyle(AppTheme.ink)
-            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
-            .padding(.horizontal, 16)
-            .appCardSurface(fillColor: AppTheme.panel)
-    }
-
     private var voicePanel: some View {
-        HStack(spacing: 18) {
+        HStack(spacing: 12) {
             Image(systemName: speechService.isRecording ? "waveform" : "mic")
-                .font(.title2.weight(.regular))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(AppTheme.accent)
-                .frame(width: 74, height: 74)
-                .background(AppTheme.accentSurface, in: Circle())
+                .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(speechService.isRecording ? "正在聆听" : "语音快速创建")
-                    .font(.headline.weight(.semibold))
+                    .font(AppTypography.bodyStrong)
                     .foregroundStyle(AppTheme.ink)
-                Text("项目、客户、时间、类型、地点")
-                    .font(.subheadline.weight(.regular))
-                    .foregroundStyle(AppTheme.secondaryInk)
-                    .lineLimit(1)
             }
 
             Spacer(minLength: 0)
@@ -287,17 +258,8 @@ private struct BookingFormPage: View {
             Button(speechService.isRecording ? "停止" : "语音") {
                 toggleSpeechDraft()
             }
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 22)
-            .frame(height: 48)
-            .background(AppTheme.accent, in: Capsule())
-        }
-        .padding(22)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.55), lineWidth: 1)
+            .buttonStyle(.borderedProminent)
+            .tint(AppTheme.accent)
         }
     }
 
@@ -333,140 +295,11 @@ private struct BookingFormPage: View {
                 Spacer()
             }
         }
-        .padding(18)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.55), lineWidth: 1)
-        }
-    }
-
-    private func formSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 10) {
-                Capsule()
-                    .fill(AppTheme.accent)
-                    .frame(width: 5, height: 22)
-                Text(title)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(AppTheme.ink)
-            }
-
-            VStack(spacing: 0) {
-                content()
-            }
-        }
-        .padding(20)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.55), lineWidth: 1)
-        }
-    }
-
-    private func inputRow<Content: View>(symbol: String, title: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: 16) {
-            Image(systemName: symbol)
-                .font(.body.weight(.regular))
-                .foregroundStyle(AppTheme.secondaryInk)
-                .frame(width: 28)
-            Text(title)
-                .font(.body.weight(.medium))
-                .foregroundStyle(AppTheme.ink)
-            Spacer(minLength: 12)
-            content()
-                .foregroundStyle(AppTheme.ink)
-        }
-        .padding(.vertical, 17)
-    }
-
-    private func buttonRow(symbol: String, title: String, value: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            inputRow(symbol: symbol, title: title) {
-                HStack(spacing: 8) {
-                    Text(value)
-                        .font(.body.weight(.regular))
-                        .foregroundStyle(AppTheme.secondaryInk)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.mutedInk)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func dateRow(symbol: String, title: String, date: Binding<Date>, range: PartialRangeFrom<Date>? = nil) -> some View {
-        inputRow(symbol: symbol, title: title) {
-            if let range {
-                DatePicker("", selection: date, in: range)
-                    .labelsHidden()
-            } else {
-                DatePicker("", selection: date)
-                    .labelsHidden()
-            }
-        }
-    }
-
-    private func textInputRow(title: String, text: Binding<String>, placeholder: String, axis: Axis = .horizontal) -> some View {
-        HStack(alignment: axis == .vertical ? .top : .center, spacing: 16) {
-            Text(title)
-                .font(.body.weight(.medium))
-                .foregroundStyle(AppTheme.ink)
-                .frame(minWidth: 86, alignment: .leading)
-            TextField(placeholder, text: text, axis: axis)
-                .font(.body.weight(.regular))
-                .multilineTextAlignment(.trailing)
-                .lineLimit(axis == .vertical ? 3 : 1)
-        }
-        .padding(.vertical, 17)
-    }
-
-    private func moneyInputRow(title: String, value: Binding<Double>) -> some View {
-        HStack(spacing: 16) {
-            Text(title)
-                .font(.body.weight(.medium))
-                .foregroundStyle(AppTheme.ink)
-            Spacer(minLength: 12)
-            TextField("0", value: value, format: .number.precision(.fractionLength(0...0)))
-                .keyboardType(.decimalPad)
-                .font(.body.weight(.regular))
-                .multilineTextAlignment(.trailing)
-                .frame(maxWidth: 140)
-        }
-        .padding(.vertical, 17)
-    }
-
-    private func readonlyRow(title: String, value: String) -> some View {
-        HStack(spacing: 16) {
-            Text(title)
-                .font(.body.weight(.medium))
-                .foregroundStyle(AppTheme.ink)
-            Spacer(minLength: 12)
-            Text(value)
-                .font(.body.weight(.medium))
-                .foregroundStyle(AppTheme.ink)
-        }
-        .padding(.vertical, 17)
     }
 
     private var rowDivider: some View {
         Divider()
             .overlay(AppTheme.line.opacity(0.72))
-    }
-
-    private var conflictPanel: some View {
-        Text(conflictSummaryText)
-            .font(.subheadline.weight(.regular))
-            .foregroundStyle(AppTheme.secondaryInk)
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(AppTheme.line.opacity(0.55), lineWidth: 1)
-            }
     }
 
     @ViewBuilder

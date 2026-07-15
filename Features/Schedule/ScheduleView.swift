@@ -72,7 +72,6 @@ struct ScheduleView: View {
     @State private var editingBooking: BookingRecord?
     @State private var showingCreateBookingSheet = false
     @State private var createBookingStartDate: Date?
-    @State private var showingSearchSheet = false
     @State private var toastMessage: String?
 
     private let calendar = Calendar.current
@@ -144,26 +143,40 @@ struct ScheduleView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppTheme.backgroundGradient
-                    .ignoresSafeArea()
-
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        if isPristineSchedule {
-                            scheduleStartState
-                        } else {
-                            if viewMode == .list {
-                                listSection
-                            } else {
-                                calendarSection
-                                focusDateSection
-                            }
+                List {
+                    Picker("显示方式", selection: $viewMode) {
+                        ForEach(ScheduleViewMode.allCases) { item in
+                            Text(item.title).tag(item)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                    .padding(.bottom, 40)
+                    .pickerStyle(.segmented)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+
+                    if isPristineSchedule {
+                        scheduleStartState
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    } else if viewMode == .list {
+                        listSection
+                            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 24, trailing: 20))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    } else {
+                        calendarSection
+                            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 18, trailing: 20))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+
+                        focusDateSection
+                            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 24, trailing: 20))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(AppTheme.background.ignoresSafeArea())
 
                 if let toastMessage {
                     AppToast(message: toastMessage)
@@ -186,30 +199,12 @@ struct ScheduleView: View {
                     showSavedToast(for: savedBooking)
                 }
             }
-            .sheet(isPresented: $showingSearchSheet) {
-                ScheduleSearchSheet(
-                    searchText: $searchText,
-                    bookings: filteredBookings,
-                    clientName: { store.clientName(for: $0) }
-                )
-                .presentationDetents([.medium, .large])
-            }
             .navigationTitle("档期")
             .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $searchText, prompt: "搜索项目、客户或地点")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("搜索", systemImage: "magnifyingglass") {
-                        showingSearchSheet = true
-                        AppHaptics.tapLight()
-                    }
-
-                    Menu("更多", systemImage: "ellipsis") {
-                        Picker("显示", selection: $viewMode) {
-                            ForEach(ScheduleViewMode.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-
+                    Menu("筛选", systemImage: "line.3.horizontal.decrease") {
                         Picker("范围", selection: $scope) {
                             ForEach(ScheduleScope.allCases) { item in
                                 Text(item.title).tag(item)
@@ -270,12 +265,7 @@ struct ScheduleView: View {
                 transaction.animation = nil
             }
         }
-        .padding(18)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-        }
+        .padding(.vertical, 4)
     }
 
     private var weekdayHeader: some View {
@@ -379,12 +369,7 @@ struct ScheduleView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.card)
-                .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-        }
+        .padding(.vertical, 2)
     }
 
     private var compactEmptyState: some View {
@@ -433,7 +418,7 @@ struct ScheduleView: View {
                     .foregroundStyle(AppTheme.mutedInk)
                     .padding(.top, 5)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 2)
             .padding(.vertical, 15)
             .contentShape(Rectangle())
         }
@@ -554,50 +539,5 @@ struct ScheduleView: View {
             }
         }
         AppHaptics.selection()
-    }
-}
-
-private struct ScheduleSearchSheet: View {
-    @Binding var searchText: String
-    let bookings: [BookingRecord]
-    let clientName: (BookingRecord) -> String
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 14) {
-                TextField("搜索", text: $searchText)
-                    .font(AppTypography.rowValue)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .padding(.horizontal, 14)
-                    .frame(height: 46)
-                    .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(AppTheme.line.opacity(0.62), lineWidth: 1)
-                    }
-                    .padding(.horizontal, 18)
-
-                if bookings.isEmpty {
-                    ContentUnavailableView("暂无结果", systemImage: "magnifyingglass")
-                        .frame(maxHeight: .infinity)
-                } else {
-                    List(bookings.prefix(30)) { booking in
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(booking.title)
-                                .font(AppTypography.rowTitle)
-                            Text("\(clientName(booking)) · \(AppFormatters.fullDate(booking.startAt))")
-                                .font(AppTypography.meta)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .listStyle(.plain)
-                }
-            }
-            .navigationTitle("搜索")
-            .navigationBarTitleDisplayMode(.inline)
-            .background(AppTheme.backgroundGradient.ignoresSafeArea())
-        }
     }
 }

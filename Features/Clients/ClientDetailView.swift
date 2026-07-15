@@ -89,9 +89,9 @@ struct ClientDetailView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 14) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    Circle()
                         .fill(AppTheme.accentSurface)
-                        .frame(width: 70, height: 70)
+                        .frame(width: 64, height: 64)
                     Text(client.initials)
                         .font(AppTypography.sectionTitle)
                         .foregroundStyle(AppTheme.accentDeep)
@@ -125,14 +125,8 @@ struct ClientDetailView: View {
                 .foregroundStyle(AppTheme.secondaryInk)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(24)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.82), lineWidth: 1)
-        }
-        .shadow(color: AppTheme.cardShadow, radius: AppShadow.cardRadius, y: AppShadow.cardY)
     }
 
     @ViewBuilder
@@ -173,17 +167,16 @@ struct ClientDetailView: View {
 
     private func businessCenterSection(_ client: ClientRecord) -> some View {
         let summary = store.businessSummary(for: nil, clientID: client.id)
-        let clientBookings = store.bookings(for: client.id)
         let outstanding = store.outstandingValue(for: client.id)
 
         return GlassCard(title: "业务闭环与资料中心", subtitle: "围绕这个客户补齐报价、合同、资料、报表。") {
-            HStack(spacing: 12) {
-                AppMetricTile(title: "业务文档", value: "\(summary.documents)", subtitle: "报价 / 合同 / 收据 / 发票", fillColor: AppTheme.panelStrong)
-                AppMetricTile(title: "资料", value: "\(summary.attachments)", subtitle: clientBookings.isEmpty ? "尚未关联订单" : "\(clientBookings.count) 条订单上下文", fillColor: AppTheme.panelStrong)
+            HStack {
+                detailMeta(title: "业务文档", value: "\(summary.documents)")
+                Spacer()
+                detailMeta(title: "资料", value: "\(summary.attachments)")
+                Spacer()
+                detailMeta(title: "待回款", value: AppFormatters.currency(outstanding))
             }
-
-            AppKeyValueRow(title: "累计合作", value: AppFormatters.currency(store.lifetimeValue(for: client.id)))
-            AppKeyValueRow(title: "待回款", value: AppFormatters.currency(outstanding))
 
             VStack(spacing: 10) {
                 clientBusinessButton(mode: .workflow, subtitle: "报价、合同、收据、发票", clientID: client.id)
@@ -201,8 +194,7 @@ struct ClientDetailView: View {
                 Image(systemName: mode.symbolName)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(AppTheme.accent)
-                    .frame(width: 34, height: 34)
-                    .background(AppTheme.accent.opacity(0.12), in: Circle())
+                    .frame(width: 28)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(mode.title)
                         .font(AppTypography.bodyStrong)
@@ -216,8 +208,7 @@ struct ClientDetailView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(AppTheme.secondaryInk)
             }
-            .padding(14)
-            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+            .padding(.vertical, 10)
         }
         .buttonStyle(.plain)
     }
@@ -257,10 +248,8 @@ struct ClientDetailView: View {
                                 }
                             }
                             .padding(16)
-                            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                                    .stroke(AppTheme.line.opacity(0.78), lineWidth: 1)
+                            .overlay(alignment: .bottom) {
+                                Divider().overlay(AppTheme.line.opacity(0.55))
                             }
                         }
                         .buttonStyle(.plain)
@@ -313,10 +302,8 @@ struct ClientDetailView: View {
                             }
                         }
                         .padding(16)
-                        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                                .stroke(AppTheme.line.opacity(0.78), lineWidth: 1)
+                        .overlay(alignment: .bottom) {
+                            Divider().overlay(AppTheme.line.opacity(0.55))
                         }
                     }
                 }
@@ -334,12 +321,7 @@ struct ClientDetailView: View {
                 .foregroundStyle(AppTheme.mutedInk)
         }
         .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
-        .padding(16)
-        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.78), lineWidth: 1)
-        }
+        .padding(.vertical, 12)
     }
 
     private func detailRow(_ title: String, _ value: String) -> some View {
@@ -375,20 +357,10 @@ struct ClientDetailView: View {
     }
 
     private func placeholderCard(title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(AppTheme.ink)
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.secondaryInk)
-        }
-        .padding(16)
+        Label(title, systemImage: "tray")
+            .font(AppTypography.body)
+            .foregroundStyle(AppTheme.secondaryInk)
+        .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
-                .stroke(AppTheme.line.opacity(0.78), lineWidth: 1)
-        }
     }
 }

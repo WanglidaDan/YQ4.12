@@ -41,31 +41,68 @@ private struct CreateClientFlowView: View {
 
     var body: some View {
         NavigationStack {
-            AppPageScaffold(title: "新增客户", titleDisplayMode: .inline, topPadding: 14, bottomPadding: 24) {
-                essentialsSection
-                businessDisclosure
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .safeAreaInset(edge: .bottom) {
-                Button(action: save) {
-                    Label("保存客户", systemImage: "checkmark")
-                        .font(AppTypography.bodyStrong)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(AppTheme.accent, in: Capsule())
+            Form {
+                Section("客户") {
+                    TextField("客户名称", text: $name)
+                    TextField("电话", text: $phoneNumber)
+                        .keyboardType(.phonePad)
+                    TextField("微信", text: $wechatID)
+                        .textInputAutocapitalization(.never)
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal, AppSpacing.page)
-                .padding(.top, 10)
-                .padding(.bottom, 12)
-                .background(.thinMaterial)
+
+                if showingBusinessFields {
+                    Section("更多信息") {
+                        TextField("城市 / 区域", text: $city)
+                        TextField("邮箱", text: $emailAddress)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                        TextField("来源渠道", text: $sourceChannel)
+
+                        Picker("客户层级", selection: $tier) {
+                            ForEach(ClientTier.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
+                        }
+
+                        Picker("客户阶段", selection: $stage) {
+                            ForEach(LeadStage.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
+                        }
+
+                        Toggle("安排下次跟进", isOn: $needsFollowUp)
+                        if needsFollowUp {
+                            DatePicker("下次跟进", selection: $nextContactAt)
+                        }
+
+                        TextField("备注", text: $notesText, axis: .vertical)
+                            .lineLimit(3...6)
+                    }
+                } else {
+                    Section {
+                        Button("更多信息", systemImage: "ellipsis.circle") {
+                            withAnimation(.snappy) {
+                                showingBusinessFields = true
+                            }
+                        }
+                    }
+                }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("新建客户")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消", role: .cancel) {
                         dismiss()
                     }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("保存", systemImage: "checkmark", action: save)
+                        .fontWeight(.semibold)
                 }
             }
             .alert("保存失败", isPresented: Binding(
@@ -77,110 +114,6 @@ private struct CreateClientFlowView: View {
                 Text(saveErrorMessage ?? "客户没有保存成功。")
             }
         }
-    }
-
-    private var essentialsSection: some View {
-        Group {
-            AppEditorCard(title: "基本信息", subtitle: "名称、电话或微信填一项即可。") {
-                AppEditorLabeledField("客户名称") {
-                    TextField("昵称、公司名或联系人", text: $name)
-                }
-
-                AppEditorDivider()
-
-                AppEditorLabeledField("电话") {
-                    TextField("手机号", text: $phoneNumber)
-                        .keyboardType(.phonePad)
-                }
-
-                AppEditorDivider()
-
-                AppEditorLabeledField("微信") {
-                    TextField("微信号", text: $wechatID)
-                        .textInputAutocapitalization(.never)
-                }
-            }
-        }
-    }
-
-    private var businessDisclosure: some View {
-        DisclosureGroup(isExpanded: $showingBusinessFields) {
-            VStack(alignment: .leading, spacing: AppSpacing.section) {
-                AppEditorCard(title: "来源与价值") {
-                    AppEditorLabeledField("城市 / 区域") {
-                        TextField("例如：上海", text: $city)
-                    }
-
-                    AppEditorDivider()
-
-                    AppEditorLabeledField("邮箱") {
-                        TextField("邮箱地址", text: $emailAddress)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                    }
-
-                    AppEditorDivider()
-
-                    AppEditorLabeledField("来源渠道") {
-                        TextField("小红书 / 转介绍 / 老客户复购", text: $sourceChannel)
-                    }
-
-                    AppEditorDivider()
-
-                    AppEditorLabeledField("客户层级") {
-                        Picker("客户层级", selection: $tier) {
-                            ForEach(ClientTier.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                    }
-
-                    AppEditorDivider()
-
-                    AppEditorLabeledField("客户阶段") {
-                        Picker("客户阶段", selection: $stage) {
-                            ForEach(LeadStage.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                    }
-                }
-
-                AppEditorCard(title: "跟进计划") {
-                    Toggle("安排下次跟进", isOn: $needsFollowUp)
-                    if needsFollowUp {
-                        AppEditorDivider()
-                        AppEditorLabeledField("下次跟进") {
-                            DatePicker("下次跟进", selection: $nextContactAt)
-                                .labelsHidden()
-                        }
-                    }
-                }
-
-                AppEditorCard(title: "备注") {
-                    AppEditorLabeledField("客户备注") {
-                        TextField("偏好、预算、沟通重点、拍摄风格等", text: $notesText, axis: .vertical)
-                            .lineLimit(3...7)
-                    }
-                }
-            }
-            .padding(.top, 12)
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: showingBusinessFields ? "chevron.down.circle.fill" : "slider.horizontal.3")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(AppTheme.accent)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(showingBusinessFields ? "收起经营信息" : "补充来源、层级和跟进")
-                        .font(AppTypography.bodyStrong)
-                        .foregroundStyle(AppTheme.ink)
-                }
-                Spacer()
-            }
-            .padding(16)
-            .appCardSurface(fillColor: AppTheme.panel)
-        }
-        .tint(AppTheme.ink)
     }
 
     private var trimmedName: String {
@@ -304,8 +237,6 @@ private struct ClientEditFormView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 4)
-                } footer: {
-                    Text("编辑客户资料时保持集中，不再把创建流程和编辑流程混在一起。")
                 }
 
                 Section("基础信息") {

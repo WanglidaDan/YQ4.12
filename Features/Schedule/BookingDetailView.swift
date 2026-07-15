@@ -152,13 +152,13 @@ struct BookingDetailView: View {
                     if let bookingClient {
                         Text(bookingClient.name)
                             .font(AppTypography.heroTitle)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.ink)
                             .lineLimit(2)
                     }
 
                     Text(booking.title)
                         .font(AppTypography.sectionTitle)
-                        .foregroundStyle(.white.opacity(0.92))
+                        .foregroundStyle(AppTheme.secondaryInk)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -180,18 +180,12 @@ struct BookingDetailView: View {
             if location.isEmpty == false {
                 Text(location)
                     .font(AppTypography.body)
-                    .foregroundStyle(.white.opacity(0.88))
+                    .foregroundStyle(AppTheme.secondaryInk)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(24)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.heroGradient, in: RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppRadius.hero, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-        }
-        .shadow(color: AppTheme.deepShadow.opacity(0.16), radius: AppShadow.heroRadius, y: AppShadow.heroY)
     }
 
     private func orderInfoCard(_ booking: BookingRecord) -> some View {
@@ -338,9 +332,11 @@ struct BookingDetailView: View {
 
             content()
         }
-        .padding(20)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panel, strokeOpacity: 0.82)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(AppTheme.line.opacity(0.55))
+        }
     }
 
     private func plainInfoRow(title: String, value: String, subtitle: String, trailing: String? = nil) -> some View {
@@ -397,10 +393,7 @@ struct BookingDetailView: View {
     private func heroTag(_ text: String) -> some View {
         Text(text)
             .font(AppTypography.meta.weight(.semibold))
-            .foregroundStyle(.white.opacity(0.9))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.white.opacity(0.12), in: Capsule())
+            .foregroundStyle(AppTheme.accent)
     }
 
     private func hasNotes(_ booking: BookingRecord) -> Bool {

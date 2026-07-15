@@ -20,19 +20,19 @@ enum AppTypography {
 
 enum AppSpacing {
     static let page: CGFloat = 20
-    static let section: CGFloat = 18
-    static let cardPadding: CGFloat = 20
+    static let section: CGFloat = 20
+    static let cardPadding: CGFloat = 16
     static let content: CGFloat = 14
     static let tight: CGFloat = 8
     static let compact: CGFloat = 6
 }
 
 enum AppRadius {
-    static let hero: CGFloat = 28
-    static let card: CGFloat = 22
-    static let control: CGFloat = 17
-    static let row: CGFloat = 15
-    static let badge: CGFloat = 11
+    static let hero: CGFloat = 24
+    static let card: CGFloat = 16
+    static let control: CGFloat = 12
+    static let row: CGFloat = 10
+    static let badge: CGFloat = 8
 }
 
 enum AppShadow {

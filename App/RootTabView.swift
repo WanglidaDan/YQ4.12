@@ -33,7 +33,7 @@ struct RootTabView: View {
 
             ClientsView()
                 .tabItem {
-                    Label("关系", systemImage: "person.2")
+                    Label("客户", systemImage: "person.2")
                 }
                 .tag(RootTab.clients)
 

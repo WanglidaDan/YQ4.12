@@ -4,47 +4,47 @@ enum AppTheme {
     private static var currentStyle: AppThemeStyle = .appleGreen
 
     static var background: Color {
-        dynamic(light: UIColor(hex: "#F5F3EF"), dark: UIColor(hex: "#111312"))
+        Color(uiColor: .systemGroupedBackground)
     }
 
     static var canvas: Color {
-        dynamic(light: UIColor(hex: "#EFEEE9"), dark: UIColor(hex: "#151716"))
+        Color(uiColor: .secondarySystemGroupedBackground)
     }
 
     static var panel: Color {
-        dynamic(light: UIColor(hex: "#FCFAF7"), dark: UIColor(hex: "#1A1D1B"))
+        Color(uiColor: .secondarySystemGroupedBackground)
     }
 
     static var panelStrong: Color {
-        dynamic(light: UIColor(hex: "#FFFFFF"), dark: UIColor(hex: "#202422"))
+        Color(uiColor: .systemBackground)
     }
 
     static var panelSoft: Color {
-        dynamic(light: UIColor(hex: "#F3F0EA"), dark: UIColor(hex: "#171A18"))
+        Color(uiColor: .tertiarySystemGroupedBackground)
     }
 
     static var inputSurface: Color {
-        dynamic(light: UIColor(hex: "#FFFFFF"), dark: UIColor(hex: "#242826"))
+        Color(uiColor: .tertiarySystemGroupedBackground)
     }
 
     static var sheetBackground: Color {
-        dynamic(light: UIColor(hex: "#FAF8F4"), dark: UIColor(hex: "#101211"))
+        Color(uiColor: .systemBackground)
     }
 
     static var line: Color {
-        dynamic(light: UIColor(hex: "#D8D2C9"), dark: UIColor(hex: "#343936"))
+        Color(uiColor: .separator)
     }
 
     static var ink: Color {
-        dynamic(light: UIColor(hex: "#141715"), dark: UIColor(hex: "#F3F1ED"))
+        Color(uiColor: .label)
     }
 
     static var secondaryInk: Color {
-        dynamic(light: UIColor(hex: "#56615B"), dark: UIColor(hex: "#C6CCC6"))
+        Color(uiColor: .secondaryLabel)
     }
 
     static var mutedInk: Color {
-        dynamic(light: UIColor(hex: "#7A837D"), dark: UIColor(hex: "#929A94"))
+        Color(uiColor: .tertiaryLabel)
     }
 
     static var accent: Color {
@@ -89,11 +89,10 @@ enum AppTheme {
         dynamic(light: UIColor(hex: "#EEF1EC"), dark: UIColor(hex: "#202822"))
     }
 
-    // 全局状态色统一收敛到墨绿 / 中性灰体系，避免页面出现橙、蓝、红等跳色。
-    static let info = dynamic(light: UIColor(hex: "#56615B"), dark: UIColor(hex: "#C6CCC6"))
-    static let success = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
-    static let warning = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
-    static let danger = dynamic(light: UIColor(hex: "#56615B"), dark: UIColor(hex: "#C6CCC6"))
+    static let info = Color(uiColor: .systemBlue)
+    static let success = Color(uiColor: .systemGreen)
+    static let warning = Color(uiColor: .systemOrange)
+    static let danger = Color(uiColor: .systemRed)
     static let priorityLow = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
     static let priorityMedium = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
     static let priorityHigh = dynamic(light: UIColor(hex: "#335B45"), dark: UIColor(hex: "#8FA891"))
@@ -104,25 +103,17 @@ enum AppTheme {
 
     static var backgroundGradient: LinearGradient {
         LinearGradient(
-            colors: [
-                dynamic(light: UIColor(hex: "#FCFAF6"), dark: UIColor(hex: "#101211")),
-                dynamic(light: UIColor(hex: "#F4F1EB"), dark: UIColor(hex: "#151817")),
-                dynamic(light: UIColor(hex: "#F7F4EF"), dark: UIColor(hex: "#1A1D1B"))
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            colors: [background, background],
+            startPoint: .top,
+            endPoint: .bottom
         )
     }
 
     static var panelGradient: LinearGradient {
         LinearGradient(
-            colors: [
-                dynamic(light: UIColor(hex: "#FFFFFF"), dark: UIColor(hex: "#242826")),
-                dynamic(light: UIColor(hex: "#FAF7F3"), dark: UIColor(hex: "#1F2220")),
-                dynamic(light: UIColor(hex: "#F1EDE6"), dark: UIColor(hex: "#1A1D1B"))
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            colors: [panelStrong, panel],
+            startPoint: .top,
+            endPoint: .bottom
         )
     }
 
@@ -152,11 +143,7 @@ enum AppTheme {
 
     static var sheetGradient: LinearGradient {
         LinearGradient(
-            colors: [
-                dynamic(light: UIColor(hex: "#FFFFFF"), dark: UIColor(hex: "#181B19")),
-                dynamic(light: UIColor(hex: "#F8F5EF"), dark: UIColor(hex: "#141716")),
-                dynamic(light: UIColor(hex: "#EFEBE4"), dark: UIColor(hex: "#101211"))
-            ],
+            colors: [sheetBackground, background],
             startPoint: .top,
             endPoint: .bottom
         )

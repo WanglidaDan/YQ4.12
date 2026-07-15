@@ -17,11 +17,14 @@ struct GlassCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            AppSectionHeader(title: title, subtitle: subtitle)
+            AppSectionHeader(title: title)
             content
         }
-        .padding(AppSpacing.cardPadding)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appCardSurface()
+        .overlay(alignment: .bottom) {
+            Divider()
+                .overlay(AppTheme.line.opacity(0.55))
+        }
     }
 }
