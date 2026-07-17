@@ -64,6 +64,56 @@ struct OverviewSnapshotBuilderTests {
     }
 
     @Test
+    func builderProvidesFeaturedBookingAndThreeMoreUpcomingBookings() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2025, month: 3, day: 13, hour: 12))!
+
+        func booking(
+            _ title: String,
+            month: Int,
+            day: Int,
+            fee: Double,
+            status: BookingStatus = .confirmed
+        ) -> BookingRecord {
+            let start = calendar.date(from: DateComponents(year: 2025, month: month, day: day, hour: 10))!
+            return BookingRecord(
+                title: title,
+                category: .commercial,
+                status: status,
+                startAt: start,
+                endAt: start.addingTimeInterval(7_200),
+                venue: "摄影棚",
+                city: "上海",
+                fee: fee,
+                depositPaid: 0,
+                deliverableText: "成片",
+                notesText: ""
+            )
+        }
+
+        let bookings = [
+            booking("三月第一场", month: 3, day: 14, fee: 1_000),
+            booking("已取消档期", month: 3, day: 15, fee: 2_000, status: .cancelled),
+            booking("三月第二场", month: 3, day: 16, fee: 3_000),
+            booking("四月档期", month: 4, day: 1, fee: 4_000),
+            booking("五月档期", month: 5, day: 1, fee: 5_000),
+            booking("六月档期", month: 6, day: 1, fee: 6_000)
+        ]
+
+        let snapshot = OverviewSnapshotBuilder(now: now, calendar: calendar).build(
+            clients: [],
+            bookings: bookings,
+            touchpoints: [],
+            payments: []
+        )
+
+        #expect(snapshot.nextBookings.map(\.title) == ["三月第一场", "三月第二场", "四月档期", "五月档期"])
+        #expect(snapshot.monthlyRevenue == 4_000)
+        #expect(snapshot.yearlyRevenue == 19_000)
+    }
+
+    @Test
     func appFormatterSearchMatchesMultipleKeywords() {
         #expect(AppFormatters.matchesSearch("上海 婚礼", terms: ["上海外滩婚礼", "客片交付"]))
         #expect(AppFormatters.matchesSearch("深圳", terms: ["上海外滩婚礼"]) == false)

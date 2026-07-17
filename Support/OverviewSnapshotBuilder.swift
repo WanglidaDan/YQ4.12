@@ -41,6 +41,7 @@ struct OverviewSnapshot {
     var receivableBookings: [BookingRecord]
     var monthlyBookedCount: Int
     var monthlyRevenue: Double
+    var yearlyRevenue: Double
     var monthlyReceived: Double
     var monthlyOutstanding: Double
 }
@@ -66,7 +67,9 @@ struct OverviewSnapshotBuilder {
         let startOfToday = calendar.startOfDay(for: now)
         let endOfThirdDay = calendar.date(byAdding: .day, value: 3, to: startOfToday) ?? now
         let recentWindowBookings = activeBookings.filter { $0.startAt >= startOfToday && $0.startAt < endOfThirdDay }
-        let nextBookings = Array(activeBookings.filter { $0.startAt >= startOfToday }.prefix(3))
+        let nextBookings = Array(activeBookings.filter {
+            $0.startAt >= startOfToday && $0.status != .cancelled
+        }.prefix(4))
 
         let todayBookings = recentWindowBookings.filter { calendar.isDateInToday($0.startAt) }
         let tomorrowBookings = recentWindowBookings.filter { calendar.isDateInTomorrow($0.startAt) }
@@ -87,12 +90,17 @@ struct OverviewSnapshotBuilder {
             .filter { paymentStatus(for: $0, payments: payments) != .paidInFull && $0.status != .cancelled }
             .sorted { outstandingAmount(for: $0, payments: payments) > outstandingAmount(for: $1, payments: payments) }
 
-        let monthlyBookings = activeBookings.filter {
+        let revenueBookings = activeBookings.filter { $0.status != .cancelled }
+        let monthlyBookings = revenueBookings.filter {
             calendar.isDate($0.startAt, equalTo: now, toGranularity: .year) &&
             calendar.isDate($0.startAt, equalTo: now, toGranularity: .month)
         }
+        let yearlyBookings = revenueBookings.filter {
+            calendar.isDate($0.startAt, equalTo: now, toGranularity: .year)
+        }
 
         let monthlyRevenue = monthlyBookings.reduce(0) { $0 + $1.fee }
+        let yearlyRevenue = yearlyBookings.reduce(0) { $0 + $1.fee }
         let monthlyReceived = monthlyBookings.reduce(0) { $0 + receivedAmount(for: $1, payments: payments) }
         let monthlyOutstanding = monthlyBookings.reduce(0) { $0 + outstandingAmount(for: $1, payments: payments) }
 
@@ -178,6 +186,7 @@ struct OverviewSnapshotBuilder {
             receivableBookings: Array(receivableBookings.prefix(5)),
             monthlyBookedCount: monthlyBookings.count,
             monthlyRevenue: monthlyRevenue,
+            yearlyRevenue: yearlyRevenue,
             monthlyReceived: monthlyReceived,
             monthlyOutstanding: monthlyOutstanding
         )
