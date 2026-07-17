@@ -202,10 +202,27 @@ struct ClientsView: View {
     }
 
     private var clientsStartState: some View {
-        ContentUnavailableView(
-            scope == .active ? "暂无客户" : "暂无归档",
-            systemImage: scope == .active ? "person.2" : "archivebox"
-        )
+        VStack(spacing: 16) {
+            ContentUnavailableView {
+                Label(
+                    scope == .active ? "暂无客户" : "暂无归档",
+                    systemImage: scope == .active ? "person.2" : "archivebox"
+                )
+            } description: {
+                if scope == .active {
+                    Text("先建立第一位客户，后续档期、跟进和回款都会自动串起来。")
+                }
+            }
+
+            if scope == .active {
+                Button("新建客户", systemImage: "person.crop.circle.badge.plus") {
+                    showingNewClient = true
+                    AppHaptics.impactMedium()
+                }
+                .buttonStyle(AppPrimaryButtonStyle())
+                .padding(.horizontal, 40)
+            }
+        }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
     }

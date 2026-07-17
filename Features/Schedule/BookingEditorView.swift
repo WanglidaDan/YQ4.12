@@ -70,6 +70,7 @@ private struct BookingFormPage: View {
     @State private var speechService = BookingSpeechDraftService()
     @State private var showingQuickInput = false
     @State private var showingMoreDetails = false
+    @State private var showingNewClient = false
 
     private let calendar = Calendar.current
 
@@ -77,7 +78,7 @@ private struct BookingFormPage: View {
         self.originalBooking = booking
         self.onSaved = onSaved
 
-        let defaultStartAt = Self.defaultStartDate(from: initialStartAt)
+        let defaultStartAt = BookingDateDefaults.startDate(seedDate: initialStartAt)
         let defaultEndAt = Calendar.current.date(byAdding: .hour, value: 2, to: defaultStartAt) ?? defaultStartAt.addingTimeInterval(7_200)
 
         _title = State(initialValue: booking?.title ?? "")
@@ -94,11 +95,6 @@ private struct BookingFormPage: View {
         _depositPaid = State(initialValue: booking?.depositPaid ?? 0)
         _deliverableText = State(initialValue: booking?.deliverableText ?? "")
         _notesText = State(initialValue: booking?.notesText ?? "")
-    }
-
-    private static func defaultStartDate(from seedDate: Date?) -> Date {
-        guard let seedDate else { return .now }
-        return Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: seedDate) ?? seedDate
     }
 
     var body: some View {
@@ -215,6 +211,13 @@ private struct BookingFormPage: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showingNewClient) {
+                ClientEditorView { savedClient in
+                    selectedClientID = savedClient.id
+                    selectionSheet = nil
+                }
+                .environment(store)
+            }
             .onChange(of: speechService.transcript) { _, newValue in
                 updateSpeechDraft(newValue)
             }
@@ -312,6 +315,10 @@ private struct BookingFormPage: View {
                         selectionButton(title: "暂不绑定", isSelected: selectedClientID == nil) {
                             selectedClientID = nil
                             selectionSheet = nil
+                        }
+                        rowDivider
+                        selectionButton(title: "新建客户", systemImage: "person.crop.circle.badge.plus", isSelected: false) {
+                            showingNewClient = true
                         }
                         ForEach(store.activeClients) { client in
                             rowDivider

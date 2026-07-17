@@ -5,6 +5,7 @@ private enum RootTab: Hashable {
     case overview
     case schedule
     case clients
+    case followUp
     case profile
 }
 
@@ -38,6 +39,15 @@ struct RootTabView: View {
                     Label("客户", systemImage: "person.2")
                 }
                 .tag(RootTab.clients)
+
+            FollowUpView(
+                onOpenSchedule: { selectedTab = .schedule },
+                onOpenClients: { selectedTab = .clients }
+            )
+            .tabItem {
+                Label("跟进", systemImage: "checklist")
+            }
+            .tag(RootTab.followUp)
 
             StandardProfileView()
                 .tabItem {

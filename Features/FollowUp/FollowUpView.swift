@@ -57,6 +57,7 @@ struct FollowUpView: View {
     @State private var editingTouchpoint: TouchpointRecord?
     @State private var deletingTouchpoint: TouchpointRecord?
     @State private var showingFilterSheet = false
+    @State private var showingNewTouchpoint = false
 
     private let calendar = Calendar.current
 
@@ -204,6 +205,13 @@ struct FollowUpView: View {
                 prompt: "搜索客户、项目、跟进内容"
             )
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("新建跟进", systemImage: "plus") {
+                        showingNewTouchpoint = true
+                        AppHaptics.impactMedium()
+                    }
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         AppHaptics.tapLight()
@@ -229,6 +237,9 @@ struct FollowUpView: View {
             }
             .sheet(item: $editingTouchpoint) { item in
                 TouchpointEditorView(item: item)
+            }
+            .sheet(isPresented: $showingNewTouchpoint) {
+                TouchpointEditorView()
             }
             .sheet(isPresented: $showingFilterSheet) {
                 UnifiedFilterSheet(

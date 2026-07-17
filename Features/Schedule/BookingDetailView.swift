@@ -50,6 +50,7 @@ struct BookingDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var navigationErrorMessage: String?
     @State private var contactErrorMessage: String?
+    @State private var showingNewPayment = false
 
     private var booking: BookingRecord? {
         store.booking(id: bookingID)
@@ -75,6 +76,7 @@ struct BookingDetailView: View {
                         heroSummary(booking)
                         orderInfoCard(booking)
                         financeCard(booking)
+                        paymentHistoryCard(booking)
                         if hasNotes(booking) {
                             notesCard(booking)
                         }
@@ -105,6 +107,9 @@ struct BookingDetailView: View {
         .toolbar(.hidden, for: .tabBar)
         .sheet(item: $editingBooking) { booking in
             BookingEditorView(booking: booking)
+        }
+        .sheet(isPresented: $showingNewPayment) {
+            PaymentEditorView(bookingID: bookingID)
         }
         .navigationDestination(for: BookingClientRoute.self) { route in
             ClientDetailView(clientID: route.clientID)
@@ -235,12 +240,52 @@ struct BookingDetailView: View {
         let outstandingAmount = store.outstandingAmount(for: booking)
 
         return detailCard(title: "费用") {
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
-                flatAmount(title: "总价", value: AppFormatters.currency(booking.fee))
-                flatAmount(title: "已收", value: AppFormatters.currency(receivedAmount))
-                flatAmount(title: "待收", value: AppFormatters.currency(outstandingAmount), highlight: outstandingAmount > 0)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    flatAmount(title: "总价", value: AppFormatters.currency(booking.fee))
+                    flatAmount(title: "已收", value: AppFormatters.currency(receivedAmount))
+                    flatAmount(title: "待收", value: AppFormatters.currency(outstandingAmount), highlight: outstandingAmount > 0)
+                }
+
+                Button("记录回款", systemImage: "plus.circle.fill") {
+                    showingNewPayment = true
+                    AppHaptics.impactMedium()
+                }
+                .buttonStyle(AppPrimaryButtonStyle())
             }
             .padding(.vertical, 4)
+        }
+    }
+
+    @ViewBuilder
+    private func paymentHistoryCard(_ booking: BookingRecord) -> some View {
+        let payments = store.payments(for: booking.id)
+        if payments.isEmpty == false {
+            detailCard(title: "回款记录") {
+                VStack(spacing: 0) {
+                    ForEach(Array(payments.enumerated()), id: \.element.id) { item in
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.element.paymentType.title)
+                                    .font(AppTypography.bodyStrong)
+                                    .foregroundStyle(AppTheme.ink)
+                                Text(AppFormatters.shortDate(item.element.date))
+                                    .font(AppTypography.meta)
+                                    .foregroundStyle(AppTheme.secondaryInk)
+                            }
+                            Spacer()
+                            Text(AppFormatters.currency(item.element.amount))
+                                .font(AppTypography.rowValue)
+                                .foregroundStyle(item.element.paymentType == .refund ? AppTheme.warning : AppTheme.ink)
+                        }
+                        .padding(.vertical, 12)
+
+                        if item.offset < payments.count - 1 {
+                            thinDivider()
+                        }
+                    }
+                }
+            }
         }
     }
 

@@ -230,10 +230,26 @@ struct ScheduleView: View {
     }
 
     private var scheduleStartState: some View {
-        ContentUnavailableView(
-            scope == .active ? "暂无档期" : "暂无归档",
-            systemImage: scope == .active ? "calendar" : "archivebox"
-        )
+        VStack(spacing: 16) {
+            ContentUnavailableView {
+                Label(
+                    scope == .active ? "暂无档期" : "暂无归档",
+                    systemImage: scope == .active ? "calendar" : "archivebox"
+                )
+            } description: {
+                if scope == .active {
+                    Text("创建第一条档期，时间、客户、费用与交付信息会集中保存。")
+                }
+            }
+
+            if scope == .active {
+                Button("新建档期", systemImage: "calendar.badge.plus") {
+                    createBooking(on: .now)
+                }
+                .buttonStyle(AppPrimaryButtonStyle())
+                .padding(.horizontal, 40)
+            }
+        }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 44)
     }
@@ -468,6 +484,7 @@ struct ScheduleView: View {
     }
 
     private func showSavedToast(for booking: BookingRecord) {
+        focusDate = booking.startAt
         withAnimation(.snappy(duration: 0.2)) {
             toastMessage = "已保存：\(booking.title)"
         }

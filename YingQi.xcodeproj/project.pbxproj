@@ -30,6 +30,7 @@
 		43CE36A278EB836728BA43F2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76422FB3A57DB723C43561AF /* SettingsView.swift */; };
 		456BFD4BFC4D5F62F2B1DE35 /* WechatOpenSDK in Frameworks */ = {isa = PBXBuildFile; productRef = D8110EDAD71049F2F68944F4 /* WechatOpenSDK */; };
 		47BC5B2C43C51614E3E0E941 /* BookingRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22B4830A74C799F36504B8F1 /* BookingRecord.swift */; };
+		48D1CC2AB3FBADCEB647E9B7 /* BookingDateDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC33BE5DA8580B7B51AB17 /* BookingDateDefaults.swift */; };
 		4C9168E714AF9DA39DF3E6A4 /* ThemeStyleCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F9A2D3A1564C9C694E6E47 /* ThemeStyleCard.swift */; };
 		4CA5C3D704723DA323085257 /* TouchpointEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A46B6F13CB7A359291D9A6 /* TouchpointEditorView.swift */; };
 		516B79336E490D5ECAE03019 /* ClientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4494039D1D03F7DEC0918F /* ClientsView.swift */; };
@@ -70,6 +71,7 @@
 		D39B6D52F83BA4D45361B94D /* TouchpointRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D5FC83FCF0909CCE055496 /* TouchpointRecord.swift */; };
 		D52C1E8C17C94EC7E7C875CF /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A049D8D57CF408802812A98A /* AppSettings.swift */; };
 		D9C391AA26408B4E15C54851 /* AuthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575C9FD1122C16227F878970 /* AuthProfile.swift */; };
+		D9D030CAD48E12000CC3E271 /* PaymentEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B2B28A86BD9CB741AB36B8 /* PaymentEditorView.swift */; };
 		DE8F8C36EEF6BEF0155E48ED /* AppThemeStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF139D277A77294AC6A291DB /* AppThemeStyle.swift */; };
 		E09635FDC77811727F4A27E5 /* StoreExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A85AB43E2141E9F8B5CB1680 /* StoreExportService.swift */; };
 		E211A4991D21CC7C357B5AA0 /* TouchpointPriority.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5CCF73D690B34152E8814C4 /* TouchpointPriority.swift */; };
@@ -116,6 +118,7 @@
 		023296EABDD883B12667BAE8 /* AppRelease.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppRelease.xcconfig; sourceTree = "<group>"; };
 		025A819E7F0779395A0217EB /* YingQi.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = YingQi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		05A687C1919846261C7B10FB /* BookingCrewAssignmentEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingCrewAssignmentEditorView.swift; sourceTree = "<group>"; };
+		0EDC33BE5DA8580B7B51AB17 /* BookingDateDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingDateDefaults.swift; sourceTree = "<group>"; };
 		1054DD67228133349CC7F4AE /* AppUIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUIComponents.swift; sourceTree = "<group>"; };
 		209729C1C0613E543BA35A1E /* PaymentRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentRecord.swift; sourceTree = "<group>"; };
 		22B4830A74C799F36504B8F1 /* BookingRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingRecord.swift; sourceTree = "<group>"; };
@@ -175,6 +178,7 @@
 		B5BC64E8350D6A978D859679 /* ShootingAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShootingAttribute.swift; sourceTree = "<group>"; };
 		BD14D880F621D6E4653D4488 /* BookingTemplateCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingTemplateCard.swift; sourceTree = "<group>"; };
 		C06C2F60EB0A42046867A721 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		C0B2B28A86BD9CB741AB36B8 /* PaymentEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentEditorView.swift; sourceTree = "<group>"; };
 		C4BDC1673EA3134B5E117E88 /* BookingReminderActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingReminderActivityManager.swift; sourceTree = "<group>"; };
 		C7E65AD4F464733541F147E3 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		CF139D277A77294AC6A291DB /* AppThemeStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppThemeStyle.swift; sourceTree = "<group>"; };
@@ -250,6 +254,7 @@
 				C7E65AD4F464733541F147E3 /* AppTheme.swift */,
 				49725F1599B69C0CE3DBA0FA /* AppThemePalette.swift */,
 				CF139D277A77294AC6A291DB /* AppThemeStyle.swift */,
+				0EDC33BE5DA8580B7B51AB17 /* BookingDateDefaults.swift */,
 				362F913EB9DD28A9A3C0B4DC /* BookingReminderActivityAttributes.swift */,
 				C4BDC1673EA3134B5E117E88 /* BookingReminderActivityManager.swift */,
 				5A218F6BB6752A7989452F96 /* BookingShareTextBuilder.swift */,
@@ -283,6 +288,7 @@
 				36D6FC7D0666BFB26827FEC2 /* BookingEditorView.swift */,
 				9A080B47CD6F1A29AE86B6B4 /* BookingMultilineField.swift */,
 				BD14D880F621D6E4653D4488 /* BookingTemplateCard.swift */,
+				C0B2B28A86BD9CB741AB36B8 /* PaymentEditorView.swift */,
 				92390A66518A52B7976A2625 /* ScheduleView.swift */,
 			);
 			path = Schedule;
@@ -595,6 +601,7 @@
 				A96F22CFE725A28F7AD56EE2 /* BadgeViews.swift in Sources */,
 				27C6871BF7A772C7E29CE046 /* BookingCrewAssignment.swift in Sources */,
 				7533441D91E56AE3A64FFBF7 /* BookingCrewAssignmentEditorView.swift in Sources */,
+				48D1CC2AB3FBADCEB647E9B7 /* BookingDateDefaults.swift in Sources */,
 				9857B908AB7285243F20B47D /* BookingDetailView.swift in Sources */,
 				740D24EC36FAEDC07A6FE0F6 /* BookingEditorView.swift in Sources */,
 				998A45C118CDD7B454D4D556 /* BookingMultilineField.swift in Sources */,
@@ -621,6 +628,7 @@
 				3C9A06151F8EBEE907EF4D85 /* LeadStage.swift in Sources */,
 				A8E635F77995F45F930DC008 /* OverviewSnapshotBuilder.swift in Sources */,
 				11DBBF84257B9F6FA791B89C /* OverviewView.swift in Sources */,
+				D9D030CAD48E12000CC3E271 /* PaymentEditorView.swift in Sources */,
 				0523721CDDAD5E356C87ADB3 /* PaymentRecord.swift in Sources */,
 				AF8FBCC8BEA11A2A976C4E1B /* PaymentStatus.swift in Sources */,
 				C1D1251DA7364CE1FB1E328F /* PaymentType.swift in Sources */,

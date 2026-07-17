@@ -132,6 +132,51 @@ struct ReleaseReadinessTests {
     }
 
     @Test
+    func bookingDefaultTimeRoundsUpToNextHalfHour() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 7, day: 18, hour: 9, minute: 41, second: 27))!
+
+        let result = BookingDateDefaults.startDate(seedDate: nil, calendar: calendar, now: now)
+        let components = calendar.dateComponents([.hour, .minute, .second], from: result)
+
+        #expect(components.hour == 10)
+        #expect(components.minute == 0)
+        #expect(components.second == 0)
+    }
+
+    @Test
+    @MainActor
+    func manualPaymentUpdatesReceivedAndOutstandingAmounts() throws {
+        let saveURL = try makeSaveURL()
+        let store = StudioStore(saveURL: saveURL)
+        let booking = BookingRecord(
+            title: "回款测试",
+            category: .portrait,
+            status: .confirmed,
+            startAt: .now.addingTimeInterval(86_400),
+            endAt: .now.addingTimeInterval(90_000),
+            venue: "影棚",
+            city: "上海",
+            fee: 3_200,
+            depositPaid: 0,
+            deliverableText: "精修 20 张",
+            notesText: ""
+        )
+
+        store.upsert(booking: booking)
+        store.upsert(payment: PaymentRecord(
+            bookingID: booking.id,
+            amount: 1_000,
+            paymentType: .deposit,
+            date: .now
+        ))
+
+        #expect(store.receivedAmount(for: booking) == 1_000)
+        #expect(store.outstandingAmount(for: booking) == 2_200)
+    }
+
+    @Test
     @MainActor
     func settingsPersistenceKeepsNotificationToggle() throws {
         let saveURL = try makeSaveURL()
