@@ -75,6 +75,7 @@ targets:
     scheme:
       testTargets:
         - YingQiTests
+        - YingQiUITests
   YingQiWidgetExtension:
     type: app-extension
     platform: iOS
@@ -118,4 +119,17 @@ targets:
       base:
         PRODUCT_NAME: YingQiTests
         PRODUCT_MODULE_NAME: YingQiTests
+        GENERATE_INFOPLIST_FILE: YES
+  YingQiUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: TestsUI
+    dependencies:
+      - target: YingQi
+    settings:
+      base:
+        PRODUCT_NAME: YingQiUITests
+        PRODUCT_MODULE_NAME: YingQiUITests
         GENERATE_INFOPLIST_FILE: YES

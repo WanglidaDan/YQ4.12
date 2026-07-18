@@ -50,6 +50,17 @@
                ReferencedContainer = "container:YingQi.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DE2FDC6436848114C893B26C"
+               BuildableName = "YingQiUITests.xctest"
+               BlueprintName = "YingQiUITests"
+               ReferencedContainer = "container:YingQi.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

@@ -47,6 +47,7 @@ private enum FollowUpRoute: Hashable {
 
 struct FollowUpView: View {
     @Environment(StudioStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let onOpenSchedule: () -> Void
     let onOpenClients: () -> Void
@@ -58,6 +59,7 @@ struct FollowUpView: View {
     @State private var deletingTouchpoint: TouchpointRecord?
     @State private var showingFilterSheet = false
     @State private var showingNewTouchpoint = false
+    @State private var completedForUndo: TouchpointRecord?
 
     private let calendar = Calendar.current
 
@@ -197,6 +199,18 @@ struct FollowUpView: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(AppTheme.background.ignoresSafeArea())
+            .overlay(alignment: .bottom) {
+                if let completedForUndo {
+                    AppUndoToast(
+                        message: "已完成：\(completedForUndo.title)",
+                        actionTitle: "撤销",
+                        action: undoLastCompletion
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+                    .transition(toastTransition)
+                }
+            }
             .navigationTitle("客户跟进")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(
@@ -419,7 +433,7 @@ struct FollowUpView: View {
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             if item.isArchived == false && item.isComplete == false {
                 Button("完成", systemImage: "checkmark.circle.fill") {
-                    store.markTouchpointComplete(item.id)
+                    complete(item)
                 }
                 .tint(AppTheme.success)
             } else if item.isArchived == false {
@@ -508,5 +522,37 @@ struct FollowUpView: View {
             item.channel.title,
             item.priority.title
         ])
+    }
+
+    private var toastTransition: AnyTransition {
+        reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity)
+    }
+
+    private var feedbackAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.32, dampingFraction: 1)
+    }
+
+    private func complete(_ item: TouchpointRecord) {
+        store.markTouchpointComplete(item.id)
+        withAnimation(feedbackAnimation) {
+            completedForUndo = item
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(4))
+            guard completedForUndo?.id == item.id else { return }
+            withAnimation(feedbackAnimation) {
+                completedForUndo = nil
+            }
+        }
+    }
+
+    private func undoLastCompletion() {
+        guard let completedForUndo else { return }
+        store.reopenTouchpoint(completedForUndo.id)
+        AppHaptics.selection()
+        withAnimation(feedbackAnimation) {
+            self.completedForUndo = nil
+        }
     }
 }

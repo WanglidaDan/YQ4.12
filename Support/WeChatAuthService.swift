@@ -15,6 +15,10 @@ final class WeChatAuthService: NSObject {
         WeChatAuthConfiguration.current
     }
 
+    var isAvailable: Bool {
+        configuration.isSDKReady && configuration.exchangeEndpoint != nil
+    }
+
     func registerIfPossible() {
         guard configuration.isSDKReady else { return }
         registerIfNeeded()

@@ -63,6 +63,7 @@ private typealias BookingDayGroup = (date: Date, bookings: [BookingRecord])
 
 struct ScheduleView: View {
     @Environment(StudioStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var filter: ScheduleFilter = .all
     @State private var viewMode: ScheduleViewMode = .month
@@ -183,7 +184,7 @@ struct ScheduleView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         .padding(.horizontal, 20)
                         .padding(.bottom, 24)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(toastTransition)
                 }
             }
             .navigationDestination(for: ScheduleRoute.self) { route in
@@ -485,12 +486,12 @@ struct ScheduleView: View {
 
     private func showSavedToast(for booking: BookingRecord) {
         focusDate = booking.startAt
-        withAnimation(.snappy(duration: 0.2)) {
+        withAnimation(feedbackAnimation) {
             toastMessage = "已保存：\(booking.title)"
         }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
-            withAnimation(.snappy(duration: 0.2)) {
+            withAnimation(feedbackAnimation) {
                 if toastMessage == "已保存：\(booking.title)" {
                     toastMessage = nil
                 }
@@ -520,6 +521,14 @@ struct ScheduleView: View {
             let day = calendar.startOfDay(for: booking.startAt)
             return sourceConflictDates.contains(day)
         }
+    }
+
+    private var toastTransition: AnyTransition {
+        reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity)
+    }
+
+    private var feedbackAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.32, dampingFraction: 1)
     }
 
     private func matchesSearch(_ booking: BookingRecord) -> Bool {

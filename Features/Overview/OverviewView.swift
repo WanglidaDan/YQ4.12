@@ -4,6 +4,7 @@ import SwiftUI
 struct OverviewView: View {
     @Environment(StudioStore.self) private var store
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let onOpenSchedule: () -> Void
 
@@ -57,35 +58,14 @@ struct OverviewView: View {
                 Divider()
                     .overlay(.white.opacity(0.18))
 
-                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 13) {
-                    heroDetailRow(
-                        title: "时间",
-                        systemImage: "clock",
-                        value: "\(AppFormatters.shortMonthDay(booking.startAt))  \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))"
-                    )
-                    heroDetailRow(
-                        title: "拍摄",
-                        systemImage: ShootingAttribute.displaySymbolName(for: booking.shootingAttributes),
-                        value: shootingBrief(for: booking)
-                    )
-                    heroDetailRow(
-                        title: "执行",
-                        systemImage: "person.2.fill",
-                        value: crewSummary(for: booking)
-                    )
-                    heroDetailRow(
-                        title: "地点",
-                        systemImage: "mappin.and.ellipse",
-                        value: locationDisplayText(for: booking)
-                    )
-                }
+                heroDetails(for: booking)
 
                 navigationButton(for: booking)
             } else {
                 emptyHeroContent
             }
         }
-        .padding(22)
+        .padding(dynamicTypeSize.isAccessibilitySize ? 18 : 22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroBackground)
         .shadow(color: AppTheme.deepShadow.opacity(0.18), radius: 22, y: 12)
@@ -93,17 +73,19 @@ struct OverviewView: View {
 
     private func featuredBookingHeader(_ booking: BookingRecord) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("下一场")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.white.opacity(0.70))
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    heroEyebrow
+                    heroCountdown(for: booking)
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    heroEyebrow
 
-                Spacer(minLength: 12)
+                    Spacer(minLength: 12)
 
-                Text(relativeCountdown(for: booking))
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.white)
-                    .monospacedDigit()
+                    heroCountdown(for: booking)
+                }
             }
 
             Text(store.clientName(for: booking))
@@ -111,6 +93,72 @@ struct OverviewView: View {
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var heroEyebrow: some View {
+        Text("下一场")
+            .font(.subheadline.bold())
+            .foregroundStyle(.white.opacity(0.70))
+    }
+
+    private func heroCountdown(for booking: BookingRecord) -> some View {
+        Text(relativeCountdown(for: booking))
+            .font(.subheadline.bold())
+            .foregroundStyle(.white)
+            .monospacedDigit()
+    }
+
+    @ViewBuilder
+    private func heroDetails(for booking: BookingRecord) -> some View {
+        let details = [
+            (
+                title: "时间",
+                systemImage: "clock",
+                value: "\(AppFormatters.shortMonthDay(booking.startAt))  \(AppFormatters.timeRange(start: booking.startAt, end: booking.endAt))"
+            ),
+            (
+                title: "拍摄",
+                systemImage: ShootingAttribute.displaySymbolName(for: booking.shootingAttributes),
+                value: shootingBrief(for: booking)
+            ),
+            (
+                title: "执行",
+                systemImage: "person.2.fill",
+                value: crewSummary(for: booking)
+            ),
+            (
+                title: "地点",
+                systemImage: "mappin.and.ellipse",
+                value: locationDisplayText(for: booking)
+            )
+        ]
+
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 18) {
+                ForEach(details, id: \.title) { detail in
+                    VStack(alignment: .leading, spacing: 5) {
+                        Label(detail.title, systemImage: detail.systemImage)
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.64))
+
+                        Text(detail.value)
+                            .font(.callout)
+                            .foregroundStyle(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        } else {
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 13) {
+                ForEach(details, id: \.title) { detail in
+                    heroDetailRow(
+                        title: detail.title,
+                        systemImage: detail.systemImage,
+                        value: detail.value
+                    )
+                }
+            }
         }
     }
 
@@ -155,7 +203,7 @@ struct OverviewView: View {
                     .stroke(.white.opacity(0.18), lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AppTactileButtonStyle())
         .accessibilityHint(canNavigate ? "在地图中打开驾车路线" : "打开当前订单并补充地址")
     }
 
@@ -179,7 +227,7 @@ struct OverviewView: View {
                     RoundedRectangle(cornerRadius: AppRadius.control)
                         .stroke(.white.opacity(0.18), lineWidth: 1)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(AppTactileButtonStyle())
         }
     }
 
@@ -230,43 +278,64 @@ struct OverviewView: View {
             onOpenSchedule()
             AppHaptics.tapLight()
         } label: {
-            HStack(alignment: .center, spacing: 14) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(AppFormatters.shortMonthDay(booking.startAt))
-                        .font(.callout.bold())
-                        .foregroundStyle(AppTheme.ink)
-                    Text(AppFormatters.time(booking.startAt))
-                        .font(.footnote)
-                        .foregroundStyle(AppTheme.secondaryInk)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("\(AppFormatters.shortMonthDay(booking.startAt))  \(AppFormatters.time(booking.startAt))")
+                            .font(.footnote.bold())
+                            .foregroundStyle(AppTheme.secondaryInk)
+
+                        Text(displayTitle(for: booking))
+                            .font(.body)
+                            .foregroundStyle(AppTheme.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text("\(store.clientName(for: booking)) · \(relativeCountdown(for: booking))")
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    HStack(alignment: .center, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(AppFormatters.shortMonthDay(booking.startAt))
+                                .font(.callout.bold())
+                                .foregroundStyle(AppTheme.ink)
+                            Text(AppFormatters.time(booking.startAt))
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                        }
+                        .frame(width: 56, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(displayTitle(for: booking))
+                                .font(.body)
+                                .foregroundStyle(AppTheme.ink)
+                                .lineLimit(1)
+                            Text(store.clientName(for: booking))
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                                .lineLimit(1)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        Text(relativeCountdown(for: booking))
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .monospacedDigit()
+
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.bold())
+                            .foregroundStyle(AppTheme.mutedInk)
+                    }
                 }
-                .frame(width: 56, alignment: .leading)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(displayTitle(for: booking))
-                        .font(.body)
-                        .foregroundStyle(AppTheme.ink)
-                        .lineLimit(1)
-                    Text(store.clientName(for: booking))
-                        .font(.footnote)
-                        .foregroundStyle(AppTheme.secondaryInk)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                Text(relativeCountdown(for: booking))
-                    .font(.footnote)
-                    .foregroundStyle(AppTheme.secondaryInk)
-                    .monospacedDigit()
-
-                Image(systemName: "chevron.right")
-                    .font(.footnote.bold())
-                    .foregroundStyle(AppTheme.mutedInk)
             }
             .padding(.vertical, 14)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AppTactileButtonStyle())
         .accessibilityLabel(
             "\(AppFormatters.shortMonthDay(booking.startAt))，\(store.clientName(for: booking))，\(displayTitle(for: booking))"
         )
@@ -278,21 +347,39 @@ struct OverviewView: View {
                 .font(AppTypography.sectionTitle)
                 .foregroundStyle(AppTheme.ink)
 
-            HStack(alignment: .top, spacing: 18) {
-                revenueMetric(
-                    title: "本月",
-                    value: snapshot.monthlyRevenue,
-                    detail: "已收 \(AppFormatters.currency(snapshot.monthlyReceived))"
-                )
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 16) {
+                    revenueMetric(
+                        title: "本月",
+                        value: snapshot.monthlyRevenue,
+                        detail: "已收 \(AppFormatters.currency(snapshot.monthlyReceived))"
+                    )
 
-                Divider()
-                    .frame(height: 58)
+                    Divider()
 
-                revenueMetric(
-                    title: "本年",
-                    value: snapshot.yearlyRevenue,
-                    detail: nil
-                )
+                    revenueMetric(
+                        title: "本年",
+                        value: snapshot.yearlyRevenue,
+                        detail: nil
+                    )
+                }
+            } else {
+                HStack(alignment: .top, spacing: 18) {
+                    revenueMetric(
+                        title: "本月",
+                        value: snapshot.monthlyRevenue,
+                        detail: "已收 \(AppFormatters.currency(snapshot.monthlyReceived))"
+                    )
+
+                    Divider()
+                        .frame(height: 58)
+
+                    revenueMetric(
+                        title: "本年",
+                        value: snapshot.yearlyRevenue,
+                        detail: nil
+                    )
+                }
             }
 
             Divider()
@@ -313,8 +400,8 @@ struct OverviewView: View {
             if let detail {
                 Text(detail)
                     .font(.footnote)
-                    .foregroundStyle(AppTheme.mutedInk)
-                    .lineLimit(1)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

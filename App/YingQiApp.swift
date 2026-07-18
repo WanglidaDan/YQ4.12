@@ -15,24 +15,44 @@ struct YingQiApp: App {
 
 private struct AppRootContainer: View {
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage("hasShownLaunchIntro") private var hasShownLaunchIntro = false
     @AppStorage("hasEnteredGuestMode") private var hasEnteredGuestMode = false
     @State private var store: StudioStore
     @State private var weChatAuthService = WeChatAuthService()
-    @State private var showingLaunchIntro = false
+    private let isUITesting: Bool
+    private let showsAuthForUITesting: Bool
 
     init() {
-        let initialStore = StudioStore()
+        let arguments = ProcessInfo.processInfo.arguments
+        let isUITesting = arguments.contains("--ui-testing")
+        self.isUITesting = isUITesting
+        self.showsAuthForUITesting = arguments.contains("--ui-testing-auth")
+
+        let initialStore: StudioStore
+        if isUITesting {
+            let testDirectory = FileManager.default.temporaryDirectory
+                .appending(path: "YingQiUITests", directoryHint: .isDirectory)
+            try? FileManager.default.removeItem(at: testDirectory)
+            try? FileManager.default.createDirectory(at: testDirectory, withIntermediateDirectories: true)
+            initialStore = StudioStore(saveURL: testDirectory.appending(path: "studio-store.json"))
+            initialStore.enterLocalWorkspaceAsOwner()
+            if arguments.contains("--ui-testing-sample") {
+                _ = initialStore.importSampleDataIfEmpty()
+            }
+        } else {
+            initialStore = StudioStore()
+        }
+
         AppTheme.apply(initialStore.settings.themeStyle)
         _store = State(initialValue: initialStore)
     }
 
     var body: some View {
-        ZStack {
-            if store.isAuthenticated || hasEnteredGuestMode {
+        Group {
+            if showsAuthForUITesting == false && (store.isAuthenticated || hasEnteredGuestMode || isUITesting) {
                 RootTabView(store: store)
             } else {
                 AuthGateView(
+                    isWeChatSignInAvailable: weChatAuthService.isAvailable,
                     onAuthenticated: { profile in
                         hasEnteredGuestMode = false
                         store.authenticateForAppEntry(profile)
@@ -45,11 +65,6 @@ private struct AppRootContainer: View {
                     }
                 )
                 .environment(store)
-            }
-
-            if showingLaunchIntro {
-                LaunchIntroView()
-                    .transition(.opacity)
             }
         }
         .onChange(of: store.settings.themeStyle) { _, newValue in
@@ -72,22 +87,13 @@ private struct AppRootContainer: View {
         }
         .onAppear {
             weChatAuthService.registerIfPossible()
-            ensureLocalWorkspaceOwnerIfNeeded()
-            showingLaunchIntro = !hasShownLaunchIntro
+            ensureLocalWorkspaceOwnerIfNeeded(force: isUITesting && showsAuthForUITesting == false)
         }
         .onOpenURL { url in
             _ = weChatAuthService.handleOpenURL(url)
         }
         .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
             _ = weChatAuthService.handleUniversalLink(userActivity)
-        }
-        .task {
-            guard showingLaunchIntro else { return }
-            try? await Task.sleep(for: .milliseconds(900))
-            withAnimation(.easeInOut(duration: 0.38)) {
-                showingLaunchIntro = false
-            }
-            hasShownLaunchIntro = true
         }
     }
 
@@ -103,29 +109,8 @@ private struct AppRootContainer: View {
     }
 }
 
-private struct LaunchIntroView: View {
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                StudioBackdrop(mode: .launch)
-                    .ignoresSafeArea()
-
-                VStack(spacing: 18) {
-                    YingQiBrandMark(size: 88, elevated: true)
-                    Text("影期")
-                        .font(AppTypography.pageTitle)
-                        .foregroundStyle(.white.opacity(0.98))
-                }
-                .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
-                .offset(y: -18)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            }
-        }
-        .allowsHitTesting(false)
-    }
-}
-
 private struct AuthGateView: View {
+    let isWeChatSignInAvailable: Bool
     let onAuthenticated: (AuthProfile) -> Void
     let onWeChatSignIn: (@escaping (Result<AuthProfile, Error>) -> Void) -> Void
     let onContinueWithoutLogin: () -> Void
@@ -166,19 +151,21 @@ private struct AuthGateView: View {
                         Spacer(minLength: 56)
 
                         VStack(spacing: 13) {
-                            WeChatAuthButton(isLoading: isSigningInWithWeChat) {
-                                guard isSigningInWithWeChat == false else { return }
-                                AppHaptics.tapLight()
-                                isSigningInWithWeChat = true
-                                onWeChatSignIn { result in
-                                    isSigningInWithWeChat = false
-                                    switch result {
-                                    case let .success(profile):
-                                        AppHaptics.success()
-                                        onAuthenticated(profile)
-                                    case let .failure(error):
-                                        AppHaptics.error()
-                                        wechatNoticeMessage = error.localizedDescription
+                            if isWeChatSignInAvailable {
+                                WeChatAuthButton(isLoading: isSigningInWithWeChat) {
+                                    guard isSigningInWithWeChat == false else { return }
+                                    AppHaptics.tapLight()
+                                    isSigningInWithWeChat = true
+                                    onWeChatSignIn { result in
+                                        isSigningInWithWeChat = false
+                                        switch result {
+                                        case let .success(profile):
+                                            AppHaptics.success()
+                                            onAuthenticated(profile)
+                                        case let .failure(error):
+                                            AppHaptics.error()
+                                            wechatNoticeMessage = error.localizedDescription
+                                        }
                                     }
                                 }
                             }
@@ -205,7 +192,7 @@ private struct AuthGateView: View {
                                         .stroke(AppTheme.line.opacity(0.65), lineWidth: 1)
                                 }
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(AppTactileButtonStyle())
 
                             agreementText
                                 .padding(.top, 6)
@@ -313,7 +300,10 @@ private struct WeChatAuthButton: View {
                         .controlSize(.small)
                         .frame(width: 30, height: 30)
                 } else {
-                    WeChatGlyph()
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 21, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                        .accessibilityHidden(true)
                 }
 
                 Text(isLoading ? "正在拉起微信" : "微信登录")
@@ -333,53 +323,9 @@ private struct WeChatAuthButton: View {
                     .stroke(.white.opacity(0.18), lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AppTactileButtonStyle())
         .disabled(isLoading)
         .accessibilityLabel("微信登录")
-    }
-}
-
-private struct WeChatGlyph: View {
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.white.opacity(0.16))
-                .frame(width: 28, height: 28)
-
-            ZStack {
-                Circle()
-                    .fill(.white)
-                    .frame(width: 16, height: 16)
-                    .offset(x: -4, y: -2)
-
-                Circle()
-                    .fill(.white.opacity(0.92))
-                    .frame(width: 13, height: 13)
-                    .offset(x: 5, y: 4)
-
-                Circle()
-                    .fill(Color(red: 0.08, green: 0.72, blue: 0.24))
-                    .frame(width: 2.3, height: 2.3)
-                    .offset(x: -7.5, y: -3.5)
-
-                Circle()
-                    .fill(Color(red: 0.08, green: 0.72, blue: 0.24))
-                    .frame(width: 2.3, height: 2.3)
-                    .offset(x: -1.5, y: -3.5)
-
-                Circle()
-                    .fill(Color(red: 0.08, green: 0.72, blue: 0.24))
-                    .frame(width: 1.9, height: 1.9)
-                    .offset(x: 3.3, y: 3.2)
-
-                Circle()
-                    .fill(Color(red: 0.08, green: 0.72, blue: 0.24))
-                    .frame(width: 1.9, height: 1.9)
-                    .offset(x: 8, y: 3.2)
-            }
-        }
-        .frame(width: 30, height: 30)
-        .accessibilityHidden(true)
     }
 }
 
@@ -406,7 +352,7 @@ private enum AuthLegalDocument: String, Identifiable {
 
             1. 你可在本地工作区中记录客户资料、订单信息、跟进事项与付款记录，并对你录入的数据准确性负责。
             2. 影期提供归档、删除、导出、备份与恢复功能；删除属于不可恢复操作，请在执行前确认。
-            3. 若你选择使用 Apple 登录或 iCloud 同步，相关数据将通过 Apple 提供的能力在你的设备与账户环境内同步。
+            3. 若你选择使用 Apple 登录、微信登录或 iCloud 同步，相关身份与同步数据将通过对应平台能力处理；登录不是使用核心功能的前提。
             4. 影期不会替你向客户自动作出业务承诺，订单确认、价格、交付与收款规则仍由你自行决定并承担责任。
             5. 如遇到异常，请先备份当前工作区，再通过 support@yingqi.app 联系我们。
             """
@@ -415,10 +361,11 @@ private enum AuthLegalDocument: String, Identifiable {
             影期默认优先在本地保存你的档期、客户、跟进、付款、模板和设置数据。
 
             1. 不登录也可以使用，数据默认保存在本机。
-            2. 当你主动使用 Apple 登录时，我们仅保存必要的 Apple 标识信息，用于识别你的工作区身份。
-            3. 只有当你在设置页明确开启 iCloud 同步，且设备 iCloud 可用时，数据才会通过你的 Apple 账户在 iCloud 内同步；我们不会将业务数据上传到自有服务器。
-            4. 当前版本不提供正式上线的位置或天气能力，也不会在启动时自动请求定位权限。
-            5. 你可以在设置页导出、备份、恢复或清空当前工作区；如需隐私支持，请联系 support@yingqi.app。
+            2. 当你主动使用 Apple 登录时，我们保存必要的 Apple 标识及 Apple 返回的姓名、邮箱；使用微信登录时，授权码会经影期换码服务与微信接口交换必要的 openid/unionid 和昵称，用于识别工作区身份。登录过程不会上传你的档期、客户、付款等业务数据。
+            3. 只有当你在设置页明确开启 iCloud 同步，且设备 iCloud 可用时，业务数据才会通过你的 Apple 账户在 iCloud 内同步。
+            4. 只有当你主动使用“语音填写”时，影期才会请求麦克风和语音识别权限，音频与识别由 Apple 系统能力处理。
+            5. 当前版本不提供正式上线的位置或天气能力，也不会在启动时自动请求定位权限。
+            6. 你可以在设置页导出、备份、恢复、清空或删除当前工作区；如需隐私支持，请联系 support@yingqi.app。
             """
         }
     }

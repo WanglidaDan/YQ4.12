@@ -33,6 +33,7 @@
 		48D1CC2AB3FBADCEB647E9B7 /* BookingDateDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC33BE5DA8580B7B51AB17 /* BookingDateDefaults.swift */; };
 		4C9168E714AF9DA39DF3E6A4 /* ThemeStyleCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F9A2D3A1564C9C694E6E47 /* ThemeStyleCard.swift */; };
 		4CA5C3D704723DA323085257 /* TouchpointEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A46B6F13CB7A359291D9A6 /* TouchpointEditorView.swift */; };
+		4F5C1DAD52CF7CB5F43B1D28 /* LaunchFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E6A306706310E3FBBD4B5C8 /* LaunchFlowUITests.swift */; };
 		516B79336E490D5ECAE03019 /* ClientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4494039D1D03F7DEC0918F /* ClientsView.swift */; };
 		53144D25A55859949FCF3A41 /* BookingShareTextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A218F6BB6752A7989452F96 /* BookingShareTextBuilder.swift */; };
 		6018D4B15A924728ACF6B6AF /* BookingTemplateCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD14D880F621D6E4653D4488 /* BookingTemplateCard.swift */; };
@@ -91,6 +92,13 @@
 			remoteGlobalIDString = 863EBCFE8B55A6F41AADE051;
 			remoteInfo = YingQi;
 		};
+		10A6B4DD190AF3E5BEDA3C7A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F204221098F5C30D9DE4B3C0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 863EBCFE8B55A6F41AADE051;
+			remoteInfo = YingQi;
+		};
 		BE25A16912855705424FDE3C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F204221098F5C30D9DE4B3C0 /* Project object */;
@@ -120,6 +128,7 @@
 		05A687C1919846261C7B10FB /* BookingCrewAssignmentEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingCrewAssignmentEditorView.swift; sourceTree = "<group>"; };
 		0EDC33BE5DA8580B7B51AB17 /* BookingDateDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingDateDefaults.swift; sourceTree = "<group>"; };
 		1054DD67228133349CC7F4AE /* AppUIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUIComponents.swift; sourceTree = "<group>"; };
+		1E6A306706310E3FBBD4B5C8 /* LaunchFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFlowUITests.swift; sourceTree = "<group>"; };
 		209729C1C0613E543BA35A1E /* PaymentRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentRecord.swift; sourceTree = "<group>"; };
 		22B4830A74C799F36504B8F1 /* BookingRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingRecord.swift; sourceTree = "<group>"; };
 		235A38891F3A761EC543F6B0 /* TestFlightUploadOptions.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = TestFlightUploadOptions.plist; sourceTree = "<group>"; };
@@ -172,6 +181,7 @@
 		A8B4FDCF2EF8854FFC654357 /* SampleDataSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleDataSeeder.swift; sourceTree = "<group>"; };
 		AAF8C2CCBD9C1618CB45F905 /* BusinessModules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessModules.swift; sourceTree = "<group>"; };
 		AD46D44705E9C800B5BD6B2F /* StudioStoreSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioStoreSnapshot.swift; sourceTree = "<group>"; };
+		AE00EEED153DC7625EDD9019 /* YingQiUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = YingQiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0841D333D0A31B5C448080C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B43AD2F9E489898C59341508 /* OverviewSnapshotBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewSnapshotBuilderTests.swift; sourceTree = "<group>"; };
 		B57CF9457F64BBA68B09DF17 /* BusinessDocumentTextRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessDocumentTextRenderer.swift; sourceTree = "<group>"; };
@@ -280,6 +290,14 @@
 			path = FollowUp;
 			sourceTree = "<group>";
 		};
+		7B13CDB110D6A4E3E321F97C /* TestsUI */ = {
+			isa = PBXGroup;
+			children = (
+				1E6A306706310E3FBBD4B5C8 /* LaunchFlowUITests.swift */,
+			);
+			path = TestsUI;
+			sourceTree = "<group>";
+		};
 		7C5567CDFCE6B6C2934B42B3 /* Schedule */ = {
 			isa = PBXGroup;
 			children = (
@@ -299,6 +317,7 @@
 			children = (
 				025A819E7F0779395A0217EB /* YingQi.app */,
 				D494F2C1353BB43457A70168 /* YingQiTests.xctest */,
+				AE00EEED153DC7625EDD9019 /* YingQiUITests.xctest */,
 				60BE54D027AC372C88CDFE80 /* YingQiWidgetExtension.appex */,
 			);
 			name = Products;
@@ -322,6 +341,7 @@
 				B0005B6A1865E4AAB0D7EBBF /* Resources */,
 				63A48B324DFA3E8CE38180F8 /* Support */,
 				F89885008199B20DE82886B5 /* Tests */,
+				7B13CDB110D6A4E3E321F97C /* TestsUI */,
 				DF53B6889BBFCE64DF06B6ED /* Widgets */,
 				7FAFEF8D4B783C8D13F5C76E /* Frameworks */,
 				7D04D25C5FE6BED83C6646A7 /* Products */,
@@ -488,6 +508,24 @@
 			productReference = 60BE54D027AC372C88CDFE80 /* YingQiWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		DE2FDC6436848114C893B26C /* YingQiUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 89F1C17A95BCD1A2F3CE02E1 /* Build configuration list for PBXNativeTarget "YingQiUITests" */;
+			buildPhases = (
+				B41F15F76519E75B47749C0A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8C50300A52E9A7B8178F0D9A /* PBXTargetDependency */,
+			);
+			name = YingQiUITests;
+			packageProductDependencies = (
+			);
+			productName = YingQiUITests;
+			productReference = AE00EEED153DC7625EDD9019 /* YingQiUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -506,6 +544,9 @@
 					};
 					AE752C7075C4B7B843C4A3A2 = {
 						DevelopmentTeam = 9ZV32GL37D;
+					};
+					DE2FDC6436848114C893B26C = {
+						TestTargetID = 863EBCFE8B55A6F41AADE051;
 					};
 				};
 			};
@@ -528,6 +569,7 @@
 			targets = (
 				863EBCFE8B55A6F41AADE051 /* YingQi */,
 				A8C1E884345B346D35BCB7FB /* YingQiTests */,
+				DE2FDC6436848114C893B26C /* YingQiUITests */,
 				AE752C7075C4B7B843C4A3A2 /* YingQiWidgetExtension */,
 			);
 		};
@@ -654,6 +696,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B41F15F76519E75B47749C0A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F5C1DAD52CF7CB5F43B1D28 /* LaunchFlowUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E6FC1FBFFD81BB0235FE95E0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -687,6 +737,11 @@
 			isa = PBXTargetDependency;
 			target = 863EBCFE8B55A6F41AADE051 /* YingQi */;
 			targetProxy = 0671918138E87912CA069313 /* PBXContainerItemProxy */;
+		};
+		8C50300A52E9A7B8178F0D9A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 863EBCFE8B55A6F41AADE051 /* YingQi */;
+			targetProxy = 10A6B4DD190AF3E5BEDA3C7A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -814,6 +869,44 @@
 				PRODUCT_NAME = YingQiWidgetExtension;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		90675D888B1832506F582CCC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_MODULE_NAME = YingQiUITests;
+				PRODUCT_NAME = YingQiUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = YingQi;
+			};
+			name = Release;
+		};
+		AD3983B197D6D5FECA9F1896 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_MODULE_NAME = YingQiUITests;
+				PRODUCT_NAME = YingQiUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = YingQi;
 			};
 			name = Debug;
 		};
@@ -953,6 +1046,15 @@
 			buildConfigurations = (
 				BCE36247B1762598E6671080 /* Debug */,
 				6AB9A74CA8641B4CA0710CC9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		89F1C17A95BCD1A2F3CE02E1 /* Build configuration list for PBXNativeTarget "YingQiUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AD3983B197D6D5FECA9F1896 /* Debug */,
+				90675D888B1832506F582CCC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

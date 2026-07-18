@@ -6,13 +6,16 @@ enum AppCardStyle {
 }
 
 struct AppCardSurfaceModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
     var cornerRadius: CGFloat = AppRadius.card
     var fillColor: Color = AppTheme.panel
     var strokeOpacity: Double = 0.78
     var style: AppCardStyle = .lightweight
 
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), reduceTransparency == false {
             content
                 .background(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -21,7 +24,10 @@ struct AppCardSurfaceModifier: ViewModifier {
                 .glassEffect(.regular.tint(fillColor.opacity(0.18)), in: .rect(cornerRadius: cornerRadius))
                 .overlay {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(AppTheme.line.opacity(strokeOpacity * 0.72), lineWidth: 1)
+                        .stroke(
+                            AppTheme.line.opacity(strokeOpacity * (colorSchemeContrast == .increased ? 1 : 0.72)),
+                            lineWidth: colorSchemeContrast == .increased ? 1.5 : 1
+                        )
                 }
                 .shadow(
                     color: AppTheme.cardShadow.opacity(style == .emphasized ? 0.76 : 0.28),
@@ -36,7 +42,10 @@ struct AppCardSurfaceModifier: ViewModifier {
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(AppTheme.line.opacity(strokeOpacity), lineWidth: 1)
+                        .stroke(
+                            AppTheme.line.opacity(strokeOpacity),
+                            lineWidth: colorSchemeContrast == .increased ? 1.5 : 1
+                        )
                 }
                 .shadow(
                     color: AppTheme.cardShadow.opacity(style == .emphasized ? 1 : 0.46),
@@ -90,7 +99,7 @@ struct AppPageScaffold<Content: View>: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        ScrollView {
             LazyVStack(alignment: .leading, spacing: AppSpacing.section) {
                 content
             }
@@ -98,6 +107,7 @@ struct AppPageScaffold<Content: View>: View {
             .padding(.top, topPadding)
             .padding(.bottom, bottomPadding)
         }
+        .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .background(AppTheme.background.ignoresSafeArea())
         .navigationTitle(title)
@@ -106,8 +116,11 @@ struct AppPageScaffold<Content: View>: View {
 }
 
 struct AppPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     func makeBody(configuration: Configuration) -> some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), reduceTransparency == false {
             configuration.label
                 .font(AppTypography.bodyStrong)
                 .foregroundStyle(AppTheme.panelStrong)
@@ -116,7 +129,8 @@ struct AppPrimaryButtonStyle: ButtonStyle {
                 .background(AppTheme.accent.opacity(0.72), in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
                 .glassEffect(.regular.tint(AppTheme.accent.opacity(0.34)).interactive(), in: .rect(cornerRadius: AppRadius.control))
                 .opacity(configuration.isPressed ? 0.92 : 1)
-                .scaleEffect(configuration.isPressed ? 0.995 : 1)
+                .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
+                .animation(.smooth(duration: 0.14), value: configuration.isPressed)
         } else {
             configuration.label
                 .font(AppTypography.bodyStrong)
@@ -132,12 +146,15 @@ struct AppPrimaryButtonStyle: ButtonStyle {
                         .stroke(AppTheme.line.opacity(0.32), lineWidth: 1)
                 }
                 .opacity(configuration.isPressed ? 0.92 : 1)
-                .scaleEffect(configuration.isPressed ? 0.995 : 1)
+                .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
+                .animation(.smooth(duration: 0.14), value: configuration.isPressed)
         }
     }
 }
 
 struct AppSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(AppTypography.bodyStrong)
@@ -153,10 +170,14 @@ struct AppSecondaryButtonStyle: ButtonStyle {
                     .stroke(AppTheme.line.opacity(0.82), lineWidth: 1)
             }
             .opacity(configuration.isPressed ? 0.94 : 1)
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.98 : 1))
+            .animation(.smooth(duration: 0.14), value: configuration.isPressed)
     }
 }
 
 struct AppGhostButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(AppTypography.meta.weight(.semibold))
@@ -164,6 +185,19 @@ struct AppGhostButtonStyle: ButtonStyle {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(AppTheme.panelSoft.opacity(configuration.isPressed ? 0.95 : 1), in: Capsule())
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.96 : 1))
+            .animation(.smooth(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+struct AppTactileButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
+            .animation(.smooth(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -252,14 +286,14 @@ struct AppCircleIconButton: View {
             Image(systemName: systemImage)
                 .font(AppTypography.icon)
                 .foregroundStyle(AppTheme.ink)
-                .frame(width: 42, height: 42)
+                .frame(width: 44, height: 44)
                 .background(AppTheme.panelStrong, in: Circle())
                 .overlay {
                     Circle()
                         .stroke(AppTheme.line.opacity(0.68), lineWidth: 1)
                 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AppTactileButtonStyle())
         .accessibilityLabel(accessibilityLabel)
     }
 }
@@ -338,6 +372,35 @@ struct AppToast: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .appCardSurface(cornerRadius: 18, fillColor: AppTheme.panelStrong, style: .emphasized)
+    }
+}
+
+struct AppUndoToast: View {
+    let message: String
+    let actionTitle: String
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(AppTypography.icon)
+                .foregroundStyle(AppTheme.success)
+
+            Text(message)
+                .font(AppTypography.meta.weight(.semibold))
+                .foregroundStyle(AppTheme.ink)
+                .lineLimit(2)
+
+            Spacer(minLength: 8)
+
+            Button(actionTitle, action: action)
+                .font(AppTypography.bodyStrong)
+                .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .appCardSurface(cornerRadius: 18, fillColor: AppTheme.panelStrong, style: .emphasized)
+        .accessibilityElement(children: .contain)
     }
 }
 
