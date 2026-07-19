@@ -63,6 +63,7 @@
 		AC5B6E55722694C69183EF67 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C06C2F60EB0A42046867A721 /* PrivacyInfo.xcprivacy */; };
 		AF8FBCC8BEA11A2A976C4E1B /* PaymentStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 538E0928AD5A3CF8C01100A4 /* PaymentStatus.swift */; };
 		B235AD7F2CB29F752B20328B /* FollowUpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E0ADF338FC6C69BD481BDF /* FollowUpView.swift */; };
+		B6E025841E72A5C16DE659DA /* BookingEditorSummaryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3205FF92D5B933D35C308023 /* BookingEditorSummaryRow.swift */; };
 		BBBE0A0C56162ABE2D1B77B4 /* YingQiWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 60BE54D027AC372C88CDFE80 /* YingQiWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BFB8E2F997C5139EDEC978C7 /* BusinessDocumentTextRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57CF9457F64BBA68B09DF17 /* BusinessDocumentTextRenderer.swift */; };
 		C1D1251DA7364CE1FB1E328F /* PaymentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47EE8AC5A82EE6F013830D4 /* PaymentType.swift */; };
@@ -136,6 +137,7 @@
 		24D5FC83FCF0909CCE055496 /* TouchpointRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchpointRecord.swift; sourceTree = "<group>"; };
 		2F3FD8C2F28C503FCD61ED55 /* LeadStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadStage.swift; sourceTree = "<group>"; };
 		31771048DF71847A27B2D5A4 /* AppDesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDesignTokens.swift; sourceTree = "<group>"; };
+		3205FF92D5B933D35C308023 /* BookingEditorSummaryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingEditorSummaryRow.swift; sourceTree = "<group>"; };
 		346EC71C01D640042F1512B6 /* YingQi-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "YingQi-Info.plist"; sourceTree = "<group>"; };
 		358869CEFDF87ABE092C41C1 /* YingQi.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = YingQi.entitlements; sourceTree = "<group>"; };
 		362F913EB9DD28A9A3C0B4DC /* BookingReminderActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingReminderActivityAttributes.swift; sourceTree = "<group>"; };
@@ -303,6 +305,7 @@
 			children = (
 				05A687C1919846261C7B10FB /* BookingCrewAssignmentEditorView.swift */,
 				882161C36BFA001C050B3EE1 /* BookingDetailView.swift */,
+				3205FF92D5B933D35C308023 /* BookingEditorSummaryRow.swift */,
 				36D6FC7D0666BFB26827FEC2 /* BookingEditorView.swift */,
 				9A080B47CD6F1A29AE86B6B4 /* BookingMultilineField.swift */,
 				BD14D880F621D6E4653D4488 /* BookingTemplateCard.swift */,
@@ -645,6 +648,7 @@
 				7533441D91E56AE3A64FFBF7 /* BookingCrewAssignmentEditorView.swift in Sources */,
 				48D1CC2AB3FBADCEB647E9B7 /* BookingDateDefaults.swift in Sources */,
 				9857B908AB7285243F20B47D /* BookingDetailView.swift in Sources */,
+				B6E025841E72A5C16DE659DA /* BookingEditorSummaryRow.swift in Sources */,
 				740D24EC36FAEDC07A6FE0F6 /* BookingEditorView.swift in Sources */,
 				998A45C118CDD7B454D4D556 /* BookingMultilineField.swift in Sources */,
 				47BC5B2C43C51614E3E0E941 /* BookingRecord.swift in Sources */,

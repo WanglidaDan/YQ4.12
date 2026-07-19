@@ -41,9 +41,25 @@ private enum BookingSelectionSheet: Identifiable {
     }
 }
 
+private enum BookingInputField: Hashable {
+    case venue
+    case fee
+    case projectTitle
+    case city
+    case address
+    case locationNote
+    case deposit
+    case deliverable
+    case notes
+    case speechDraft
+}
+
 private struct BookingFormPage: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StudioStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @FocusState private var focusedInput: BookingInputField?
 
     private let originalBooking: BookingRecord?
     private let onSaved: ((BookingRecord) -> Void)?
@@ -58,8 +74,8 @@ private struct BookingFormPage: View {
     @State private var venue: String
     @State private var addressText: String
     @State private var locationNote: String
-    @State private var fee: Double
-    @State private var depositPaid: Double
+    @State private var feeText: String
+    @State private var depositText: String
     @State private var deliverableText: String
     @State private var notesText: String
     @State private var selectionSheet: BookingSelectionSheet?
@@ -69,7 +85,7 @@ private struct BookingFormPage: View {
     @State private var speechSuggestion = BookingSpeechSuggestion.empty
     @State private var speechService = BookingSpeechDraftService()
     @State private var showingQuickInput = false
-    @State private var showingMoreDetails = false
+    @State private var showingMoreDetails: Bool
     @State private var showingNewClient = false
 
     private let calendar = Calendar.current
@@ -91,119 +107,70 @@ private struct BookingFormPage: View {
         _venue = State(initialValue: booking?.venue ?? "")
         _addressText = State(initialValue: booking?.addressText ?? "")
         _locationNote = State(initialValue: booking?.locationNote ?? "")
-        _fee = State(initialValue: booking?.fee ?? 0)
-        _depositPaid = State(initialValue: booking?.depositPaid ?? 0)
+        _feeText = State(initialValue: Self.amountInputText(booking?.fee))
+        _depositText = State(initialValue: Self.amountInputText(booking?.depositPaid))
         _deliverableText = State(initialValue: booking?.deliverableText ?? "")
         _notesText = State(initialValue: booking?.notesText ?? "")
+        _showingMoreDetails = State(initialValue: booking != nil)
     }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("档期") {
-                    TextField("项目名称（可留空）", text: $title)
+            VStack(spacing: 0) {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        Text(originalBooking == nil ? "填写核心信息即可创建，更多内容稍后补充" : "先确认核心信息，其他细节可以继续调整")
+                            .font(AppTypography.body)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 12)
 
-                    Button {
-                        selectionSheet = .client
-                    } label: {
-                        LabeledContent("客户", value: selectedClientName)
-                    }
-                    .foregroundStyle(AppTheme.ink)
+                        essentialSection
+                        timeSection
+                        locationSection
+                        feeSection
+                        moreDetailsSection
+                        voiceSection
 
-                    Picker("拍摄类型", selection: $category) {
-                        ForEach(ServiceCategory.allCases) { item in
-                            Text(item.title).tag(item)
+                        if conflictBookings.isEmpty == false {
+                            Label(conflictSummaryText, systemImage: "exclamationmark.triangle.fill")
+                                .font(AppTypography.meta)
+                                .foregroundStyle(AppTheme.warning)
+                                .padding(AppSpacing.cardPadding)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .appCardSurface(fillColor: AppTheme.panelStrong)
+                                .accessibilityLabel("时间冲突")
+                                .accessibilityValue(conflictSummaryText)
                         }
                     }
+                    .padding(.horizontal, AppSpacing.page)
+                    .padding(.top, 10)
+                    .padding(.bottom, 18)
                 }
+                .scrollIndicators(.hidden)
+                .scrollDismissesKeyboard(.interactively)
 
-                Section("时间") {
-                    DatePicker("开始", selection: $startAt)
-                        .onChange(of: startAt) { oldValue, newValue in
-                            shiftEndDate(from: oldValue, to: newValue)
-                        }
-                    DatePicker("结束", selection: $endAt, in: startAt...)
-                }
-
-                if showingMoreDetails {
-                    Section("地点") {
-                        TextField("场地", text: $venue)
-                        TextField("城市 / 区域", text: $city)
-                        TextField("详细地址", text: $addressText, axis: .vertical)
-                            .lineLimit(2...4)
-                        TextField("到场备注", text: $locationNote, axis: .vertical)
-                            .lineLimit(2...4)
-                    }
-
-                    Section("费用与交付") {
-                        TextField("报价", value: $fee, format: .number)
-                            .keyboardType(.decimalPad)
-                        TextField("定金", value: $depositPaid, format: .number)
-                            .keyboardType(.decimalPad)
-                        LabeledContent("待收", value: AppFormatters.currency(max(normalizedFee - normalizedDeposit, 0)))
-                        TextField("交付内容", text: $deliverableText, axis: .vertical)
-                            .lineLimit(2...4)
-                    }
-
-                    Section("状态与备注") {
-                        Picker("状态", selection: $status) {
-                            ForEach(BookingStatus.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                        TextField("备注", text: $notesText, axis: .vertical)
-                            .lineLimit(3...6)
-                    }
-                } else {
-                    Section {
-                        Button("更多信息", systemImage: "ellipsis.circle") {
-                            withAnimation(.snappy) {
-                                showingMoreDetails = true
-                            }
-                        }
-                    }
-                }
-
-                Section {
-                    Button(showingQuickInput ? "关闭语音填写" : "语音填写", systemImage: "mic") {
-                        withAnimation(.snappy) {
-                            showingQuickInput.toggle()
-                        }
-                    }
-                }
-
-                if showingQuickInput {
-                    Section("语音填写") {
-                        voicePanel
-                        if speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-                            speechResultPanel
-                        }
-                    }
-                }
-
-                if conflictBookings.isEmpty == false {
-                    Section {
-                        Label(conflictSummaryText, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(AppTheme.warning)
-                    }
-                }
+                primaryActionBar
+                    .opacity(focusedInput == nil ? 1 : 0)
+                    .allowsHitTesting(focusedInput == nil)
+                    .accessibilityHidden(focusedInput != nil)
             }
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.background)
-            .scrollDismissesKeyboard(.interactively)
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle(originalBooking == nil ? "新建档期" : "编辑档期")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("取消", role: .cancel) {
-                        speechService.stopRecording()
-                        dismiss()
-                    }
+                    Button("取消", role: .cancel, action: cancelTapped)
                 }
 
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("保存", systemImage: "checkmark", action: saveTapped)
-                        .fontWeight(.semibold)
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完成") {
+                        focusedInput = nil
+                    }
+                    .fontWeight(.semibold)
+                    .accessibilityIdentifier("booking-keyboard-done")
                 }
             }
             .sheet(item: $selectionSheet) { sheet in
@@ -243,6 +210,478 @@ private struct BookingFormPage: View {
         }
     }
 
+    private var essentialSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("核心信息")
+
+            VStack(spacing: 0) {
+                Button {
+                    selectionSheet = .client
+                    AppHaptics.selection()
+                } label: {
+                    BookingEditorSummaryRow(
+                        systemImage: "person",
+                        title: "客户",
+                        value: selectedClientName,
+                        valueIsPlaceholder: selectedClientID == nil
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("booking-client")
+
+                bookingDivider
+
+                Button {
+                    selectionSheet = .category
+                    AppHaptics.selection()
+                } label: {
+                    BookingEditorSummaryRow(
+                        systemImage: category.symbolName,
+                        title: "拍摄类型",
+                        value: category.title
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("booking-category")
+            }
+            .appCardSurface(cornerRadius: AppRadius.hero, fillColor: AppTheme.panelStrong, style: .emphasized)
+        }
+    }
+
+    private var timeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("时间")
+
+            VStack(spacing: 0) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 14) {
+                        editorIcon("calendar")
+                        bookingDatePicker
+                        Spacer(minLength: 0)
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("拍摄日期", systemImage: "calendar")
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                        bookingDatePicker
+                    }
+                }
+                .padding(.horizontal, AppSpacing.cardPadding)
+                .padding(.vertical, 12)
+
+                bookingDivider
+
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 14) {
+                        editorIcon("clock")
+                        bookingTimePickers
+                        Spacer(minLength: 0)
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("拍摄时间", systemImage: "clock")
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                        bookingTimePickers
+                    }
+                }
+                .padding(.horizontal, AppSpacing.cardPadding)
+                .padding(.vertical, 12)
+            }
+            .appCardSurface(cornerRadius: AppRadius.hero, fillColor: AppTheme.panelStrong)
+            .onChange(of: startAt) { oldValue, newValue in
+                shiftEndDate(from: oldValue, to: newValue)
+            }
+        }
+    }
+
+    private var locationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("地点")
+
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("拍摄地点", systemImage: "mappin.and.ellipse")
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                        locationTextField
+                    }
+                } else {
+                    HStack(spacing: 14) {
+                        editorIcon("mappin.and.ellipse")
+                        Text("拍摄地点")
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                        Spacer(minLength: 12)
+                        locationTextField
+                    }
+                }
+            }
+            .padding(.horizontal, AppSpacing.cardPadding)
+            .padding(.vertical, 12)
+            .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panelStrong)
+        }
+    }
+
+    private var feeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("费用")
+
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("档期费用", systemImage: "yensign.circle")
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                        feeTextField
+                    }
+                } else {
+                    HStack(spacing: 14) {
+                        editorIcon("yensign.circle")
+                        Text("档期费用")
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                        Spacer(minLength: 12)
+                        feeTextField
+                    }
+                }
+            }
+            .padding(.horizontal, AppSpacing.cardPadding)
+            .padding(.vertical, 12)
+            .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panelStrong)
+        }
+    }
+
+    private var moreDetailsSection: some View {
+        VStack(spacing: 0) {
+            Button(action: toggleMoreDetails) {
+                HStack(spacing: 14) {
+                    editorIcon("list.bullet.rectangle")
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("更多细节（可选）")
+                            .font(AppTypography.bodyStrong)
+                            .foregroundStyle(AppTheme.ink)
+                        Text("定金与尾款、交付内容、状态、备注等")
+                            .font(AppTypography.meta)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 10)
+
+                    Image(systemName: "chevron.right")
+                        .font(AppTypography.meta)
+                        .foregroundStyle(AppTheme.mutedInk)
+                        .rotationEffect(.degrees(showingMoreDetails ? 90 : 0))
+                        .accessibilityHidden(true)
+                }
+                .padding(.horizontal, AppSpacing.cardPadding)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("booking-more-details")
+            .accessibilityValue(showingMoreDetails ? "已展开" : "已收起")
+
+            if showingMoreDetails {
+                bookingDivider
+                moreDetailsFields
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .appCardSurface(cornerRadius: AppRadius.card, fillColor: AppTheme.panelStrong)
+    }
+
+    private var voiceSection: some View {
+        VStack(alignment: .trailing, spacing: 10) {
+            Button(showingQuickInput ? "关闭语音输入" : "语音输入", systemImage: showingQuickInput ? "xmark" : "mic", action: toggleQuickInput)
+                .font(AppTypography.meta.weight(.semibold))
+                .foregroundStyle(AppTheme.accent)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(AppTheme.accentSurface.opacity(0.72), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(AppTheme.accent.opacity(0.18), lineWidth: 1)
+                }
+                .buttonStyle(AppTactileButtonStyle())
+                .accessibilityIdentifier("booking-voice")
+                .accessibilityHint("用一句话填写客户、时间、地点和费用")
+
+            if showingQuickInput {
+                VStack(alignment: .leading, spacing: 14) {
+                    voicePanel
+
+                    if speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+                        bookingDivider
+                        speechResultPanel
+                    }
+                }
+                .padding(AppSpacing.cardPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .appCardSurface(fillColor: AppTheme.panelStrong, style: .emphasized)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    private var primaryActionBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+                .overlay(AppTheme.line)
+
+            Button(originalBooking == nil ? "创建档期" : "保存修改", action: saveTapped)
+                .font(AppTypography.bodyStrong)
+                .foregroundStyle(AppTheme.panelStrong)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(
+                    LinearGradient(
+                        colors: [AppTheme.accent.opacity(0.92), AppTheme.accent.opacity(0.72)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                        .stroke(AppTheme.accent.opacity(0.38), lineWidth: 1)
+                }
+                .buttonStyle(AppTactileButtonStyle())
+                .accessibilityIdentifier("booking-create")
+                .accessibilityHint(originalBooking == nil ? "保存并打开这个档期" : "保存对档期的修改")
+                .padding(.horizontal, AppSpacing.page)
+                .padding(.top, 12)
+                .padding(.bottom, 10)
+        }
+        .background(AppTheme.background)
+    }
+
+    private var bookingDatePicker: some View {
+        DatePicker("拍摄日期", selection: $startAt, displayedComponents: .date)
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .accessibilityLabel("拍摄日期")
+    }
+
+    private var bookingTimePickers: some View {
+        HStack(spacing: 8) {
+            DatePicker("开始时间", selection: $startAt, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .accessibilityLabel("开始时间")
+
+            Text("–")
+                .foregroundStyle(AppTheme.secondaryInk)
+                .accessibilityHidden(true)
+
+            DatePicker("结束时间", selection: $endAt, in: startAt..., displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .accessibilityLabel("结束时间")
+
+            Text(durationText)
+                .font(AppTypography.meta)
+                .foregroundStyle(AppTheme.accent)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(AppTheme.accentSurface, in: Capsule())
+                .fixedSize()
+                .accessibilityLabel("时长")
+                .accessibilityValue(durationText)
+        }
+    }
+
+    private var locationTextField: some View {
+        TextField("输入地点或场地", text: $venue)
+            .font(AppTypography.rowValue)
+            .multilineTextAlignment(.trailing)
+            .submitLabel(.next)
+            .onSubmit {
+                focusedInput = .fee
+            }
+            .frame(maxWidth: 190)
+            .focused($focusedInput, equals: .venue)
+            .accessibilityIdentifier("booking-venue")
+            .accessibilityLabel("拍摄地点")
+    }
+
+    private var feeTextField: some View {
+        HStack(spacing: 3) {
+            Text("¥")
+                .foregroundStyle(AppTheme.secondaryInk)
+                .accessibilityHidden(true)
+            TextField("0", text: $feeText)
+                .font(AppTypography.rowValue)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 140)
+                .focused($focusedInput, equals: .fee)
+                .accessibilityIdentifier("booking-fee")
+                .accessibilityLabel("档期费用")
+        }
+    }
+
+    private var moreDetailsFields: some View {
+        VStack(spacing: 0) {
+            detailTextField(title: "项目名称", placeholder: "例如：林小姐 · 婚礼纪实", text: $title, focus: .projectTitle)
+            bookingDivider
+            detailTextField(title: "城市 / 区域", placeholder: "选填", text: $city, focus: .city)
+            bookingDivider
+            detailTextField(title: "详细地址", placeholder: "选填", text: $addressText, focus: .address, axis: .vertical)
+            bookingDivider
+            detailTextField(title: "到场备注", placeholder: "停车、入口或联系人", text: $locationNote, focus: .locationNote, axis: .vertical)
+            bookingDivider
+
+            HStack(spacing: 12) {
+                Text("定金")
+                    .font(AppTypography.body)
+                    .foregroundStyle(AppTheme.ink)
+                Spacer(minLength: 12)
+                TextField("0", text: $depositText)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 130)
+                    .focused($focusedInput, equals: .deposit)
+                    .accessibilityLabel("已收定金")
+            }
+            .padding(.horizontal, AppSpacing.cardPadding)
+            .padding(.vertical, 14)
+
+            HStack(spacing: 12) {
+                Text("待收")
+                    .font(AppTypography.body)
+                    .foregroundStyle(AppTheme.ink)
+                Spacer(minLength: 12)
+                Text(AppFormatters.currency(max(normalizedFee - normalizedDeposit, 0)))
+                    .font(AppTypography.rowValue)
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
+            .padding(.horizontal, AppSpacing.cardPadding)
+            .padding(.vertical, 14)
+
+            bookingDivider
+            detailTextField(title: "交付内容", placeholder: "精修数量、相册或视频", text: $deliverableText, focus: .deliverable, axis: .vertical)
+            bookingDivider
+
+            HStack(spacing: 12) {
+                Text("状态")
+                    .font(AppTypography.body)
+                    .foregroundStyle(AppTheme.ink)
+                Spacer(minLength: 12)
+                Picker("状态", selection: $status) {
+                    ForEach(BookingStatus.allCases) { item in
+                        Text(item.title).tag(item)
+                    }
+                }
+                .labelsHidden()
+            }
+            .padding(.horizontal, AppSpacing.cardPadding)
+            .padding(.vertical, 10)
+
+            bookingDivider
+            detailTextField(title: "备注", placeholder: "流程、偏好或其他提醒", text: $notesText, focus: .notes, axis: .vertical)
+        }
+    }
+
+    private var durationText: String {
+        let totalMinutes = max(Int(endAt.timeIntervalSince(startAt) / 60), 0)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        if hours == 0 { return "共 " + String(minutes) + " 分钟" }
+        if minutes == 0 { return "共 " + String(hours) + " 小时" }
+        return "共 " + String(hours) + " 小时 " + String(minutes) + " 分"
+    }
+
+    private var bookingDivider: some View {
+        Divider()
+            .overlay(AppTheme.line.opacity(0.72))
+            .padding(.leading, 56)
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(AppTypography.sectionSubtitle)
+            .foregroundStyle(AppTheme.secondaryInk)
+            .padding(.leading, 8)
+    }
+
+    private func editorIcon(_ systemImage: String) -> some View {
+        Image(systemName: systemImage)
+            .font(AppTypography.icon)
+            .foregroundStyle(AppTheme.accent)
+            .frame(width: 26, height: 26)
+            .accessibilityHidden(true)
+    }
+
+    private func detailTextField(
+        title: String,
+        placeholder: String,
+        text: Binding<String>,
+        focus: BookingInputField,
+        axis: Axis = .horizontal
+    ) -> some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(AppTypography.body)
+                    .foregroundStyle(AppTheme.ink)
+                TextField(placeholder, text: text, axis: axis)
+                    .lineLimit(axis == .vertical ? 2...4 : 1...1)
+                    .focused($focusedInput, equals: focus)
+            }
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(title)
+                        .font(AppTypography.body)
+                        .foregroundStyle(AppTheme.ink)
+                    Spacer(minLength: 12)
+                    TextField(placeholder, text: text, axis: axis)
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(axis == .vertical ? 2...4 : 1...1)
+                        .focused($focusedInput, equals: focus)
+                }
+            }
+        }
+        .padding(.horizontal, AppSpacing.cardPadding)
+        .padding(.vertical, 14)
+    }
+
+    private func toggleMoreDetails() {
+        if reduceMotion {
+            showingMoreDetails.toggle()
+        } else {
+            withAnimation(.smooth(duration: 0.24)) {
+                showingMoreDetails.toggle()
+            }
+        }
+        AppHaptics.selection()
+    }
+
+    private func toggleQuickInput() {
+        if reduceMotion {
+            showingQuickInput.toggle()
+        } else {
+            withAnimation(.smooth(duration: 0.24)) {
+                showingQuickInput.toggle()
+            }
+        }
+        if showingQuickInput == false {
+            speechService.stopRecording()
+        }
+        AppHaptics.selection()
+    }
+
+    private func cancelTapped() {
+        speechService.stopRecording()
+        dismiss()
+    }
+
     private var voicePanel: some View {
         HStack(spacing: 12) {
             Image(systemName: speechService.isRecording ? "waveform" : "mic")
@@ -272,6 +711,7 @@ private struct BookingFormPage: View {
                 .font(.body.weight(.regular))
                 .frame(minHeight: 74)
                 .scrollContentBackground(.hidden)
+                .focused($focusedInput, equals: .speechDraft)
                 .onChange(of: speechDraft) { _, newValue in
                     reparseSpeechDraft(newValue)
                 }
@@ -410,8 +850,22 @@ private struct BookingFormPage: View {
         return "\(AppFormatters.shortDate(startAt)) \(category.title)"
     }
 
-    private var normalizedFee: Double { max(fee, 0) }
-    private var normalizedDeposit: Double { min(max(depositPaid, 0), normalizedFee) }
+    private var normalizedFee: Double { max(Self.amountValue(feeText), 0) }
+    private var normalizedDeposit: Double { min(max(Self.amountValue(depositText), 0), normalizedFee) }
+
+    private static func amountInputText(_ amount: Double?) -> String {
+        guard let amount, amount > 0 else { return "" }
+        if amount.rounded() == amount { return String(Int(amount)) }
+        return String(amount)
+    }
+
+    private static func amountValue(_ text: String) -> Double {
+        let normalized = text
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "，", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return Double(normalized) ?? 0
+    }
 
     private var conflictBookings: [BookingRecord] {
         store.activeBookings.filter { booking in
@@ -464,8 +918,12 @@ private struct BookingFormPage: View {
         if let suggestedVenue = speechSuggestion.venue, venue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { venue = suggestedVenue }
         if let suggestedCity = speechSuggestion.city, city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { city = suggestedCity }
         if let suggestedAddress = speechSuggestion.addressText, addressText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { addressText = suggestedAddress }
-        if let suggestedFee = speechSuggestion.fee, fee <= 0 { fee = suggestedFee }
-        if let suggestedDeposit = speechSuggestion.depositPaid, depositPaid <= 0 { depositPaid = min(suggestedDeposit, max(fee, suggestedDeposit)) }
+        if let suggestedFee = speechSuggestion.fee, normalizedFee <= 0 {
+            feeText = Self.amountInputText(suggestedFee)
+        }
+        if let suggestedDeposit = speechSuggestion.depositPaid, normalizedDeposit <= 0 {
+            depositText = Self.amountInputText(min(suggestedDeposit, max(normalizedFee, suggestedDeposit)))
+        }
         if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { title = speechSuggestion.titleFallback(defaultCategory: category, defaultStartAt: startAt) }
         if notesText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            speechDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {

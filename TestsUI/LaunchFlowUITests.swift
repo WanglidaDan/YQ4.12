@@ -54,6 +54,48 @@ final class LaunchFlowUITests: XCTestCase {
         capture("00-auth")
     }
 
+    func testBookingCreationWorkflow() throws {
+        XCTAssertTrue(app.tabBars.buttons["工作台"].waitForExistence(timeout: 5))
+
+        app.buttons["新建档期"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["新建档期"].waitForExistence(timeout: 3))
+
+        let clientButton = app.buttons["booking-client"]
+        XCTAssertTrue(clientButton.waitForExistence(timeout: 3))
+        clientButton.tap()
+
+        let sampleClient = app.buttons["宋知意"]
+        XCTAssertTrue(sampleClient.waitForExistence(timeout: 3))
+        sampleClient.tap()
+
+        let venueField = app.textFields["booking-venue"]
+        XCTAssertTrue(venueField.waitForExistence(timeout: 3))
+        venueField.tap()
+        venueField.typeText("静安香格里拉")
+
+        let feeField = app.textFields["booking-fee"]
+        XCTAssertTrue(feeField.waitForExistence(timeout: 3))
+        let nextButton = app.keyboards.buttons["next"]
+        XCTAssertTrue(nextButton.waitForExistence(timeout: 3))
+        nextButton.tap()
+        feeField.typeText("8800")
+
+        let keyboardDoneButton = app.buttons["booking-keyboard-done"]
+        XCTAssertTrue(keyboardDoneButton.waitForExistence(timeout: 3))
+        keyboardDoneButton.tap()
+        XCTAssertEqual(app.keyboards.count, 0)
+        app.swipeDown()
+        capture("booking-filled")
+
+        let createButton = app.buttons["booking-create"]
+        XCTAssertTrue(createButton.waitForExistence(timeout: 3))
+        createButton.tap()
+
+        XCTAssertFalse(app.navigationBars["新建档期"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["新建档期"].firstMatch.waitForExistence(timeout: 3))
+        capture("booking-saved")
+    }
+
     private func openTab(_ title: String) {
         let tab = app.tabBars.buttons[title]
         XCTAssertTrue(tab.waitForExistence(timeout: 3))

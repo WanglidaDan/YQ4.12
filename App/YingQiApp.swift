@@ -125,7 +125,7 @@ private struct AuthGateView: View {
             let horizontalPadding = max(20, min(30, proxy.size.width * 0.065))
             let bottomPadding = max(22, proxy.safeAreaInsets.bottom + 18)
             let topPadding = max(28, proxy.safeAreaInsets.top + 18)
-            let maxContentWidth = min(414, proxy.size.width - (horizontalPadding * 2))
+            let maxContentWidth = max(0, min(414, proxy.size.width - (horizontalPadding * 2)))
 
             ZStack {
                 AuthLuxuryBackdrop()
